@@ -3,9 +3,15 @@ import Layout from './components/Layout'
 import Browse from './pages/Browse'
 import TitleDetail from './pages/TitleDetail'
 import ComingSoon from './pages/ComingSoon'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import CheckEmail from './pages/CheckEmail'
+import ConfirmEmail from './pages/ConfirmEmail'
+import { AuthProvider } from './auth'
 
 export default function App() {
   return (
+    <AuthProvider>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
@@ -15,11 +21,14 @@ export default function App() {
           <Route path="/trending" element={<ComingSoon name="Trending" />} />
           <Route path="/rankings" element={<ComingSoon name="Rankings" />} />
           <Route path="/my-list" element={<ComingSoon name="My List" />} />
-          <Route path="/login" element={<ComingSoon name="Login" />} />
-          <Route path="/register" element={<ComingSoon name="Register" />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/check-email" element={<CheckEmail />} />
+          <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="*" element={<ComingSoon name="Not found" />} />
         </Route>
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
   )
 }

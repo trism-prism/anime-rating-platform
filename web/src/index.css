@@ -94,6 +94,12 @@ button:disabled { opacity: 0.4; cursor: default; }
 .review { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
 .review p { margin: 6px 0 0; }
 
+.auth-form { max-width: 380px; margin: 24px auto; display: flex; flex-direction: column; gap: 12px; }
+.auth-form label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.auth-form p { margin: 0; }
+.auth-form .hint { font-size: 0.85rem; }
+.link { color: var(--accent); }
+
 @media (max-width: 600px) {
   .detail { flex-direction: column; }
   .cover { max-width: 60%; }

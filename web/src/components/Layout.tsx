@@ -1,15 +1,9 @@
-import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth'
 
 export default function Layout() {
   const navigate = useNavigate()
-  const [token, setToken] = useState(localStorage.getItem('token'))
-
-  function logout() {
-    localStorage.removeItem('token')
-    setToken(null)
-    navigate('/')
-  }
+  const { user, logout } = useAuth()
 
   return (
     <>
@@ -19,7 +13,17 @@ export default function Layout() {
         <NavLink to="/rankings">Rankings</NavLink>
         <NavLink to="/my-list">My List</NavLink>
         <span className="spacer" />
-        {token ? <button onClick={logout}>Logout</button> : <NavLink to="/login">Login</NavLink>}
+        {user ? (
+          <>
+            <span className="muted">{user.userName}</span>
+            <button onClick={() => { logout(); navigate('/') }}>Logout</button>
+          </>
+        ) : (
+          <>
+            <NavLink to="/login">Login</NavLink>
+            <NavLink to="/register">Register</NavLink>
+          </>
+        )}
       </nav>
       <main className="page">
         <Outlet />
