@@ -11,6 +11,7 @@ public record AVoiceActor(int Id, AName Name, AImage? Image);
 public record ACharacterNode(int Id, AName Name, AImage? Image);
 public record ACharacterEdge(string? Role, ACharacterNode Node, List<AVoiceActor>? VoiceActors);
 public record ACharacters(List<ACharacterEdge>? Edges);
+public record ATrending(int Id, ATitle Title, AImage? CoverImage, int Trending, int Popularity);
 public record AMedia(int Id, ATitle Title, AImage? CoverImage, string? Description, int? Episodes,
     int? Chapters, List<string>? Genres, int Popularity, ACharacters? Characters);
 
@@ -25,6 +26,12 @@ public class AniListClient
           voiceActors(language: JAPANESE) { id name { full } image { large } } }
       }
     }
+  }
+}";
+
+    const string TrendingQuery = @"query ($type: MediaType) {
+  Page(page: 1, perPage: 20) {
+    media(type: $type, sort: TRENDING_DESC) { id title { romaji english } coverImage { large } trending popularity }
   }
 }";
 
@@ -59,5 +66,16 @@ public class AniListClient
                 .Deserialize<List<AMedia>>(Json)!;
         }
         throw new Exception("AniList kept answering 429");
+    }
+
+    public async Task<List<ATrending>> GetTrending(string type)
+    {
+        var body = JsonSerializer.Serialize(new { query = TrendingQuery, variables = new { type } });
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        using var res = await _http.PostAsync("https://graphql.anilist.co", content);
+        res.EnsureSuccessStatusCode();
+        using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
+        return doc.RootElement.GetProperty("data").GetProperty("Page").GetProperty("media")
+            .Deserialize<List<ATrending>>(Json)!;
     }
 }
