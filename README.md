@@ -33,3 +33,6 @@ More setup notes are added as features land.
 - `PUT /titles/{id}/rating` create or update your rating (log in first)
 - `DELETE /titles/{id}/rating` remove your rating
 - `GET /me/ratings` your ratings
+- `GET /me/watchlist` your watch list
+- `PUT /me/watchlist/{titleId}` set status and progress
+- `DELETE /me/watchlist/{titleId}` remove an entry
