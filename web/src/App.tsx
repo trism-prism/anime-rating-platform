@@ -2,7 +2,9 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import Browse from './pages/Browse'
 import TitleDetail from './pages/TitleDetail'
-import ComingSoon from './pages/ComingSoon'
+import Trending from './pages/Trending'
+import Rankings from './pages/Rankings'
+import MyList from './pages/MyList'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import CheckEmail from './pages/CheckEmail'
@@ -17,15 +19,14 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Browse />} />
           <Route path="/titles/:id" element={<TitleDetail />} />
-          {/* these pages arrive in later PRs */}
-          <Route path="/trending" element={<ComingSoon name="Trending" />} />
-          <Route path="/rankings" element={<ComingSoon name="Rankings" />} />
-          <Route path="/my-list" element={<ComingSoon name="My List" />} />
+          <Route path="/trending" element={<Trending />} />
+          <Route path="/rankings" element={<Rankings />} />
+          <Route path="/my-list" element={<MyList />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/check-email" element={<CheckEmail />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />
-          <Route path="*" element={<ComingSoon name="Not found" />} />
+          <Route path="*" element={<h1>Page not found</h1>} />
         </Route>
       </Routes>
     </BrowserRouter>
