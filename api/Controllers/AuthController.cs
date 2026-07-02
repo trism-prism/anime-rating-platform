@@ -26,9 +26,11 @@ public class AuthController : ControllerBase
     readonly SignInManager<AppUser> _signIn;
     readonly EmailSender _email;
     readonly IConfiguration _config;
+    readonly ILogger<AuthController> _log;
 
-    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, IConfiguration config)
+    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, IConfiguration config, ILogger<AuthController> log)
     {
+        _log = log;
         _users = users;
         _signIn = signIn;
         _email = email;
@@ -49,7 +51,8 @@ public class AuthController : ControllerBase
         var result = await _users.CreateAsync(user, req.Password);
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
-        await SendConfirmation(user);
+        if (!await TrySendConfirmation(user))
+            return Ok(new { message = "Account created, but the confirmation email could not be sent. Use resend on the login page later." });
         return Ok(new { message = "Check your email to confirm your account." });
     }
 
@@ -72,7 +75,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Resend(EmailRequest req)
     {
         var user = await _users.FindByEmailAsync(req.Email);
-        if (user != null && !user.EmailConfirmed) await SendConfirmation(user);
+        if (user != null && !user.EmailConfirmed && !await TrySendConfirmation(user))
+            return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
         // same answer either way
         return Ok(new { message = "If the account exists, a new confirmation email was sent." });
     }
@@ -89,6 +93,17 @@ public class AuthController : ControllerBase
         if (!result.Succeeded) return Unauthorized(new { message = "Invalid email or password." });
 
         return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName });
+    }
+
+    // the exception can hold the link, so log only the user id
+    async Task<bool> TrySendConfirmation(AppUser user)
+    {
+        try { await SendConfirmation(user); return true; }
+        catch (Exception ex)
+        {
+            _log.LogError(ex.GetType().Name + " sending confirmation email for user {UserId}", user.Id);
+            return false;
+        }
     }
 
     async Task SendConfirmation(AppUser user)
