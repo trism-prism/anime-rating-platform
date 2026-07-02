@@ -32,7 +32,8 @@ public class EmailSender
         using var client = new SmtpClient(_config["Smtp:Host"] ?? "smtp.gmail.com", _config.GetValue("Smtp:Port", 587))
         {
             EnableSsl = true,
-            Credentials = new NetworkCredential(user, password)
+            Credentials = new NetworkCredential(user, password),
+            Timeout = 15000 // fail fast on network problems, the default is 100 s
         };
         var from = string.IsNullOrEmpty(_config["Smtp:From"]) ? user! : _config["Smtp:From"]!;
         await client.SendMailAsync(new MailMessage(from, to, subject, body));
