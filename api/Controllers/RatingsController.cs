@@ -30,6 +30,7 @@ public class RatingsController : ControllerBase
     {
         foreach (var v in new[] { body.Story, body.Art, body.Characters, body.Enjoyment })
             if (v < 1 || v > 10) return BadRequest("Each score must be between 1 and 10.");
+        if (body.ReviewText?.Length > 2000) return BadRequest("Review must be 2000 characters or fewer.");
         if (!await _db.Titles.AnyAsync(t => t.Id == id)) return NotFound();
 
         var userId = UserId;

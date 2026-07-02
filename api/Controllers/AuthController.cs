@@ -6,6 +6,7 @@ using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 
@@ -17,6 +18,7 @@ public record LoginRequest(string Email, string Password);
 
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting("auth")]
 [Route("auth")]
 public class AuthController : ControllerBase
 {
@@ -36,7 +38,14 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest req)
     {
-        var user = new AppUser { Email = req.Email, UserName = string.IsNullOrWhiteSpace(req.UserName) ? req.Email : req.UserName };
+        // default the public name to the email's local part so reviews don't show the email
+        var name = req.UserName;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = req.Email.Split('@')[0];
+            if (await _users.FindByNameAsync(name) != null) name += Random.Shared.Next(1000, 10000);
+        }
+        var user = new AppUser { Email = req.Email, UserName = name };
         var result = await _users.CreateAsync(user, req.Password);
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
