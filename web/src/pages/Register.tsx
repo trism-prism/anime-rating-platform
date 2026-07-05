@@ -19,7 +19,7 @@ export default function Register() {
         method: 'POST',
         body: JSON.stringify({ email, password, userName: userName || null }),
       })
-      navigate('/check-email', { state: { email } })
+      navigate('/login', { state: { note: 'Account created. Verify your email in Account settings to post reviews.' } })
     } catch (err) {
       setError((err as Error).message)
     } finally {

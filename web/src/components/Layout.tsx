@@ -3,7 +3,7 @@ import { useAuth } from '../auth'
 
 export default function Layout() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, isAdmin, logout } = useAuth()
 
   return (
     <>
@@ -15,6 +15,8 @@ export default function Layout() {
         <span className="spacer" />
         {user ? (
           <>
+            {isAdmin && <NavLink to="/admin">Admin</NavLink>}
+            <NavLink to="/account">Account</NavLink>
             <span className="muted">{user.userName}</span>
             <button onClick={() => { logout(); navigate('/') }}>Logout</button>
           </>
