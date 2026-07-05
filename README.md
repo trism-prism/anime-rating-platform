@@ -19,7 +19,8 @@ Set as environment variables (`__` for nesting) in production, or with `dotnet u
 
 - `Jwt__Key` signing key, 32+ characters (Development has a dev-only one)
 - `Jwt__Issuer`
-- `Resend__ApiKey`, `Resend__From` (without a key, Development logs the confirmation link to the console; other environments fail to send)
+- `Gmail__ClientId`, `Gmail__ClientSecret`, `Gmail__RefreshToken`, `Gmail__From` (Gmail API sender, used first when the refresh token is set; see DEPLOY.md)
+- `Resend__ApiKey`, `Resend__From` (fallback sender; with neither sender set, Development logs the confirmation link to the console and other environments fail to send)
 - `App__FrontendUrl` base URL used in email links
 - `Cors__Origins` comma separated allowed origins
 - `Admin__Email` bootstraps the first admin: that user gets the Admin role at login once their email is verified and no admin exists. Other admins are managed on the site
