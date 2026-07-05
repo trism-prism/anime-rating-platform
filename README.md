@@ -19,7 +19,7 @@ Set as environment variables (`__` for nesting) in production, or with `dotnet u
 
 - `Jwt__Key` signing key, 32+ characters (Development has a dev-only one)
 - `Jwt__Issuer`
-- `Smtp__Host`, `Smtp__Port`, `Smtp__User`, `Smtp__Password`, `Smtp__From` (without a password the confirmation link is logged to the console)
+- `Resend__ApiKey`, `Resend__From` (without a key, Development logs the confirmation link to the console; other environments fail to send)
 - `App__FrontendUrl` base URL used in email links
 - `Cors__Origins` comma separated allowed origins
 - `Admin__Email` bootstraps the first admin: that user gets the Admin role at login once their email is verified and no admin exists. Other admins are managed on the site

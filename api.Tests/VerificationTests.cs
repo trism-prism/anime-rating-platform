@@ -50,7 +50,7 @@ public class VerificationTests
         var config = p.GetRequiredService<IConfiguration>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         return new AuthController(p.GetRequiredService<UserManager<AppUser>>(), p.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env), config, NullLogger<AuthController>.Instance);
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), config, NullLogger<AuthController>.Instance);
     }
 
     static ClaimsPrincipal Principal(string id) => new(new ClaimsIdentity(new[] { new Claim("sub", id) }, "test"));
@@ -155,7 +155,7 @@ public class VerificationTests
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         var cache = p.GetRequiredService<IMemoryCache>();
         AccountController As(AppUser u) => new(p.GetRequiredService<UserManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env), cache, NullLogger<AccountController>.Instance)
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), cache, NullLogger<AccountController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = Principal(u.Id) } } };
 
         Assert.IsType<OkObjectResult>(await As(verified).VerifyEmail());
