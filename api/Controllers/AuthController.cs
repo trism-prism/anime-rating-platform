@@ -68,6 +68,7 @@ public class AuthController : ControllerBase
 
         var result = await _users.ConfirmEmailAsync(user, raw);
         if (!result.Succeeded) return BadRequest(new { message = "Invalid or expired confirmation link." });
+        await AdminBootstrap.TryPromote(_users, _config, user);
         return Ok(new { message = "Email confirmed. You can log in now." });
     }
 
@@ -89,29 +90,21 @@ public class AuthController : ControllerBase
 
         var result = await _signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
         if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 15 minutes." });
-        if (result.IsNotAllowed) return StatusCode(403, new { message = "Confirm your email first" });
         if (!result.Succeeded) return Unauthorized(new { message = "Invalid email or password." });
 
-        return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName });
+        await AdminBootstrap.TryPromote(_users, _config, user);
+        return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName, emailVerified = user.EmailConfirmed });
     }
 
     // the exception can hold the link, so log only the user id
     async Task<bool> TrySendConfirmation(AppUser user)
     {
-        try { await SendConfirmation(user); return true; }
+        try { await _email.SendConfirmation(_users, user); return true; }
         catch (Exception ex)
         {
             _log.LogError(ex.GetType().Name + " sending confirmation email for user {UserId}", user.Id);
             return false;
         }
-    }
-
-    async Task SendConfirmation(AppUser user)
-    {
-        var token = await _users.GenerateEmailConfirmationTokenAsync(user);
-        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var link = $"{_config["App:FrontendUrl"]}/confirm-email?userId={user.Id}&token={encoded}";
-        await _email.Send(user.Email!, "Confirm your email", $"Confirm your account: {link}");
     }
 
     async Task<string> CreateToken(AppUser user)

@@ -35,6 +35,7 @@ public class RatingTests
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         using var db = new AppDbContext(opts);
         db.Titles.Add(new Title { Id = 1, AniListId = 1, Name = "Test" });
+        db.Users.AddRange(new AppUser { Id = "a", EmailConfirmed = true }, new AppUser { Id = "b", EmailConfirmed = true });
         await db.SaveChangesAsync();
 
         var body = new RatingRequest(8, 8, 8, 8, "good");
@@ -59,6 +60,7 @@ public class RatingTests
         var opts = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         using var db = new AppDbContext(opts);
         db.Titles.Add(new Title { Id = 1, AniListId = 1, Name = "Test" });
+        db.Users.Add(new AppUser { Id = "a", EmailConfirmed = true });
         await db.SaveChangesAsync();
 
         Assert.IsType<BadRequestObjectResult>(await As("a", db).Put(1, new RatingRequest(8, 8, 8, 8, new string('x', 2001))));

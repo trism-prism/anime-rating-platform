@@ -1,5 +1,9 @@
 using System.Net;
 using System.Net.Mail;
+using System.Text;
+using api.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace api.Services;
 
@@ -14,6 +18,14 @@ public class EmailSender
         _config = config;
         _log = log;
         _env = env;
+    }
+
+    public async Task SendConfirmation(UserManager<AppUser> users, AppUser user)
+    {
+        var token = await users.GenerateEmailConfirmationTokenAsync(user);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var link = $"{_config["App:FrontendUrl"]}/confirm-email?userId={user.Id}&token={encoded}";
+        await Send(user.Email!, "Confirm your email", $"Confirm your account: {link}");
     }
 
     public async Task Send(string to, string subject, string body)
