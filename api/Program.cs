@@ -31,6 +31,7 @@ if (!args.Contains("import") && (builder.Configuration["Jwt:Key"] ?? "").Length 
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
     o.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor;
+    o.ForwardLimit = 2; // requests pass Vercel then Railway, so X-Forwarded-For is "client, vercelIp": read both hops to get the client
     o.KnownNetworks.Clear(); // Railway's proxy isn't loopback
     o.KnownProxies.Clear();
 });
@@ -42,27 +43,18 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
+builder.Services.AddScoped<SessionService>();
+builder.Services.AddScoped<SecurityLog>();
+builder.Services.AddScoped<CredentialCheck>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
 
 builder.Services.AddHttpClient<EmailSender>();
+builder.Services.AddHttpClient<GoogleClient>(c => c.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3));
 
-builder.Services.AddIdentityCore<AppUser>(o =>
-{
-    o.SignIn.RequireConfirmedEmail = false;
-    o.User.RequireUniqueEmail = true;
-    o.Lockout.MaxFailedAccessAttempts = 10;
-    o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-    o.Lockout.AllowedForNewUsers = true;
-    // length only, no composition rules; breached passwords are refused by PwnedPasswordValidator
-    o.Password.RequiredLength = 12;
-    o.Password.RequireDigit = false;
-    o.Password.RequireLowercase = false;
-    o.Password.RequireUppercase = false;
-    o.Password.RequireNonAlphanumeric = false;
-})
+builder.Services.AddIdentityCore<AppUser>(IdentitySetup.Configure)
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddSignInManager()
@@ -82,7 +74,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Issuer"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "")),
             RoleClaimType = System.Security.Claims.ClaimTypes.Role,
-            NameClaimType = "sub"
+            NameClaimType = "sub",
+            ClockSkew = TimeSpan.FromSeconds(30) // the default 5 minutes would stretch the 15 minute token to 20
+        };
+        // a revoked or expired session kills its access token at once (one lookup per request)
+        o.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async ctx =>
+            {
+                var sessions = ctx.HttpContext.RequestServices.GetRequiredService<SessionService>();
+                if (!await sessions.IsActive(ctx.Principal?.FindFirst("sid")?.Value)) ctx.Fail("Session ended.");
+            }
         };
     });
 builder.Services.AddAuthorization();
