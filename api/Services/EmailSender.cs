@@ -32,6 +32,14 @@ public class EmailSender
         await Send(user.Email!, "Confirm your email", $"Confirm your account: {link}");
     }
 
+    public async Task SendPasswordReset(UserManager<AppUser> users, AppUser user)
+    {
+        var token = await users.GeneratePasswordResetTokenAsync(user);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var link = $"{_config["App:FrontendUrl"]}/reset-password?userId={user.Id}&token={encoded}";
+        await Send(user.Email!, "Reset your password", $"Reset your password: {link}");
+    }
+
     public async Task Send(string to, string subject, string body)
     {
         if (!string.IsNullOrEmpty(_config["Gmail:RefreshToken"]))

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
   const { login } = useAuth()
@@ -38,11 +39,10 @@ export default function Login() {
       <label>Email
         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
-      <label>Password
-        <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
+      <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
       {error && <p className="error">{error}</p>}
       <button type="submit" disabled={busy}>Login</button>
+      <p className="muted"><Link to="/forgot-password" className="link">Forgot password?</Link></p>
       <p className="muted">No account? <Link to="/register" className="link">Register</Link></p>
     </form>
   )
