@@ -122,6 +122,19 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// give accounts whose username is still their email a generated one
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        await UserNames.FixEmailNames(scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>(), app.Logger);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning("Username fix skipped: {Message}", ex.Message);
+    }
+}
+
 app.UseForwardedHeaders();
 if (app.Environment.IsDevelopment()) app.UseHttpsRedirection(); // in production Railway's proxy handles HTTPS
 
