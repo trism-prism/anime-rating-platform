@@ -98,7 +98,7 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
         onChange={(e) => setReview(e.target.value)}
       />
       {!emailVerified && (
-        <p className="muted hint"><Link to="/account" className="link">Verify your email in Account settings</Link> to write a review</p>
+        <p className="muted hint"><Link to="/settings" className="link">Verify your email in Settings</Link> to write a review</p>
       )}
       <div className="row">
         <button type="submit" disabled={busy}>{hasRating ? 'Update rating' : 'Save rating'}</button>

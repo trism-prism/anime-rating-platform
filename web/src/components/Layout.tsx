@@ -1,9 +1,9 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
+import AvatarMenu from './AvatarMenu'
 
 export default function Layout() {
-  const navigate = useNavigate()
-  const { user, isAdmin, logout } = useAuth()
+  const { user } = useAuth()
 
   return (
     <>
@@ -14,12 +14,7 @@ export default function Layout() {
         <NavLink to="/my-list">My List</NavLink>
         <span className="spacer" />
         {user ? (
-          <>
-            {isAdmin && <NavLink to="/admin">Admin</NavLink>}
-            <NavLink to="/account">Account</NavLink>
-            <span className="muted">{user.userName}</span>
-            <button onClick={() => { logout(); navigate('/') }}>Logout</button>
-          </>
+          <AvatarMenu />
         ) : (
           <>
             <NavLink to="/login">Login</NavLink>

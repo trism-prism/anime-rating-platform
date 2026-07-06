@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://anime-rating-platform-production.up.railway.app/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
