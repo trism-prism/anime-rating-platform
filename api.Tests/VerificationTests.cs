@@ -49,8 +49,13 @@ public class VerificationTests
     {
         var config = p.GetRequiredService<IConfiguration>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
-        return new AuthController(p.GetRequiredService<UserManager<AppUser>>(), p.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), config, NullLogger<AuthController>.Instance);
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        var db = p.GetRequiredService<AppDbContext>();
+        var events = new SecurityLog(db);
+        return new AuthController(users,
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // login sets a cookie
     }
 
     static ClaimsPrincipal Principal(string id) => new(new ClaimsIdentity(new[] { new Claim("sub", id) }, "test"));
@@ -154,8 +159,12 @@ public class VerificationTests
         var config = p.GetRequiredService<IConfiguration>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         var cache = p.GetRequiredService<IMemoryCache>();
-        AccountController As(AppUser u) => new(p.GetRequiredService<UserManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), cache, NullLogger<AccountController>.Instance)
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        var db = p.GetRequiredService<AppDbContext>();
+        var events = new SecurityLog(db);
+        AccountController As(AppUser u) => new(users,
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, cache, NullLogger<AccountController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = Principal(u.Id) } } };
 
         Assert.IsType<OkObjectResult>(await As(verified).VerifyEmail());
