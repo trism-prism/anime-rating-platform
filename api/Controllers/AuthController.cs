@@ -26,9 +26,11 @@ public class AuthController : ControllerBase
     readonly SignInManager<AppUser> _signIn;
     readonly EmailSender _email;
     readonly IConfiguration _config;
+    readonly ILogger<AuthController> _log;
 
-    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, IConfiguration config)
+    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, IConfiguration config, ILogger<AuthController> log)
     {
+        _log = log;
         _users = users;
         _signIn = signIn;
         _email = email;
@@ -49,7 +51,8 @@ public class AuthController : ControllerBase
         var result = await _users.CreateAsync(user, req.Password);
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
-        await SendConfirmation(user);
+        if (!await TrySendConfirmation(user))
+            return Ok(new { message = "Account created, but the confirmation email could not be sent. Use resend on the login page later." });
         return Ok(new { message = "Check your email to confirm your account." });
     }
 
@@ -65,6 +68,7 @@ public class AuthController : ControllerBase
 
         var result = await _users.ConfirmEmailAsync(user, raw);
         if (!result.Succeeded) return BadRequest(new { message = "Invalid or expired confirmation link." });
+        await AdminBootstrap.TryPromote(_users, _config, user);
         return Ok(new { message = "Email confirmed. You can log in now." });
     }
 
@@ -72,7 +76,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Resend(EmailRequest req)
     {
         var user = await _users.FindByEmailAsync(req.Email);
-        if (user != null && !user.EmailConfirmed) await SendConfirmation(user);
+        if (user != null && !user.EmailConfirmed && !await TrySendConfirmation(user))
+            return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
         // same answer either way
         return Ok(new { message = "If the account exists, a new confirmation email was sent." });
     }
@@ -85,18 +90,21 @@ public class AuthController : ControllerBase
 
         var result = await _signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
         if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 15 minutes." });
-        if (result.IsNotAllowed) return StatusCode(403, new { message = "Confirm your email first" });
         if (!result.Succeeded) return Unauthorized(new { message = "Invalid email or password." });
 
-        return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName });
+        await AdminBootstrap.TryPromote(_users, _config, user);
+        return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName, emailVerified = user.EmailConfirmed });
     }
 
-    async Task SendConfirmation(AppUser user)
+    // the exception can hold the link, so log only the user id
+    async Task<bool> TrySendConfirmation(AppUser user)
     {
-        var token = await _users.GenerateEmailConfirmationTokenAsync(user);
-        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var link = $"{_config["App:FrontendUrl"]}/confirm-email?userId={user.Id}&token={encoded}";
-        await _email.Send(user.Email!, "Confirm your email", $"Confirm your account: {link}");
+        try { await _email.SendConfirmation(_users, user); return true; }
+        catch (Exception ex)
+        {
+            _log.LogError(ex.GetType().Name + " sending confirmation email for user {UserId}", user.Id);
+            return false;
+        }
     }
 
     async Task<string> CreateToken(AppUser user)

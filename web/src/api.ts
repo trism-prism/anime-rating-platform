@@ -19,7 +19,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (!res.ok) {
     // the API sends either {message} or {errors:[...]}
     const msg = (typeof data === 'string' ? data : null) ?? data?.message ?? (Array.isArray(data?.errors) ? data.errors.join(' ') : null)
-    throw new ApiError(msg ?? `Request failed (${res.status})`, res.status)
+    throw new ApiError(msg ?? (res.status >= 500 ? 'Server error, try again' : `Request failed (${res.status})`), res.status)
   }
   return data as T
 }

@@ -7,8 +7,10 @@ import Rankings from './pages/Rankings'
 import MyList from './pages/MyList'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import CheckEmail from './pages/CheckEmail'
+import Account from './pages/Account'
+import Admin from './pages/Admin'
 import ConfirmEmail from './pages/ConfirmEmail'
+import Privacy from './pages/Privacy'
 import { AuthProvider } from './auth'
 
 export default function App() {
@@ -24,9 +26,11 @@ export default function App() {
           <Route path="/my-list" element={<MyList />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/check-email" element={<CheckEmail />} />
+          <Route path="/account" element={<Account />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />
-          <Route path="*" element={<h1>Page not found</h1>} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="*"element={<h1>Page not found</h1>} />
         </Route>
       </Routes>
     </BrowserRouter>
