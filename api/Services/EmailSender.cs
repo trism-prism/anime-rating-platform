@@ -24,27 +24,17 @@ public class EmailSender
         _http.Timeout = TimeSpan.FromSeconds(15); // the default is 100 s
     }
 
-    public async Task SendConfirmation(UserManager<AppUser> users, AppUser user)
-    {
-        var token = await users.GenerateEmailConfirmationTokenAsync(user);
-        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var link = $"{_config["App:FrontendUrl"]}/confirm-email?userId={user.Id}&token={encoded}";
-        await Send(user.Email!, "Confirm your email", $"Confirm your account: {link}");
-    }
+    public Task SendVerificationCode(UserManager<AppUser> users, AppUser user) =>
+        SendCode(users, user, EmailCodes.Verify, "Your verification code", "Your verification code is");
 
-    public async Task SendPasswordReset(UserManager<AppUser> users, AppUser user)
-    {
-        var token = await users.GeneratePasswordResetTokenAsync(user);
-        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var link = $"{_config["App:FrontendUrl"]}/reset-password?userId={user.Id}&token={encoded}";
-        await Send(user.Email!, "Reset your password", $"Reset your password: {link}");
-    }
+    public Task SendResetCode(UserManager<AppUser> users, AppUser user) =>
+        SendCode(users, user, EmailCodes.Reset, "Your password reset code", "Your password reset code is");
 
-    // the six-digit code for the second login step; the code is a secret, so only Send's Development fallback logs it
-    public async Task SendSignInCode(UserManager<AppUser> users, AppUser user)
+    // the code is a secret, so only Send's Development fallback may log it
+    async Task SendCode(UserManager<AppUser> users, AppUser user, string purpose, string subject, string intro)
     {
-        var code = await users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
-        await Send(user.Email!, "Your sign-in code", $"Your sign-in code is {code}. It expires in a few minutes. If you did not try to log in, change your password.");
+        var code = await users.GenerateUserTokenAsync(user, TokenOptions.DefaultEmailProvider, purpose);
+        await Send(user.Email!, subject, $"{intro} {code}. It expires in a few minutes. If you did not ask for it, ignore this email.");
     }
 
     // the link goes to the new address; the token only fits that address
@@ -67,7 +57,7 @@ public class EmailSender
         var apiKey = _config["Resend:ApiKey"];
         if (string.IsNullOrEmpty(apiKey))
         {
-            // only Development may log the mail (it holds the confirmation link)
+            // only Development may log the mail (it holds the code or link)
             if (!_env.IsDevelopment())
                 throw new InvalidOperationException("No email sender is set (Gmail:RefreshToken or Resend:ApiKey); cannot send email outside Development.");
             _log.LogInformation("Email to {To}: {Subject}\n{Body}", to, subject, body);
