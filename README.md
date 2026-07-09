@@ -20,8 +20,8 @@ Set as environment variables (`__` for nesting) in production, or with `dotnet u
 - `Jwt__Key` signing key, 32+ characters (Development has a dev-only one)
 - `Jwt__Issuer`
 - `Gmail__ClientId`, `Gmail__ClientSecret`, `Gmail__RefreshToken`, `Gmail__From` (Gmail API sender, used first when the refresh token is set; see DEPLOY.md)
-- `Resend__ApiKey`, `Resend__From` (fallback sender; with neither sender set, Development logs the confirmation link to the console and other environments fail to send)
-- `App__FrontendUrl` base URL used in email links
+- `Resend__ApiKey`, `Resend__From` (fallback sender; with neither sender set, Development logs the mail, code included, to the console and other environments fail to send)
+- `App__FrontendUrl` base URL used in the email-change link and the Google redirect
 - `Cors__Origins` comma separated allowed origins (only for local development; in production the site reaches the API through its own `/api` path, see DEPLOY.md)
 - `Admin__Email` bootstraps the first admin: that user gets the Admin role at login once their email is verified and no admin exists. Other admins are managed on the site
 - `ConnectionStrings__Default`
@@ -31,17 +31,19 @@ More setup notes are added as features land.
 ## API
 - `GET /titles?search=&type=&genre=&page=&pageSize=` paged list, most popular first
 - `GET /titles/{id}` title with characters, average scores and reviews
-- `POST /auth/login` log in; works before the email is verified and returns a 15 minute `accessToken` and `emailVerified`. A 30 day refresh token is set as an HttpOnly cookie `rt_<userId>`. With two-step verification on it emails a 6-digit code and returns `{twoFactorRequired, challengeToken}` instead (valid 5 minutes)
-- `POST /auth/2fa` `{challengeToken, code}` finish a two-step login with the emailed code; wrong codes count toward the lockout
-- `POST /auth/2fa/resend` `{challengeToken}` email a new code, at most one per 30 seconds per account
+- `POST /auth/login` log in; works before the email is verified and returns a 15 minute `accessToken` and `emailVerified`. A 30 day refresh token is set as an HttpOnly cookie `rt_<userId>`. A right password never asks for a code
+- `POST /auth/register` `{email, password, userName?}` create an account (no email is sent; verify it later with a code)
+- `POST /auth/forgot-password` `{email}` email a 6-digit code if the account exists; always the same answer, one code per address per minute
+- `POST /auth/reset-code/verify` `{email, code}` answers `{ok}`; 5 tries per address per 15 minutes, then 429
+- `POST /auth/reset-password` `{email, code, newPassword}` set a new password (policy and breach check apply), verify the email, clear the lockout and sign every device out. Google-only accounts use it to add a password
 - `POST /auth/refresh` `{userId}` swap the refresh cookie for a new one and a new access token; reusing an old refresh token ends the session
 - `POST /auth/logout` `{userId}` end that session and delete its cookie
 - `GET /me` your email, user name, `emailVerified` and `isAdmin`
 - `PUT /me/username` `{userName}` change the display name shown on reviews (3 to 30 letters, digits, `.`, `_`, `-`; unique; no password needed)
-- `POST /me/verify-email` send (or resend) the verification email, once a minute
+- `POST /me/verify/send` email a 6-digit code to the account address, at most one per 30 seconds
+- `POST /me/verify` `{code}` verify the email with it; 5 tries per 15 minutes, then 429. Review text needs a verified email
 - `POST /me/password` `{currentPassword, newPassword}` change the password; other devices are signed out. Wrong current password answers 403 and counts toward the lockout
 - `POST /me/email` `{newEmail, currentPassword}` mail a confirm link to the new address (and a notice to the old one); `POST /auth/confirm-email-change` `{userId, newEmail, token}` applies it and signs every device out
-- `GET /me/2fa` `{enabled}`; `POST /me/2fa/enable` and `POST /me/2fa/disable` `{currentPassword}` turn two-step verification on or off (needs a verified email, since the codes go there)
 - `GET /admin/users?search=&page=&pageSize=` list users (admin)
 - `POST /admin/users/{id}/admin` make a user admin, `DELETE` removes it; the last admin cannot be removed (admin)
 - `POST /admin/import` import titles from AniList (admin)
