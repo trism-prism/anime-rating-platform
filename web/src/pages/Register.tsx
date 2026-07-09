@@ -33,10 +33,10 @@ export default function Register() {
     <form className="auth-form" onSubmit={submit}>
       <h1>Register</h1>
       <label>Email
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
-      <label>Username (optional)
-        <input value={userName} onChange={(e) => setUserName(e.target.value)} />
+      <label>Display name (optional)
+        <input autoComplete="off" value={userName} onChange={(e) => setUserName(e.target.value)} />
       </label>
       <PasswordInput label="Password" value={password} onChange={setPassword} minLength={12} autoComplete="new-password" />
       <p className="muted hint">At least 12 characters. A passphrase works well. Passwords found in data breaches are refused.</p>
