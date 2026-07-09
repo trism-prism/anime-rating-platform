@@ -2,7 +2,7 @@ export default function Privacy() {
   return (
     <div className="synopsis" style={{ maxWidth: 680, margin: '0 auto', whiteSpace: 'normal' }}>
       <h1>Privacy</h1>
-      <p className="muted">Last updated: 2026-11-04</p>
+      <p className="muted">Last updated: 2026-11-05</p>
       <p>
         This is a hobby and portfolio project. It is not a commercial service, and it keeps
         only what it needs to work.
@@ -10,19 +10,21 @@ export default function Privacy() {
 
       <h2>What we store</h2>
       <ul>
-        <li>Your email address and username.</li>
+        <li>Your email address and display name.</li>
         <li>Your password, hashed. It is never stored in plain text.</li>
         <li>Your ratings, reviews and watch list.</li>
       </ul>
 
       <h2>How it is used</h2>
       <p>
-        Your email is used only to verify your account and to send the verification message.
-        Verification emails are sent through Google's Gmail API or Resend.
+        Your email is used only to send you a 6-digit code to verify your email address, a 6-digit
+        code if you forget your password, and a confirmation link if you change your email.
+        These emails are sent through Google's Gmail API or Resend.
       </p>
       <p>
-        We do not sell or share your data. There are no ads and no tracking cookies. Your
-        sign-in token is kept in your browser's local storage.
+        We do not sell or share your data. There are no ads and no tracking. Your sign-in is
+        kept in an HttpOnly cookie, the only cookie we use. The names of the accounts signed in
+        on this device are kept in your browser's local storage.
       </p>
 
       <h2>Anime data</h2>

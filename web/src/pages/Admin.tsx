@@ -71,13 +71,13 @@ export default function Admin() {
 
       <h2>Users</h2>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setPage(1); setQuery(search) }}>
-        <input placeholder="Search username or email" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input placeholder="Search display name or email" value={search} onChange={(e) => setSearch(e.target.value)} />
         <button type="submit">Search</button>
       </form>
       {error && <p className="error">{error}</p>}
       <table className="table">
         <thead>
-          <tr><th>Username</th><th>Email</th><th>Verified</th><th>Admin</th><th /></tr>
+          <tr><th>Display name</th><th>Email</th><th>Verified</th><th>Admin</th><th /></tr>
         </thead>
         <tbody>
           {data?.items.map((u) => (

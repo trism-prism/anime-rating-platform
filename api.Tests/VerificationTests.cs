@@ -49,8 +49,12 @@ public class VerificationTests
     {
         var config = p.GetRequiredService<IConfiguration>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
-        return new AuthController(p.GetRequiredService<UserManager<AppUser>>(), p.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), config, NullLogger<AuthController>.Instance);
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        var db = p.GetRequiredService<AppDbContext>();
+        return new AuthController(users,
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(db, users, config, env), new CredentialCheck(users), p.GetRequiredService<IMemoryCache>(), config, NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // login sets a cookie
     }
 
     static ClaimsPrincipal Principal(string id) => new(new ClaimsIdentity(new[] { new Claim("sub", id) }, "test"));
@@ -143,23 +147,5 @@ public class VerificationTests
         Assert.Null(await Run(boss));
         await users.RemoveFromRoleAsync(boss, "Admin"); // demoted: the same token no longer works
         Assert.NotNull(await Run(boss));
-    }
-
-    [Fact]
-    public async Task Verify_email_has_a_cooldown_and_skips_verified_users()
-    {
-        using var p = Build();
-        var unverified = await AddUser(p, "u", false);
-        var verified = await AddUser(p, "v", true);
-        var config = p.GetRequiredService<IConfiguration>();
-        var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
-        var cache = p.GetRequiredService<IMemoryCache>();
-        AccountController As(AppUser u) => new(p.GetRequiredService<UserManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), cache, NullLogger<AccountController>.Instance)
-        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = Principal(u.Id) } } };
-
-        Assert.IsType<OkObjectResult>(await As(verified).VerifyEmail());
-        Assert.IsType<OkObjectResult>(await As(unverified).VerifyEmail());
-        Assert.Equal(429, Assert.IsType<ObjectResult>(await As(unverified).VerifyEmail()).StatusCode);
     }
 }

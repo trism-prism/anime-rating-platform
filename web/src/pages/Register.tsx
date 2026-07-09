@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import GoogleLink from '../components/GoogleLink'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -19,7 +21,7 @@ export default function Register() {
         method: 'POST',
         body: JSON.stringify({ email, password, userName: userName || null }),
       })
-      navigate('/login', { state: { note: 'Account created. Verify your email in Account settings to post reviews.' } })
+      navigate('/login', { state: { note: 'Account created. Log in, then verify your email to write reviews.' } })
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -31,17 +33,16 @@ export default function Register() {
     <form className="auth-form" onSubmit={submit}>
       <h1>Register</h1>
       <label>Email
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
-      <label>Username (optional)
-        <input value={userName} onChange={(e) => setUserName(e.target.value)} />
+      <label>Display name (optional)
+        <input autoComplete="off" value={userName} onChange={(e) => setUserName(e.target.value)} />
       </label>
-      <label>Password
-        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
-      <p className="muted hint">At least 8 characters, with a digit and a lowercase letter.</p>
+      <PasswordInput label="Password" value={password} onChange={setPassword} minLength={12} autoComplete="new-password" />
+      <p className="muted hint">At least 12 characters. A passphrase works well. Passwords found in data breaches are refused.</p>
       {error && <p className="error">{error}</p>}
       <button type="submit" disabled={busy}>Create account</button>
+      <GoogleLink />
       <p className="muted">Have an account? <Link to="/login" className="link">Login</Link></p>
     </form>
   )
