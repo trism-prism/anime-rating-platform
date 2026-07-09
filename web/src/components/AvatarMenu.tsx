@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import Avatar from './Avatar'
 
@@ -21,8 +21,9 @@ const PlusIcon = () => (
 
 // round avatar button with a popover menu for the signed-in account
 export default function AvatarMenu() {
-  const { user, accounts, isAdmin, logout, switchTo } = useAuth()
+  const { user, accounts, isAdmin, emailVerified, loading, logout, switchTo } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const [switching, setSwitching] = useState(false) // the account list under "Switch account"
   const box = useRef<HTMLDivElement>(null)
@@ -94,6 +95,7 @@ export default function AvatarMenu() {
   }
 
   const others = accounts.filter((a) => a.userId !== user.userId)
+  const unverified = !loading && !emailVerified
 
   return (
     <div
@@ -108,14 +110,16 @@ export default function AvatarMenu() {
         className="avatar-button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Account menu for ${user.userName}`}
+        aria-label={`Account menu for ${user.userName}${unverified ? ', email not verified' : ''}`}
         onClick={() => { setSwitching(false); setOpen(!open) }} // the account list always starts closed
       >
         <Avatar userName={user.userName} />
+        {unverified && <span className="avatar-dot" aria-hidden="true" />}
       </button>
       {open && (
         <div className="menu" role="menu" aria-label="Account">
           <div className="menu-label" role="presentation">{user.userName}</div>
+          {unverified && <Link to="/verify" state={{ from: pathname }} role="menuitem" onClick={() => setOpen(false)}>Verify email</Link>}
           <Link to="/settings" role="menuitem" onClick={() => setOpen(false)}>Settings</Link>
           {isAdmin && <Link to="/admin" role="menuitem" onClick={() => setOpen(false)}>Admin</Link>}
           <button

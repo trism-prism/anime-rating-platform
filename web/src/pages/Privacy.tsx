@@ -2,7 +2,7 @@ export default function Privacy() {
   return (
     <div className="synopsis" style={{ maxWidth: 680, margin: '0 auto', whiteSpace: 'normal' }}>
       <h1>Privacy</h1>
-      <p className="muted">Last updated: 2026-11-04</p>
+      <p className="muted">Last updated: 2026-11-05</p>
       <p>
         This is a hobby and portfolio project. It is not a commercial service, and it keeps
         only what it needs to work.
@@ -17,8 +17,8 @@ export default function Privacy() {
 
       <h2>How it is used</h2>
       <p>
-        Your email is used only to verify your account, to send sign-in codes if you turn on
-        two-step verification, and to send the verification message.
+        Your email is used only to send you a 6-digit code to verify your email address, a 6-digit
+        code if you forget your password, and a confirmation link if you change your email.
         These emails are sent through Google's Gmail API or Resend.
       </p>
       <p>
