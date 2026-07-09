@@ -31,17 +31,17 @@ More setup notes are added as features land.
 ## API
 - `GET /titles?search=&type=&genre=&page=&pageSize=` paged list, most popular first
 - `GET /titles/{id}` title with characters, average scores and reviews
-- `POST /auth/login` log in; works before the email is verified and returns a 15 minute `accessToken` and `emailVerified`. A 30 day refresh token is set as an HttpOnly cookie `rt_<userId>`. With two-factor on it returns `{twoFactorRequired, challengeToken}` instead (valid 5 minutes)
-- `POST /auth/2fa` `{challengeToken, code}` finish a two-factor login with an authenticator code or a recovery code
+- `POST /auth/login` log in; works before the email is verified and returns a 15 minute `accessToken` and `emailVerified`. A 30 day refresh token is set as an HttpOnly cookie `rt_<userId>`. With two-step verification on it emails a 6-digit code and returns `{twoFactorRequired, challengeToken}` instead (valid 5 minutes)
+- `POST /auth/2fa` `{challengeToken, code}` finish a two-step login with the emailed code; wrong codes count toward the lockout
+- `POST /auth/2fa/resend` `{challengeToken}` email a new code, at most one per 30 seconds per account
 - `POST /auth/refresh` `{userId}` swap the refresh cookie for a new one and a new access token; reusing an old refresh token ends the session
 - `POST /auth/logout` `{userId}` end that session and delete its cookie
-- `GET /me/sessions` your signed-in devices; `POST /me/sessions/{id}/revoke` and `POST /me/sessions/revoke-others` sign devices out
 - `GET /me` your email, user name, `emailVerified` and `isAdmin`
+- `PUT /me/username` `{userName}` change the display name shown on reviews (3 to 30 letters, digits, `.`, `_`, `-`; unique; no password needed)
 - `POST /me/verify-email` send (or resend) the verification email, once a minute
 - `POST /me/password` `{currentPassword, newPassword}` change the password; other devices are signed out. Wrong current password answers 403 and counts toward the lockout
 - `POST /me/email` `{newEmail, currentPassword}` mail a confirm link to the new address (and a notice to the old one); `POST /auth/confirm-email-change` `{userId, newEmail, token}` applies it and signs every device out
-- `GET /me/2fa` status; `POST /me/2fa/setup` `{currentPassword}` key and `otpauth://` link; `POST /me/2fa/enable` `{currentPassword, code}` returns 10 recovery codes once; `POST /me/2fa/disable` `{currentPassword, code}`; `POST /me/2fa/recovery-codes` `{currentPassword}` makes new ones
-- `GET /me/activity` the latest 50 security events (sign-ins, password and email changes, two-factor, signed-out devices)
+- `GET /me/2fa` `{enabled}`; `POST /me/2fa/enable` and `POST /me/2fa/disable` `{currentPassword}` turn two-step verification on or off (needs a verified email, since the codes go there)
 - `GET /admin/users?search=&page=&pageSize=` list users (admin)
 - `POST /admin/users/{id}/admin` make a user admin, `DELETE` removes it; the last admin cannot be removed (admin)
 - `POST /admin/import` import titles from AniList (admin)
