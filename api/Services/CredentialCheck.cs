@@ -6,43 +6,34 @@ namespace api.Services;
 
 public enum Check { Ok, Wrong, Locked, NoPassword }
 
-// checks a password or a two-factor code; every miss counts toward the same lockout
+// checks a password or an emailed sign-in code; every miss counts toward the same lockout
 public class CredentialCheck
 {
     readonly UserManager<AppUser> _users;
-    readonly SecurityLog _log;
 
-    public CredentialCheck(UserManager<AppUser> users, SecurityLog log)
-    {
-        _users = users;
-        _log = log;
-    }
+    public CredentialCheck(UserManager<AppUser> users) => _users = users;
 
-    public async Task<Check> Password(AppUser user, string password, HttpContext http)
+    public async Task<Check> Password(AppUser user, string password)
     {
         if (await _users.IsLockedOutAsync(user)) return Check.Locked;
         if (!await _users.HasPasswordAsync(user)) return Check.NoPassword; // signs in with Google only; nothing to guess, so no lockout count
         if (await _users.CheckPasswordAsync(user, password)) return Check.Ok;
-        return await Failed(user, http);
+        return await Failed(user);
     }
 
-    // an authenticator app code or (unless turned off) an unused recovery code
-    public async Task<Check> Code(AppUser user, string code, HttpContext http, bool allowRecovery = true)
+    // the code that was emailed at login
+    public async Task<Check> Code(AppUser user, string code)
     {
         if (await _users.IsLockedOutAsync(user)) return Check.Locked;
-        var c = (code ?? "").Replace(" ", "").ToUpperInvariant(); // recovery codes look like ABCDE-12345
-        // an empty code would match the empty recovery list once every code is used
-        if (c.Length > 0 && (await _users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultAuthenticatorProvider, c)
-            || (allowRecovery && (await _users.RedeemTwoFactorRecoveryCodeAsync(user, c)).Succeeded))) return Check.Ok;
-        return await Failed(user, http);
+        var c = (code ?? "").Replace(" ", "");
+        if (c.Length > 0 && await _users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, c)) return Check.Ok;
+        return await Failed(user);
     }
 
-    async Task<Check> Failed(AppUser user, HttpContext http)
+    async Task<Check> Failed(AppUser user)
     {
         await _users.AccessFailedAsync(user);
-        if (!await _users.IsLockedOutAsync(user)) return Check.Wrong;
-        await _log.Add(user.Id, "locked-out", http);
-        return Check.Locked;
+        return await _users.IsLockedOutAsync(user) ? Check.Locked : Check.Wrong;
     }
 
     public static ObjectResult Locked() =>

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using api.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +11,7 @@ namespace api.Controllers;
 
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 public record ChangeEmailRequest(string NewEmail, string CurrentPassword);
+public record ChangeUserNameRequest(string UserName);
 
 [ApiController]
 [Authorize]
@@ -20,17 +22,15 @@ public class AccountController : ControllerBase
     readonly EmailSender _email;
     readonly SessionService _sessions;
     readonly CredentialCheck _check;
-    readonly SecurityLog _events;
     readonly IMemoryCache _cache;
     readonly ILogger<AccountController> _log;
 
-    public AccountController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, SecurityLog events, IMemoryCache cache, ILogger<AccountController> log)
+    public AccountController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, IMemoryCache cache, ILogger<AccountController> log)
     {
         _users = users;
         _email = email;
         _sessions = sessions;
         _check = check;
-        _events = events;
         _cache = cache;
         _log = log;
     }
@@ -44,14 +44,13 @@ public class AccountController : ControllerBase
     {
         var user = await Current();
         if (user == null) return Unauthorized();
-        var check = await _check.Password(user, req.CurrentPassword, HttpContext);
+        var check = await _check.Password(user, req.CurrentPassword);
         if (check != Check.Ok) return CredentialCheck.Refused(check, "Wrong password.");
 
         var result = await _users.ChangePasswordAsync(user, req.CurrentPassword, req.NewPassword);
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
         await _sessions.KeepOnly(user.Id, CurrentSession);
-        await _events.Add(user.Id, "password-changed", HttpContext);
         return Ok(new { message = "Password changed. Your other devices were signed out." });
     }
 
@@ -61,7 +60,7 @@ public class AccountController : ControllerBase
     {
         var user = await Current();
         if (user == null) return Unauthorized();
-        var check = await _check.Password(user, req.CurrentPassword, HttpContext);
+        var check = await _check.Password(user, req.CurrentPassword);
         if (check != Check.Ok) return CredentialCheck.Refused(check, "Wrong password.");
 
         var newEmail = (req.NewEmail ?? "").Trim();
@@ -69,31 +68,49 @@ public class AccountController : ControllerBase
         if (string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase)) return BadRequest(new { message = "That is already your email." });
         if (await _users.FindByEmailAsync(newEmail) != null) return BadRequest(new { message = "That email is already in use." });
 
+        // one mail per target address per minute, whoever asks, so accounts cannot take turns mailing one stranger;
+        // a blocked request gets the normal answer
+        var addressKey = "change-email-to:" + newEmail.ToLowerInvariant();
+        if (_cache.TryGetValue(addressKey, out _))
+            return Ok(new { message = $"Check {newEmail} for a confirmation link. Your email changes when you open it." });
+
         // the cooldown keeps this from being used to mail strangers
         var key = "change-email:" + user.Id;
         if (_cache.TryGetValue(key, out _))
             return StatusCode(429, new { message = "A confirmation email was just sent. Wait a minute before asking again." });
         _cache.Set(key, true, TimeSpan.FromSeconds(60));
+        _cache.Set(addressKey, true, TimeSpan.FromSeconds(60));
 
         try { await _email.SendEmailChange(_users, user, newEmail); }
         catch (Exception ex) // the exception can hold the link, so log only the user id
         {
             _log.LogError(ex.GetType().Name + " sending email-change mail for user {UserId}", user.Id);
             _cache.Remove(key);
+            _cache.Remove(addressKey);
             return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
         }
         try { await _email.Send(user.Email!, "Email change requested", $"Someone requested to change your email to {newEmail}. If it was not you, change your password now."); }
         catch (Exception ex) { _log.LogError(ex.GetType().Name + " sending email-change notice for user {UserId}", user.Id); }
 
-        await _events.Add(user.Id, "email-change-requested", HttpContext);
         return Ok(new { message = $"Check {newEmail} for a confirmation link. Your email changes when you open it." });
     }
 
-    [HttpGet("activity")]
-    public async Task<IActionResult> Activity()
+    // the display name shown on reviews; no password needed, it is not a login credential
+    [HttpPut("username")]
+    public async Task<IActionResult> ChangeUserName(ChangeUserNameRequest req)
     {
-        var list = await _events.Latest(User.FindFirst("sub")!.Value);
-        return Ok(list.Select(e => new { e.Type, e.Ip, e.UserAgent, e.At }));
+        var user = await Current();
+        if (user == null) return Unauthorized();
+        var name = (req.UserName ?? "").Trim();
+        if (!Regex.IsMatch(name, "^[A-Za-z0-9._-]{3,30}$"))
+            return BadRequest(new { message = "Use 3 to 30 letters, digits, dots, underscores or dashes." });
+        if (name == user.UserName) return Ok(new { userName = name });
+
+        // not SetUserNameAsync: it renews the security stamp, which would sign out every other device
+        user.UserName = name;
+        var result = await _users.UpdateAsync(user);
+        if (!result.Succeeded) return BadRequest(new { message = "That display name is not available." });
+        return Ok(new { userName = name });
     }
 
     [HttpGet]
