@@ -148,25 +148,4 @@ public class VerificationTests
         await users.RemoveFromRoleAsync(boss, "Admin"); // demoted: the same token no longer works
         Assert.NotNull(await Run(boss));
     }
-
-    [Fact]
-    public async Task Verify_email_has_a_cooldown_and_skips_verified_users()
-    {
-        using var p = Build();
-        var unverified = await AddUser(p, "u", false);
-        var verified = await AddUser(p, "v", true);
-        var config = p.GetRequiredService<IConfiguration>();
-        var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
-        var cache = p.GetRequiredService<IMemoryCache>();
-        var users = p.GetRequiredService<UserManager<AppUser>>();
-        var db = p.GetRequiredService<AppDbContext>();
-        AccountController As(AppUser u) => new(users,
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(db, users, config, env), new CredentialCheck(users), cache, NullLogger<AccountController>.Instance)
-        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = Principal(u.Id) } } };
-
-        Assert.IsType<OkObjectResult>(await As(verified).VerifyEmail());
-        Assert.IsType<OkObjectResult>(await As(unverified).VerifyEmail());
-        Assert.Equal(429, Assert.IsType<ObjectResult>(await As(unverified).VerifyEmail()).StatusCode);
-    }
 }

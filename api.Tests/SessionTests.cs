@@ -294,10 +294,9 @@ public class SessionTests
         var sessions = Sessions(p);
         await sessions.Create(user, "phone", "1.1.1.1");
         await sessions.Create(user, "laptop", "2.2.2.2");
-        var raw = await p.GetRequiredService<UserManager<AppUser>>().GeneratePasswordResetTokenAsync(user);
-        var token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(raw));
+        var code = await p.GetRequiredService<UserManager<AppUser>>().GenerateUserTokenAsync(user, TokenOptions.DefaultEmailProvider, EmailCodes.Reset);
 
-        Assert.IsType<OkObjectResult>(await Auth(p, new DefaultHttpContext()).ResetPassword(new ResetPasswordRequest(user.Id, token, "An0ther!pass")));
+        Assert.IsType<OkObjectResult>(await Auth(p, new DefaultHttpContext()).ResetPassword(new ResetPasswordRequest("kai@example.com", code, "An0ther!pass")));
 
         Assert.Empty(await sessions.Active(user.Id));
     }

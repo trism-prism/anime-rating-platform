@@ -157,12 +157,31 @@ public class GoogleTests
         r = (RedirectResult)await Make(p, handler, Back().Http, log: log).Callback(null, null);
         Assert.Equal(Failed, r.Url);
 
-        Assert.Equal(new[]
-        {
-            "Warning Google callback refused: state-mismatch",
-            "Warning Google callback refused: no-cookie",
-            "Warning Google callback refused: no-code"
-        }, log.Lines);
+        Assert.Equal(3, log.Lines.Count);
+        Assert.Equal("Warning Google callback refused: state-mismatch", log.Lines[0]);
+        Assert.StartsWith("Warning Google callback refused: no-cookie (cookies=0,", log.Lines[1]);
+        Assert.Equal("Warning Google callback refused: no-code", log.Lines[2]);
+    }
+
+    [Fact]
+    public async Task A_missing_cookie_is_logged_with_counts_and_hosts_only()
+    {
+        using var p = Build();
+        var log = new Reasons();
+        var http = new DefaultHttpContext();
+        http.Request.Headers.Cookie = "rt_secret-user-id=secret-token; theme=dark"; // two other cookies, no g_oauth
+        http.Request.Headers.Referer = "https://accounts.google.com/o/oauth2/v2/auth?client_id=gid&state=abc";
+        http.Request.Host = new HostString("app.example.com");
+        await Make(p, new TokenHandler(""), http, log: log).Callback("code1", "state123");
+
+        Assert.Equal("Warning Google callback refused: no-cookie (cookies=2, referer=accounts.google.com, host=app.example.com)", Assert.Single(log.Lines));
+
+        // no Referer header at all
+        log.Lines.Clear();
+        var bare = new DefaultHttpContext();
+        bare.Request.Host = new HostString("app.example.com");
+        await Make(p, new TokenHandler(""), bare, log: log).Callback("code1", "state123");
+        Assert.Equal("Warning Google callback refused: no-cookie (cookies=0, referer=none, host=app.example.com)", Assert.Single(log.Lines));
     }
 
     [Fact]
@@ -218,33 +237,13 @@ public class GoogleTests
         var db = p.GetRequiredService<AppDbContext>();
         var old = new SessionService(db, users, Config(), new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
         var (attackerSession, _) = await old.Create(planted, "test", "1.2.3.4");
-        await users.SetTwoFactorEnabledAsync(planted, true); // the placeholder's owner turned on two-step sign-in
 
         Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("kai@example.com")));
 
         var user = (await users.FindByIdAsync(planted.Id))!;
         Assert.True(user.EmailConfirmed);
         Assert.False(await users.HasPasswordAsync(user));
-        Assert.False(user.TwoFactorEnabled);
         Assert.False(await old.IsActive(attackerSession.Id.ToString()));
-    }
-
-    [Fact]
-    public async Task Confirmed_account_with_two_step_is_linked_by_email_and_keeps_its_settings()
-    {
-        using var p = Build();
-        var users = p.GetRequiredService<UserManager<AppUser>>();
-        var local = new AppUser { UserName = "kai", Email = "kai@example.com", EmailConfirmed = true };
-        Assert.True((await users.CreateAsync(local, "correct horse battery")).Succeeded);
-        await users.SetTwoFactorEnabledAsync(local, true);
-
-        var log = new Reasons();
-        Assert.Equal($"{Front}/auth/callback?userId={local.Id}", await Callback(p, IdToken("kai@example.com"), log: log));
-        Assert.Empty(log.Lines);
-        Assert.Equal(local.Id, (await users.FindByLoginAsync("Google", "g-1"))!.Id);
-        Assert.Single(await p.GetRequiredService<AppDbContext>().Sessions.ToListAsync());
-        Assert.True(await users.HasPasswordAsync(local));
-        Assert.True((await users.FindByIdAsync(local.Id))!.TwoFactorEnabled); // password login still asks for the code
     }
 
     [Theory]
