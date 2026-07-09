@@ -51,10 +51,9 @@ public class VerificationTests
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var db = p.GetRequiredService<AppDbContext>();
-        var events = new SecurityLog(db);
         return new AuthController(users,
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance)
+            new SessionService(db, users, config, env), new CredentialCheck(users), p.GetRequiredService<IMemoryCache>(), config, NullLogger<AuthController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // login sets a cookie
     }
 
@@ -161,10 +160,9 @@ public class VerificationTests
         var cache = p.GetRequiredService<IMemoryCache>();
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var db = p.GetRequiredService<AppDbContext>();
-        var events = new SecurityLog(db);
         AccountController As(AppUser u) => new(users,
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, cache, NullLogger<AccountController>.Instance)
+            new SessionService(db, users, config, env), new CredentialCheck(users), cache, NullLogger<AccountController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = Principal(u.Id) } } };
 
         Assert.IsType<OkObjectResult>(await As(verified).VerifyEmail());

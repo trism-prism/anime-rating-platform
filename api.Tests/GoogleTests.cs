@@ -11,9 +11,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace api.Tests;
@@ -64,14 +66,24 @@ public class GoogleTests
         return services.BuildServiceProvider();
     }
 
-    static GoogleController Make(ServiceProvider p, HttpMessageHandler handler, HttpContext http, bool google = true)
+    // collects what the controller logs, to check that every refusal names its reason
+    class Reasons : ILogger<GoogleController>
+    {
+        public List<string> Lines = new();
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Lines.Add(logLevel + " " + formatter(state, exception));
+    }
+
+    static GoogleController Make(ServiceProvider p, HttpMessageHandler handler, HttpContext http, bool google = true, Reasons? log = null)
     {
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var db = p.GetRequiredService<AppDbContext>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         var config = Config(google);
         return new GoogleController(users, new GoogleClient(new HttpClient(handler), config, NullLogger<GoogleClient>.Instance),
-            new SessionService(db, users, config, env), new SecurityLog(db), config, env)
+            new SessionService(db, users, config, env), config, env, log ?? (ILogger<GoogleController>)NullLogger<GoogleController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = http } };
     }
 
@@ -83,10 +95,10 @@ public class GoogleTests
         return (http, state);
     }
 
-    static async Task<string> Callback(ServiceProvider p, string idToken, HttpContext? http = null, string state = "state123")
+    static async Task<string> Callback(ServiceProvider p, string idToken, HttpContext? http = null, string state = "state123", Reasons? log = null)
     {
         var (ctx, _) = Back();
-        var r = (RedirectResult)await Make(p, new TokenHandler(idToken), http ?? ctx).Callback("code1", state);
+        var r = (RedirectResult)await Make(p, new TokenHandler(idToken), http ?? ctx, log: log).Callback("code1", state);
         return r.Url;
     }
 
@@ -130,15 +142,27 @@ public class GoogleTests
     {
         using var p = Build();
         var handler = new TokenHandler(IdToken("a@example.com"));
-        var r = (RedirectResult)await Make(p, handler, Back().Http).Callback("code1", "other-state");
+        var log = new Reasons();
+        var r = (RedirectResult)await Make(p, handler, Back().Http, log: log).Callback("code1", "other-state");
 
         Assert.Equal(Failed, r.Url);
         Assert.Equal(0, handler.Calls);
         Assert.Empty(p.GetRequiredService<UserManager<AppUser>>().Users);
 
         // no cookie at all
-        r = (RedirectResult)await Make(p, handler, new DefaultHttpContext()).Callback("code1", "state123");
+        r = (RedirectResult)await Make(p, handler, new DefaultHttpContext(), log: log).Callback("code1", "state123");
         Assert.Equal(Failed, r.Url);
+
+        // Google sent back an error instead of a code
+        r = (RedirectResult)await Make(p, handler, Back().Http, log: log).Callback(null, null);
+        Assert.Equal(Failed, r.Url);
+
+        Assert.Equal(new[]
+        {
+            "Warning Google callback refused: state-mismatch",
+            "Warning Google callback refused: no-cookie",
+            "Warning Google callback refused: no-code"
+        }, log.Lines);
     }
 
     [Fact]
@@ -162,7 +186,6 @@ public class GoogleTests
         Assert.Contains($"rt_{user.Id}=", cookies);
         Assert.Contains("g_oauth=;", cookies); // the one-time cookie is deleted
         Assert.Single(await p.GetRequiredService<AppDbContext>().Sessions.ToListAsync());
-        Assert.Equal(new[] { "login-google" }, p.GetRequiredService<AppDbContext>().SecurityEvents.Select(e => e.Type).ToArray());
 
         // coming back later finds the same account
         Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("Sam@Example.com")));
@@ -183,9 +206,6 @@ public class GoogleTests
         Assert.Single(users.Users);
         Assert.Equal(local.Id, (await users.FindByLoginAsync("Google", "g-1"))!.Id);
         Assert.True(await users.HasPasswordAsync(local)); // a confirmed account keeps its password
-        var types = p.GetRequiredService<AppDbContext>().SecurityEvents.Select(e => e.Type).ToList();
-        Assert.Contains("google-linked", types);
-        Assert.Contains("login-google", types);
     }
 
     [Fact]
@@ -198,9 +218,7 @@ public class GoogleTests
         var db = p.GetRequiredService<AppDbContext>();
         var old = new SessionService(db, users, Config(), new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
         var (attackerSession, _) = await old.Create(planted, "test", "1.2.3.4");
-        await users.SetTwoFactorEnabledAsync(planted, true); // the placeholder's owner set up an authenticator
-        await users.GenerateNewTwoFactorRecoveryCodesAsync(planted, 10);
-        Assert.Equal(10, await users.CountRecoveryCodesAsync(planted));
+        await users.SetTwoFactorEnabledAsync(planted, true); // the placeholder's owner turned on two-step sign-in
 
         Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("kai@example.com")));
 
@@ -208,12 +226,11 @@ public class GoogleTests
         Assert.True(user.EmailConfirmed);
         Assert.False(await users.HasPasswordAsync(user));
         Assert.False(user.TwoFactorEnabled);
-        Assert.Equal(0, await users.CountRecoveryCodesAsync(user));
         Assert.False(await old.IsActive(attackerSession.Id.ToString()));
     }
 
     [Fact]
-    public async Task Confirmed_account_with_two_factor_is_not_linked_by_email()
+    public async Task Confirmed_account_with_two_step_is_linked_by_email_and_keeps_its_settings()
     {
         using var p = Build();
         var users = p.GetRequiredService<UserManager<AppUser>>();
@@ -221,17 +238,13 @@ public class GoogleTests
         Assert.True((await users.CreateAsync(local, "correct horse battery")).Succeeded);
         await users.SetTwoFactorEnabledAsync(local, true);
 
-        Assert.Equal(Failed, await Callback(p, IdToken("kai@example.com")));
-        Assert.Null(await users.FindByLoginAsync("Google", "g-1"));
-        Assert.Empty(p.GetRequiredService<AppDbContext>().Sessions);
+        var log = new Reasons();
+        Assert.Equal($"{Front}/auth/callback?userId={local.Id}", await Callback(p, IdToken("kai@example.com"), log: log));
+        Assert.Empty(log.Lines);
+        Assert.Equal(local.Id, (await users.FindByLoginAsync("Google", "g-1"))!.Id);
+        Assert.Single(await p.GetRequiredService<AppDbContext>().Sessions.ToListAsync());
         Assert.True(await users.HasPasswordAsync(local));
-
-        // once linked (before two-factor was turned on), Google keeps signing in
-        var linked = new AppUser { UserName = "ann", Email = "ann@example.com", EmailConfirmed = true };
-        Assert.True((await users.CreateAsync(linked, "correct horse battery")).Succeeded);
-        await Callback(p, IdToken("ann@example.com", sub: "g-2"));
-        await users.SetTwoFactorEnabledAsync(linked, true);
-        Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("ann@example.com", sub: "g-2")));
+        Assert.True((await users.FindByIdAsync(local.Id))!.TwoFactorEnabled); // password login still asks for the code
     }
 
     [Theory]
@@ -242,8 +255,10 @@ public class GoogleTests
     {
         using var p = Build();
         var token = IdToken("a@example.com", verified: verified, aud: aud, exp: DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToUnixTimeSeconds());
+        var log = new Reasons();
 
-        Assert.Equal(Failed, await Callback(p, token));
+        Assert.Equal(Failed, await Callback(p, token, log: log));
+        Assert.Equal(new[] { "Warning Google callback refused: exchange-failed" }, log.Lines);
         Assert.Empty(p.GetRequiredService<UserManager<AppUser>>().Users);
         Assert.Empty(p.GetRequiredService<AppDbContext>().Sessions);
     }
@@ -257,7 +272,9 @@ public class GoogleTests
         Assert.True((await users.CreateAsync(local, "correct horse battery")).Succeeded);
         await users.SetLockoutEndDateAsync(local, DateTimeOffset.UtcNow.AddMinutes(5));
 
-        Assert.Equal(Failed, await Callback(p, IdToken("kai@example.com")));
+        var log = new Reasons();
+        Assert.Equal(Failed, await Callback(p, IdToken("kai@example.com"), log: log));
+        Assert.Equal(new[] { "Warning Google callback refused: locked" }, log.Lines);
         Assert.Null(await users.FindByLoginAsync("Google", "g-1"));
         Assert.Empty(p.GetRequiredService<AppDbContext>().Sessions);
     }
@@ -281,7 +298,9 @@ public class GoogleTests
         using var p = Build();
         await Callback(p, IdToken("kai@example.com", sub: "g-1"));
 
-        Assert.Equal(Failed, await Callback(p, IdToken("kai@example.com", sub: "g-2")));
+        var log = new Reasons();
+        Assert.Equal(Failed, await Callback(p, IdToken("kai@example.com", sub: "g-2"), log: log));
+        Assert.Equal(new[] { "Warning Google callback refused: linked-other" }, log.Lines);
         Assert.Null(await p.GetRequiredService<UserManager<AppUser>>().FindByLoginAsync("Google", "g-2"));
     }
 
@@ -293,9 +312,8 @@ public class GoogleTests
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var db = p.GetRequiredService<AppDbContext>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
-        var events = new SecurityLog(db);
         var auth = new AuthController(users, new EmailSender(Config(), NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(db, users, Config(), env), new CredentialCheck(users, events), events, Config(), NullLogger<AuthController>.Instance)
+            new SessionService(db, users, Config(), env), new CredentialCheck(users), new MemoryCache(new MemoryCacheOptions()), Config(), NullLogger<AuthController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
 
         var r = Assert.IsType<UnauthorizedObjectResult>(await auth.Login(new LoginRequest("sam@example.com", "anything at all")));
@@ -310,10 +328,10 @@ public class GoogleTests
         await Callback(p, IdToken("sam@example.com"));
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var user = users.Users.Single();
-        var check = new CredentialCheck(users, new SecurityLog(p.GetRequiredService<AppDbContext>()));
+        var check = new CredentialCheck(users);
 
         for (var i = 0; i < 15; i++)
-            Assert.Equal(Check.NoPassword, await check.Password(user, "anything at all", new DefaultHttpContext()));
+            Assert.Equal(Check.NoPassword, await check.Password(user, "anything at all"));
         Assert.False(await users.IsLockedOutAsync(user)); // nothing to guess, so no lockout
 
         var refused = CredentialCheck.Refused(Check.NoPassword, "Wrong password.");
