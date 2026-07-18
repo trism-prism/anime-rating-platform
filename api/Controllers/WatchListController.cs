@@ -26,7 +26,7 @@ public class WatchListController : ControllerBase
         var userId = UserId;
         var list = await _db.WatchList
             .Where(w => w.UserId == userId)
-            .Select(w => new { titleId = w.TitleId, name = w.Title.Name, coverUrl = w.Title.CoverUrl, type = w.Title.Type.ToString(), status = w.Status.ToString(), w.Progress })
+            .Select(w => new { titleId = w.TitleId, seriesId = w.Title.SeriesId, seriesName = w.Title.Series.Name, name = w.Title.Name, coverUrl = w.Title.CoverUrl, type = w.Title.Type.ToString(), status = w.Status.ToString(), w.Progress })
             .ToListAsync();
         return Ok(list);
     }

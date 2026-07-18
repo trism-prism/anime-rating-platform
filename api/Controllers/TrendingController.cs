@@ -47,17 +47,18 @@ public class TrendingController : ControllerBase
         if (ids == null || ids.Count == 0) return Ok(Array.Empty<object>());
 
         var rows = await _db.Titles.Where(t => t.Type == type && ids.Contains(t.AniListId))
-            .Select(t => new
-            {
-                t.Id, t.AniListId, t.Name, t.CoverUrl, t.Type,
-                AverageOverall = t.Ratings.Average(r => (double?)r.Overall)
-            }).ToListAsync();
+            .Select(t => new { t.AniListId, t.SeriesId }).ToListAsync();
 
-        // keep AniList's order, skip what we don't have
-        var items = rows.OrderBy(t => ids.IndexOf(t.AniListId)).Select(t => new
+        // keep AniList's order, skip what we don't have, one entry per series
+        var seriesIds = rows.OrderBy(t => ids.IndexOf(t.AniListId)).Select(t => t.SeriesId).Distinct().ToList();
+        var series = await _db.Series.Where(s => seriesIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.Name, s.CoverUrl, s.Kind, Entries = s.Titles.Select(t => new { t.RatingCount, t.RatingSum }).ToList() })
+            .ToListAsync();
+
+        var items = seriesIds.Select(id => series.First(s => s.Id == id)).Select(s => new
         {
-            t.Id, t.Name, t.CoverUrl, type = t.Type.ToString(),
-            averageOverall = t.AverageOverall == null ? (double?)null : Math.Round(t.AverageOverall.Value, 2)
+            s.Id, s.Name, s.CoverUrl, type = s.Kind.ToString(),
+            averageOverall = RatingStats.SeriesAverage(s.Entries.Select(e => (e.RatingCount, e.RatingSum)))
         });
         return Ok(items);
     }

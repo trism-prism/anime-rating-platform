@@ -16,6 +16,23 @@ public class Title
     public string Genres { get; set; } = "";
     public int Popularity { get; set; }
 
+    public int SeriesId { get; set; }
+    public Series Series { get; set; } = null!;
+    // order inside the series, 1..n
+    public int Position { get; set; }
+    // AniList format: TV, TV_SHORT, MOVIE, SPECIAL, OVA, ONA, MUSIC, MANGA, NOVEL, ONE_SHOT
+    public string Format { get; set; } = "";
+    public int? Year { get; set; }
+    public int? StartMonth { get; set; }
+    public int? StartDay { get; set; }
+    // manga volume count from the source; null = unknown or ongoing
+    public int? Volumes { get; set; }
+    // an admin placed it; the importer never moves it
+    public bool SeriesLocked { get; set; }
+    // stored totals of whole-title ratings only (Volume == null); concurrency tokens, see RatingsController
+    public int RatingCount { get; set; }
+    public double RatingSum { get; set; }
+
     public List<TitleCharacter> Characters { get; set; } = new();
     public List<Rating> Ratings { get; set; } = new();
 }
