@@ -10,12 +10,15 @@ export default function MyList() {
   const [ratings, setRatings] = useState<MyRating[] | null>(null)
   const [filter, setFilter] = useState<WatchStatus | 'All'>('All')
   const [error, setError] = useState('')
+  const [listError, setListError] = useState('')
+  const [ratingsError, setRatingsError] = useState('')
+  const [tick, setTick] = useState(0) // bump to retry loading
 
   useEffect(() => {
     if (!user) return
-    api<WatchEntry[]>('/me/watchlist').then(setList).catch((e: Error) => setError(e.message))
-    api<MyRating[]>('/me/ratings').then(setRatings).catch((e: Error) => setError(e.message))
-  }, [user])
+    api<WatchEntry[]>('/me/watchlist').then((l) => { setList(l); setListError('') }).catch((e: Error) => setListError(e.message))
+    api<MyRating[]>('/me/ratings').then((r) => { setRatings(r); setRatingsError('') }).catch((e: Error) => setRatingsError(e.message))
+  }, [user, tick])
 
   if (!user) return <Navigate to="/login" replace />
 
@@ -50,11 +53,13 @@ export default function MyList() {
           <button key={s} className={filter === s ? 'on' : ''} onClick={() => setFilter(s)}>{s}</button>
         ))}
       </div>
-      {!list && <p className="muted">Loading...</p>}
+      {!list && listError && <p className="error">{listError} <button onClick={() => { setListError(''); setTick((t) => t + 1) }}>Retry</button></p>}
+      {!list && !listError && <p className="muted">Loading...</p>}
       {list && shown.length === 0 && <p className="muted">Nothing here yet. Add titles from their pages.</p>}
       {shown.map((e) => (
         <div key={e.titleId} className="list-row">
           <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
+          <Link to={`/series/${e.seriesId}`} className="muted link-quiet">{e.seriesName}</Link>
           <span className="muted">{e.type}</span>
           <select value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus, e.progress)}>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
@@ -75,7 +80,8 @@ export default function MyList() {
       ))}
 
       <h2>My ratings</h2>
-      {!ratings && <p className="muted">Loading...</p>}
+      {!ratings && ratingsError && <p className="error">{ratingsError} <button onClick={() => { setRatingsError(''); setTick((t) => t + 1) }}>Retry</button></p>}
+      {!ratings && !ratingsError && <p className="muted">Loading...</p>}
       {ratings && ratings.length === 0 && <p className="muted">You haven't rated anything yet.</p>}
       {ratings && ratings.length > 0 && (
         <table className="table">
@@ -84,8 +90,8 @@ export default function MyList() {
           </thead>
           <tbody>
             {ratings.map((r) => (
-              <tr key={r.titleId}>
-                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link></td>
+              <tr key={`${r.titleId}-${r.volume ?? 0}`}>
+                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
                 <td>{r.story}</td><td>{r.art}</td><td>{r.characters}</td><td>{r.enjoyment}</td>
                 <td><strong>{r.overall}</strong></td>
               </tr>

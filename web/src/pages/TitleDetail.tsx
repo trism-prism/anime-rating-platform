@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import ScoreBar from '../components/ScoreBar'
 import RateForm from '../components/RateForm'
@@ -14,24 +14,32 @@ function plainText(html: string | null) {
 export default function TitleDetail() {
   const { id } = useParams()
   const [title, setTitle] = useState<Detail | null>(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{ id: string; message: string } | null>(null)
   const [tick, setTick] = useState(0) // bump to refetch after rating
+  const [picked, setPicked] = useState({ titleId: 0, volume: 0 }) // volume 0 = none picked
 
   useEffect(() => {
     let stale = false
     api<Detail>(`/titles/${id}`)
-      .then((d) => { if (!stale) { setTitle(d); setError('') } })
-      .catch((e: Error) => !stale && setError(e.message))
+      .then((d) => { if (!stale) { setTitle(d); setError(null) } })
+      .catch((e: Error) => !stale && id && setError({ id, message: e.message }))
     return () => {
       stale = true
     }
   }, [id, tick])
   const load = () => setTick((t) => t + 1)
 
-  if (error && !title) return <p className="error">{error}</p>
+  if (error && error.id === id) {
+    return (
+      <p className="error">
+        {error.message} <button onClick={() => { setError(null); load() }}>Retry</button>
+      </p>
+    )
+  }
   if (!title || title.id !== Number(id)) return <p className="muted">Loading...</p>
 
   const a = title.averages
+  const volume = picked.titleId === title.id ? picked.volume : 0
   const size = title.type === 'Anime' ? (title.episodes ? `${title.episodes} episodes` : '') : (title.chapters ? `${title.chapters} chapters` : '')
 
   return (
@@ -39,8 +47,11 @@ export default function TitleDetail() {
       <div className="detail">
         {title.coverUrl && <img className="cover" src={title.coverUrl} alt={title.name} />}
         <div>
+          <p className="muted crumb">
+            <Link to={`/series/${title.seriesId}`} className="link">{title.seriesName}</Link> · #{title.position}
+          </p>
           <h1>{title.name}</h1>
-          <p className="muted">{[title.type, size].filter(Boolean).join(' · ')}</p>
+          <p className="muted">{[title.type, title.format && title.format.replace(/_/g, ' '), title.year, size].filter(Boolean).join(' · ')}</p>
           <div className="tags">
             {title.genres.map((g) => <span key={g} className="tag">{g}</span>)}
           </div>
@@ -63,6 +74,39 @@ export default function TitleDetail() {
 
       <h2>Your rating</h2>
       <RateForm key={title.id} titleId={title.id} onChanged={load} />
+
+      {title.type === 'Manga' && title.volumes != null && (
+        <>
+          <h2>Rate a volume</h2>
+          <p className="muted">Volume ratings are kept separate and do not change the title average above.</p>
+          <label className="row">
+            <span>Volume</span>
+            <select value={volume} onChange={(e) => setPicked({ titleId: title.id, volume: Number(e.target.value) })}>
+              <option value={0}>Pick a volume</option>
+              {Array.from({ length: title.volumes }, (_, i) => i + 1).map((v) => <option key={v} value={v}>Volume {v}</option>)}
+            </select>
+          </label>
+          {volume > 0 && <RateForm key={`${title.id}-${volume}`} titleId={title.id} volume={volume} onChanged={load} />}
+        </>
+      )}
+
+      {title.volumeAverages && (
+        <>
+          <h2>Volume averages</h2>
+          {title.volumeAverages.length === 0 ? (
+            <p className="muted">No volume ratings yet.</p>
+          ) : (
+            <table className="table volumes">
+              <thead><tr><th>Volume</th><th>Average</th><th>Ratings</th></tr></thead>
+              <tbody>
+                {title.volumeAverages.map((v) => (
+                  <tr key={v.volume}><td>Volume {v.volume}</td><td><strong>{v.average}</strong> / 10</td><td>{v.count}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
 
       <h2>Your list</h2>
       <ListForm key={title.id} titleId={title.id} />
@@ -87,7 +131,7 @@ export default function TitleDetail() {
       {title.reviews.map((r, i) => (
         <div key={i} className="review">
           <div>
-            <strong>{r.userName}</strong> <span className="muted">· {r.overall} / 10 · {new Date(r.createdAt).toLocaleDateString()}</span>
+            <strong>{r.userName}</strong> <span className="muted">{r.volume != null && `· Volume ${r.volume} `}· {r.overall} / 10 · {new Date(r.createdAt).toLocaleDateString()}</span>
           </div>
           <p>{r.reviewText}</p>
         </div>
