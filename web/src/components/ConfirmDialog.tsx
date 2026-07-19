@@ -1,0 +1,32 @@
+import { useEffect, useRef, type ReactNode } from 'react'
+
+// native modal dialog: focus trap, Escape and backdrop come from the browser
+export default function ConfirmDialog({ open, title, children, confirmLabel, busy, onConfirm, onCancel }: {
+  open: boolean
+  title: string
+  children: ReactNode
+  confirmLabel: string
+  busy: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const ref = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const d = ref.current
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    if (!open && d.open) d.close()
+  }, [open])
+
+  return (
+    <dialog ref={ref} aria-labelledby="confirm-title" onCancel={(e) => { e.preventDefault(); if (!busy) onCancel() }}>
+      <h3 id="confirm-title">{title}</h3>
+      <div>{children}</div>
+      <div className="row" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
+        <button onClick={onCancel} disabled={busy}>Cancel</button>
+        <button onClick={onConfirm} disabled={busy} className="on">{busy ? 'Working...' : confirmLabel}</button>
+      </div>
+    </dialog>
+  )
+}

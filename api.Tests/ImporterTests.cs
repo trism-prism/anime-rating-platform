@@ -42,7 +42,7 @@ public class ImporterTests
         Assert.Equal(1, await db.VoiceActors.CountAsync());
         Assert.Equal(2, await db.Titles.CountAsync());
         Assert.Equal(2, await db.TitleCharacters.CountAsync());
-        Assert.Equal(new ImportCounts(2, 1, 1, 2), counts);
+        Assert.Equal(new ImportCounts(2, 1, 1, 2, 0, 2), counts);
         Assert.Equal("Hi\nthere", (await db.Titles.FirstAsync(t => t.Type == TitleType.Anime)).Synopsis);
     }
 }

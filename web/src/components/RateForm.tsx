@@ -9,7 +9,8 @@ type Field = (typeof FIELDS)[number]
 
 const blank: Record<Field, number> = { story: 5, art: 5, characters: 5, enjoyment: 5 }
 
-export default function RateForm({ titleId, onChanged }: { titleId: number; onChanged: () => void }) {
+// volume: rate one volume of a manga instead of the whole title (the API keeps the two apart)
+export default function RateForm({ titleId, volume = null, onChanged }: { titleId: number; volume?: number | null; onChanged: () => void }) {
   const { user, emailVerified } = useAuth()
   const { pathname } = useLocation()
   const [scores, setScores] = useState(blank)
@@ -25,7 +26,7 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
     let stale = false
     api<MyRating[]>('/me/ratings')
       .then((list) => {
-        const mine = list.find((r) => r.titleId === titleId)
+        const mine = list.find((r) => r.titleId === titleId && (r.volume ?? null) === volume)
         if (stale || !mine) return
         setScores({ story: mine.story, art: mine.art, characters: mine.characters, enjoyment: mine.enjoyment })
         setReview(mine.reviewText ?? '')
@@ -35,11 +36,13 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
     return () => {
       stale = true
     }
-  }, [titleId, user])
+  }, [titleId, volume, user])
 
   if (!user) {
     return <p><Link to="/login" className="link">Log in</Link> to rate this title.</p>
   }
+
+  const ratingUrl = `/titles/${titleId}/rating${volume == null ? '' : `?volume=${volume}`}`
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -47,7 +50,7 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
     setMsg('')
     setError('')
     try {
-      await api(`/titles/${titleId}/rating`, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review }) })
+      await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review }) })
       setHasRating(true)
       setMsg('Saved.')
       onChanged()
@@ -63,7 +66,7 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
     setMsg('')
     setError('')
     try {
-      await api(`/titles/${titleId}/rating`, { method: 'DELETE' })
+      await api(ratingUrl, { method: 'DELETE' })
       setScores(blank)
       setReview('')
       setHasRating(false)

@@ -79,4 +79,43 @@ public class RatingTests
         var res = Assert.IsType<OkObjectResult>(await new TitlesController(db).List(new string('a', 100) + "zzz", null, null));
         Assert.Contains("total = 1", res.Value!.ToString());
     }
+
+    [Fact]
+    public async Task Volume_ratings_never_change_title_totals_or_reach_rankings()
+    {
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new AppDbContext(opts);
+        db.Titles.Add(new Title { Id = 1, AniListId = 1, Name = "Manga", Type = TitleType.Manga, Volumes = 5, Series = new Series { Name = "Manga" } });
+        db.Users.Add(new AppUser { Id = "a", EmailConfirmed = true });
+        await db.SaveChangesAsync();
+
+        var body = new RatingRequest(10, 10, 10, 10, null);
+        foreach (var v in new[] { 1, 2, 3 })
+            Assert.IsType<OkObjectResult>(await As("a", db).Put(1, body, v));
+        Assert.IsType<OkObjectResult>(await As("a", db).Put(1, body with { Story = 5 }, 1)); // update
+
+        var title = await db.Titles.AsNoTracking().SingleAsync();
+        Assert.Equal(0, title.RatingCount);
+        Assert.Equal(0, title.RatingSum);
+        Assert.Equal(3, await db.Ratings.CountAsync());
+
+        var ranked = Assert.IsType<OkObjectResult>(await new RankingsController(db).Get("overall"));
+        Assert.Empty((System.Collections.IEnumerable)ranked.Value!);
+
+        // the title page still shows the volumes but no whole-title average
+        var page = Assert.IsType<OkObjectResult>(await new TitlesController(db).Get(1));
+        Assert.Contains("ratingCount = 0", page.Value!.ToString());
+
+        Assert.IsType<NoContentResult>(await As("a", db).Delete(1, 2));
+        title = await db.Titles.AsNoTracking().SingleAsync();
+        Assert.Equal(0, title.RatingCount);
+        Assert.Equal(0, title.RatingSum);
+
+        // a whole-title rating still counts, and deleting a volume does not undo it
+        Assert.IsType<OkObjectResult>(await As("a", db).Put(1, body));
+        Assert.IsType<NoContentResult>(await As("a", db).Delete(1, 3));
+        title = await db.Titles.AsNoTracking().SingleAsync();
+        Assert.Equal(1, title.RatingCount);
+        Assert.Equal(10, title.RatingSum);
+    }
 }

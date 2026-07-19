@@ -25,7 +25,7 @@ public class WatchListTests
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         using var db = new AppDbContext(options);
-        db.Titles.Add(new Title { Id = 1, Name = "Frieren" });
+        db.Titles.Add(new Title { Id = 1, Name = "Frieren", Series = new Series { Name = "Frieren" } });
         await db.SaveChangesAsync();
 
         var a = As(db, "user-a");
@@ -45,7 +45,7 @@ public class WatchListTests
     {
         var options = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         using var db = new AppDbContext(options);
-        db.Titles.Add(new Title { Id = 1, Name = "Frieren" });
+        db.Titles.Add(new Title { Id = 1, Name = "Frieren", Series = new Series { Name = "Frieren" } });
         await db.SaveChangesAsync();
         var a = As(db, "user-a");
 

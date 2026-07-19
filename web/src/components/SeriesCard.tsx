@@ -1,0 +1,21 @@
+import { Link } from 'react-router-dom'
+import type { TitleType } from '../types'
+
+type Props = { id: number; name: string; coverUrl: string | null; type: TitleType; average: number | null; ratingCount?: number }
+
+export default function SeriesCard({ id, name, coverUrl, type, average, ratingCount }: Props) {
+  return (
+    <Link to={`/series/${id}`} className="card">
+      {coverUrl ? <img src={coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
+      <div className="card-body">
+        <div className="card-name" title={name}>{name}</div>
+        <div className="muted">
+          {type} · {average ?? '-'} / 10
+        </div>
+        {ratingCount !== undefined && (
+          <div className="muted">{ratingCount} {ratingCount === 1 ? 'rating' : 'ratings'}</div>
+        )}
+      </div>
+    </Link>
+  )
+}

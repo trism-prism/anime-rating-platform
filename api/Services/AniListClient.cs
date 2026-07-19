@@ -12,20 +12,33 @@ public record ACharacterNode(int Id, AName Name, AImage? Image);
 public record ACharacterEdge(string? Role, ACharacterNode Node, List<AVoiceActor>? VoiceActors);
 public record ACharacters(List<ACharacterEdge>? Edges);
 public record ATrending(int Id, ATitle Title, AImage? CoverImage, int Trending, int Popularity);
-public record AMedia(int Id, ATitle Title, AImage? CoverImage, string? Description, int? Episodes,
-    int? Chapters, List<string>? Genres, int Popularity, ACharacters? Characters);
+public record ADate(int? Year, int? Month, int? Day);
+public record ARelationNode(int Id);
+public record ARelationEdge(string? RelationType, ARelationNode Node);
+public record ARelations(List<ARelationEdge>? Edges);
+public record AMedia(int Id, string? Type, ATitle Title, AImage? CoverImage, string? Description, int? Episodes,
+    int? Chapters, List<string>? Genres, int Popularity, ACharacters? Characters,
+    string? Format, ADate? StartDate, int? Volumes, ARelations? Relations);
 
 public class AniListClient
 {
-    const string Query = @"query ($page: Int, $type: MediaType) {
-  Page(page: $page, perPage: 50) {
-    media(type: $type, sort: POPULARITY_DESC) {
-      id title { romaji english } coverImage { large } description episodes chapters genres popularity
+    const string Fields = @"id type title { romaji english } coverImage { large } description episodes chapters genres popularity
+      format startDate { year month day } volumes
+      relations { edges { relationType node { id } } }
       characters(perPage: 10, sort: ROLE) {
         edges { role node { id name { full } image { large } }
           voiceActors(language: JAPANESE) { id name { full } image { large } } }
-      }
-    }
+      }";
+
+    const string Query = @"query ($page: Int, $type: MediaType) {
+  Page(page: $page, perPage: 50) {
+    media(type: $type, sort: POPULARITY_DESC) { " + Fields + @" }
+  }
+}";
+
+    const string ByIdsQuery = @"query ($ids: [Int]) {
+  Page(page: 1, perPage: 50) {
+    media(id_in: $ids) { " + Fields + @" }
   }
 }";
 
@@ -43,9 +56,14 @@ public class AniListClient
 
     public AniListClient(HttpClient http) => _http = http;
 
-    public async Task<List<AMedia>> GetPage(string type, int page)
+    public Task<List<AMedia>> GetPage(string type, int page) => Post(Query, new { page, type });
+
+    // up to 50 ids per call
+    public Task<List<AMedia>> GetByIds(IEnumerable<int> ids) => Post(ByIdsQuery, new { ids = ids.Take(50).ToList() });
+
+    async Task<List<AMedia>> Post(string query, object variables)
     {
-        var body = JsonSerializer.Serialize(new { query = Query, variables = new { page, type } });
+        var body = JsonSerializer.Serialize(new { query, variables });
 
         for (var attempt = 0; attempt < 4; attempt++)
         {
