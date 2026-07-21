@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import AvatarMenu from './AvatarMenu'
+import NotificationBell from './NotificationBell'
 
 export default function Layout() {
   const { user, emailVerified, loading } = useAuth()
@@ -19,7 +20,10 @@ export default function Layout() {
         <NavLink to="/my-list">My List</NavLink>
         <span className="spacer" />
         {user ? (
-          <AvatarMenu />
+          <>
+            <NotificationBell />
+            <AvatarMenu />
+          </>
         ) : (
           <>
             <NavLink to="/login">Login</NavLink>
