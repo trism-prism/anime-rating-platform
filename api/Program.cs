@@ -93,6 +93,17 @@ builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
+    o.OnRejected = (ctx, _) =>
+    {
+        if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var after))
+            ctx.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(after.TotalSeconds)).ToString();
+        return ValueTask.CompletedTask;
+    };
+    // social writes: per signed-in user, so one account cannot spam requests or blocks
+    o.AddPolicy("friend-request", ctx => SocialRules.PerUser(ctx, 20, TimeSpan.FromHours(1)));
+    o.AddPolicy("block", ctx => SocialRules.PerUser(ctx, 30, TimeSpan.FromHours(1)));
+    o.AddPolicy("notify", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("profile", ctx => SocialRules.PerUser(ctx, 60, TimeSpan.FromMinutes(1))); // per user, per IP when anonymous
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
@@ -155,8 +166,8 @@ app.UseForwardedHeaders();
 if (app.Environment.IsDevelopment()) app.UseHttpsRedirection(); // in production Railway's proxy handles HTTPS
 
 app.UseCors();
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter(); // after authentication: the social policies are keyed by user id
 app.UseAuthorization();
 
 app.MapControllers();
