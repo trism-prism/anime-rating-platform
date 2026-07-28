@@ -22,7 +22,13 @@ const CrossIcon = () => (
   </svg>
 )
 
-const text = (n: Notification) => (n.type === 'FriendRequest' ? 'sent you a friend request' : 'accepted your friend request')
+const TEXT: Record<Notification['type'], string> = {
+  FriendRequest: 'sent you a friend request',
+  FriendAccepted: 'accepted your friend request',
+  Reply: 'replied to your review',
+  Reaction: 'reacted to your review',
+}
+const text = (n: Notification) => TEXT[n.type]
 
 // bell with an unread badge and a dropdown of notifications; rendered only while someone is signed in
 export default function NotificationBell() {
@@ -115,7 +121,8 @@ export default function NotificationBell() {
       api(`/me/notifications/${n.id}/read`, { method: 'POST' }).catch(loadCount) // failed: take the real count back
     }
     setOpen(false)
-    navigate(`/u/${encodeURIComponent(n.actor)}`)
+    // replies and reactions lead to the review itself; friend notifications to the other person
+    navigate(n.reviewId != null ? `/reviews/${n.reviewId}` : `/u/${encodeURIComponent(n.actor)}`)
   }
 
   async function answer(n: Notification, accept: boolean) {

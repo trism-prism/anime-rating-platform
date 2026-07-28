@@ -103,6 +103,9 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("friend-request", ctx => SocialRules.PerUser(ctx, 20, TimeSpan.FromHours(1)));
     o.AddPolicy("block", ctx => SocialRules.PerUser(ctx, 30, TimeSpan.FromHours(1)));
     o.AddPolicy("notify", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("reply", ctx => SocialRules.PerUser(ctx, 30, TimeSpan.FromHours(1)));
+    o.AddPolicy("reaction", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("audience", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
     o.AddPolicy("profile", ctx => SocialRules.PerUser(ctx, 60, TimeSpan.FromMinutes(1))); // per user, per IP when anonymous
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",

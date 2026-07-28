@@ -43,11 +43,16 @@ public class NotificationsController : ControllerBase
 
         var more = rows.Count > PageSize;
         rows = rows.Take(PageSize).ToList();
+        // Reply and Reaction notifications link to the review; resolved for this page only
+        var replyIds = rows.Where(n => n.Type == NotificationType.Reply).Select(n => n.SubjectId).ToList();
+        var replyReview = await _db.Replies.Where(x => replyIds.Contains(x.Id)).Select(x => new { x.Id, x.RatingId }).ToDictionaryAsync(x => x.Id, x => x.RatingId);
         var items = rows.Select(n => new
         {
             n.Id, type = n.Type.ToString(), n.actor, n.CreatedAt, n.read,
             actionable = n.pending,
-            requestId = n.pending ? n.SubjectId : null
+            requestId = n.pending ? n.SubjectId : null,
+            reviewId = n.Type == NotificationType.Reaction ? n.SubjectId
+                : n.Type == NotificationType.Reply && n.SubjectId != null && replyReview.TryGetValue(n.SubjectId.Value, out var rid) ? rid : (int?)null
         });
         return Ok(new { items, nextCursor = more ? rows[^1].Id : (int?)null });
     }

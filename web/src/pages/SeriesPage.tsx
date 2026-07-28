@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
+import Reviews from '../components/Reviews'
 import type { SeriesDetail, SeriesEntry } from '../types'
 
 // API enums arrive as TV_SHORT, SIDE_STORY and so on
@@ -113,6 +114,8 @@ export default function SeriesPage() {
           ))}
         </>
       )}
+
+      <Reviews key={s.id} path={`/series/${s.id}`} showTitle />
     </div>
   )
 }

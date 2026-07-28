@@ -81,13 +81,7 @@ public class TitlesController : ControllerBase
             Count = g.Count()
         }).FirstOrDefaultAsync();
 
-        var reviews = await ratings.Where(r => r.ReviewText != null && r.ReviewText != "")
-            .OrderByDescending(r => r.CreatedAt).Take(50)
-            .Select(r => new
-            {
-                userName = r.User.UserName, r.Volume, r.Overall, r.Story, r.Art, r.Characters, r.Enjoyment, r.ReviewText, r.CreatedAt
-            }).ToListAsync();
-
+        // reviews are served by GET /titles/{id}/reviews, which applies each rating's audience; nothing here may list text
         // one average per rated volume; shown whenever volume ratings exist, even if the volume count was later lost
         var perVolume = (await ratings.Where(r => r.Volume != null)
             .GroupBy(r => r.Volume)
@@ -108,8 +102,7 @@ public class TitlesController : ControllerBase
                 story = Math.Round(avg.Story, 2), art = Math.Round(avg.Art, 2), characters = Math.Round(avg.Characters, 2),
                 enjoyment = Math.Round(avg.Enjoyment, 2), overall = Math.Round(avg.Overall, 2)
             },
-            ratingCount = avg?.Count ?? 0,
-            reviews
+            ratingCount = avg?.Count ?? 0
         });
     }
 

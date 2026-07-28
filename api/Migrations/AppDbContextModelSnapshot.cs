@@ -333,6 +333,10 @@ namespace api.Migrations
 
                     b.HasIndex("UserId", "Id");
 
+                    b.HasIndex("UserId", "ActorId", "SubjectId")
+                        .IsUnique()
+                        .HasFilter("\"Type\" = 'Reaction'");
+
                     b.HasIndex("UserId", "ReadAt", "CreatedAt")
                         .IsDescending(false, false, true);
 
@@ -366,6 +370,10 @@ namespace api.Migrations
                     b.Property<int>("Art")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("Characters")
                         .HasColumnType("integer");
 
@@ -375,16 +383,31 @@ namespace api.Migrations
                     b.Property<int>("Enjoyment")
                         .HasColumnType("integer");
 
+                    b.Property<int>("FunnyCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HelpfulCount")
+                        .HasColumnType("integer");
+
                     b.Property<double>("Overall")
                         .HasColumnType("double precision");
 
                     b.Property<string>("ReviewText")
                         .HasColumnType("text");
 
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Spoiler")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("Story")
                         .HasColumnType("integer");
 
                     b.Property<int>("TitleId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UnhelpfulCount")
                         .HasColumnType("integer");
 
                     b.Property<string>("UserId")
@@ -398,15 +421,90 @@ namespace api.Migrations
 
                     b.HasIndex("TitleId");
 
+                    b.HasIndex("TitleId", "Id")
+                        .HasFilter("\"ReviewText\" IS NOT NULL");
+
+                    b.HasIndex("UserId", "Id");
+
                     b.HasIndex("UserId", "TitleId")
                         .IsUnique()
                         .HasFilter("\"Volume\" IS NULL");
+
+                    b.HasIndex("TitleId", "Score", "Id")
+                        .HasFilter("\"ReviewText\" IS NOT NULL");
 
                     b.HasIndex("UserId", "TitleId", "Volume")
                         .IsUnique()
                         .HasFilter("\"Volume\" IS NOT NULL");
 
                     b.ToTable("Ratings");
+                });
+
+            modelBuilder.Entity("api.Models.Reaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RatingId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("RatingId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("Reactions");
+                });
+
+            modelBuilder.Entity("api.Models.Reply", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RatingId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Spoiler")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("RatingId", "Id");
+
+                    b.ToTable("Replies");
                 });
 
             modelBuilder.Entity("api.Models.Series", b =>
@@ -705,6 +803,10 @@ namespace api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("Progress")
                         .HasColumnType("integer");
 
@@ -842,6 +944,42 @@ namespace api.Migrations
                         .IsRequired();
 
                     b.Navigation("Title");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("api.Models.Reaction", b =>
+                {
+                    b.HasOne("api.Models.Rating", "Rating")
+                        .WithMany()
+                        .HasForeignKey("RatingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("api.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Rating");
+                });
+
+            modelBuilder.Entity("api.Models.Reply", b =>
+                {
+                    b.HasOne("api.Models.Rating", "Rating")
+                        .WithMany()
+                        .HasForeignKey("RatingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("api.Models.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Rating");
 
                     b.Navigation("User");
                 });

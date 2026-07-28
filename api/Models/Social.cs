@@ -26,7 +26,7 @@ public class UserBlock
 }
 
 // add new types at the end; they show up in the preferences list by themselves
-public enum NotificationType { FriendRequest, FriendAccepted }
+public enum NotificationType { FriendRequest, FriendAccepted, Reply, Reaction }
 
 // nothing deletes old notifications yet; the retention job (compliance stage) owns that
 public class Notification
@@ -36,7 +36,7 @@ public class Notification
     public NotificationType Type { get; set; }
     public string ActorId { get; set; } = "";
     public AppUser Actor { get; set; } = null!;
-    public int? SubjectId { get; set; } // friend notifications: the friendship id
+    public int? SubjectId { get; set; } // FriendRequest/FriendAccepted: the friendship id; Reply: the reply id; Reaction: the rating id
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReadAt { get; set; }
 }

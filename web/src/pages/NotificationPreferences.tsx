@@ -7,6 +7,8 @@ import type { NotificationPref } from '../types'
 const LABELS: Record<string, string> = {
   FriendRequest: 'Someone sends me a friend request',
   FriendAccepted: 'Someone accepts my friend request',
+  Reply: 'Someone replies to my review',
+  Reaction: 'Someone reacts to my review',
 }
 
 export default function NotificationPreferences() {
