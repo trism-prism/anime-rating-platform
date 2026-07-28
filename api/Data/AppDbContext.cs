@@ -21,6 +21,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<Reply> Replies => Set<Reply>();
+    public DbSet<Reaction> Reactions => Set<Reaction>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -39,6 +41,28 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // Volume is nullable and Postgres treats NULLs as distinct, so two filtered unique indexes
         b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId }).IsUnique().HasFilter("\"Volume\" IS NULL");
         b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId, r.Volume }).IsUnique().HasFilter("\"Volume\" IS NOT NULL");
+        // reviews: the lists sort by Score or Id inside one title (partial: only ratings that have text), profile lists page by Id
+        b.Entity<Rating>().Property(r => r.Audience).HasConversion<string>();
+        b.Entity<Rating>().HasIndex(r => r.TitleId); // explicit: the partial indexes below can't serve ratings without text (averages, counts)
+        b.Entity<Rating>().HasIndex(r => new { r.TitleId, r.Score, r.Id }).HasFilter("\"ReviewText\" IS NOT NULL");
+        b.Entity<Rating>().HasIndex(r => new { r.TitleId, r.Id }).HasFilter("\"ReviewText\" IS NOT NULL");
+        b.Entity<Rating>().HasIndex(r => new { r.UserId, r.Id });
+        b.Entity<Reply>(e =>
+        {
+            e.HasOne(x => x.Rating).WithMany().HasForeignKey(x => x.RatingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.RatingId, x.Id }); // the paged thread, oldest first
+            e.HasIndex(x => x.UserId); // the cascade when an account goes
+        });
+        b.Entity<Reaction>(e =>
+        {
+            e.HasOne(x => x.Rating).WithMany().HasForeignKey(x => x.RatingId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Kind).HasConversion<string>();
+            e.Property(x => x.Kind).IsConcurrencyToken(); // a change or clear acts only on the kind it read
+            e.HasIndex(x => new { x.RatingId, x.UserId }).IsUnique();
+            e.HasIndex(x => x.UserId);
+        });
         b.Entity<Title>().HasOne(t => t.Series).WithMany(s => s.Titles).HasForeignKey(t => t.SeriesId)
             .OnDelete(DeleteBehavior.Restrict); // deleting a series must never take its titles (and their ratings) with it
         b.Entity<Title>().HasIndex(t => new { t.SeriesId, t.Position });
@@ -50,6 +74,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
         b.Entity<TitleRelation>().HasIndex(r => r.ToAniListId);
         b.Entity<WatchListEntry>().HasIndex(w => new { w.UserId, w.TitleId }).IsUnique();
         b.Entity<WatchListEntry>().Property(w => w.Status).HasConversion<string>();
+        b.Entity<WatchListEntry>().Property(w => w.Audience).HasConversion<string>();
         b.Entity<Session>().HasIndex(s => s.UserId);
         // two refreshes with the same token: only the first update finds this hash still in place
         b.Entity<Session>().Property(s => s.CurrentTokenHash).IsConcurrencyToken();
@@ -84,6 +109,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             e.HasIndex(n => new { n.UserId, n.ReadAt, n.CreatedAt }).IsDescending(false, false, true);
             e.HasIndex(n => new { n.UserId, n.Id }); // the paged list
             e.HasIndex(n => n.SubjectId); // cleanup when a friendship goes
+            // one Reaction notification per reactor per review, enforced here so a double click can't make two
+            e.HasIndex(n => new { n.UserId, n.ActorId, n.SubjectId }).IsUnique().HasFilter("\"Type\" = 'Reaction'");
         });
         b.Entity<NotificationPreference>(e =>
         {
