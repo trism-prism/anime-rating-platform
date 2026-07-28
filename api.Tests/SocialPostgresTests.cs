@@ -30,7 +30,7 @@ public class SocialPostgresTests
 
     // Runs `sql` on another connection (another request, as it were) right before the first command containing `when`,
     // counting only commands after one containing `after` has run (null: from the start). This makes a race deterministic.
-    class Race : DbCommandInterceptor
+    internal class Race : DbCommandInterceptor
     {
         readonly string _cs, _when, _sql;
         string? _after;
