@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import { STATUSES, type MyRating, type WatchEntry, type WatchStatus } from '../types'
+import AudienceSelect from '../components/AudienceSelect'
+import { STATUSES, type Audience, type MyRating, type WatchEntry, type WatchStatus } from '../types'
 
 export default function MyList() {
   const { user } = useAuth()
@@ -13,6 +14,8 @@ export default function MyList() {
   const [listError, setListError] = useState('')
   const [ratingsError, setRatingsError] = useState('')
   const [tick, setTick] = useState(0) // bump to retry loading
+  const inFlight = useRef(new Set<string>()) // audience changes being saved, readable at once (state lags a fast double change)
+  const [changing, setChanging] = useState<string[]>([])
 
   useEffect(() => {
     if (!user) return
@@ -29,6 +32,24 @@ export default function MyList() {
       setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, status, progress } : x)))
     } catch (err) {
       setError((err as Error).message)
+    }
+  }
+
+  // one change at a time per row; on failure the lists are loaded again, so the select shows what the server has
+  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void) {
+    if (inFlight.current.has(key)) return
+    inFlight.current.add(key)
+    setChanging([...inFlight.current])
+    setError('')
+    try {
+      await api(path, { method: 'PUT', body: JSON.stringify({ audience }) })
+      apply()
+    } catch (err) {
+      setError((err as Error).message)
+      setTick((t) => t + 1)
+    } finally {
+      inFlight.current.delete(key)
+      setChanging([...inFlight.current])
     }
   }
 
@@ -64,6 +85,13 @@ export default function MyList() {
           <select value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus, e.progress)}>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
+          <AudienceSelect
+            label={`Who can see ${e.name} on your list`}
+            value={e.audience}
+            disabled={changing.includes(`w-${e.titleId}`)}
+            onChange={(a) => changeAudience(`w-${e.titleId}`, `/me/watchlist/${e.titleId}/audience`, a,
+              () => setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, audience: a } : x))))}
+          />
           <input
             type="number"
             min={0}
@@ -84,9 +112,10 @@ export default function MyList() {
       {!ratings && !ratingsError && <p className="muted">Loading...</p>}
       {ratings && ratings.length === 0 && <p className="muted">You haven't rated anything yet.</p>}
       {ratings && ratings.length > 0 && (
+        <div className="table-scroll">
         <table className="table">
           <thead>
-            <tr><th>Title</th><th>Story</th><th>Art</th><th>Chars</th><th>Fun</th><th>Overall</th></tr>
+            <tr><th>Title</th><th>Story</th><th>Art</th><th>Chars</th><th>Fun</th><th>Overall</th><th>Who can see</th></tr>
           </thead>
           <tbody>
             {ratings.map((r) => (
@@ -94,10 +123,21 @@ export default function MyList() {
                 <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
                 <td>{r.story}</td><td>{r.art}</td><td>{r.characters}</td><td>{r.enjoyment}</td>
                 <td><strong>{r.overall}</strong></td>
+                <td>
+                  <AudienceSelect
+                    label={`Who can see your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}
+                    value={r.audience}
+                    disabled={changing.includes(`r-${r.titleId}-${r.volume ?? 0}`)}
+                    onChange={(a) => changeAudience(`r-${r.titleId}-${r.volume ?? 0}`,
+                      `/titles/${r.titleId}/rating/audience${r.volume == null ? '' : `?volume=${r.volume}`}`, a,
+                      () => setRatings((l) => l && l.map((x) => (x.titleId === r.titleId && x.volume === r.volume ? { ...x, audience: a } : x))))}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )

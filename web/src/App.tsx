@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Browse from './pages/Browse'
 import SeriesPage from './pages/SeriesPage'
 import TitleDetail from './pages/TitleDetail'
+import ReviewPage from './pages/ReviewPage'
 import Trending from './pages/Trending'
 import Rankings from './pages/Rankings'
 import MyList from './pages/MyList'
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/" element={<Browse />} />
           <Route path="/series/:id" element={<SeriesPage />} />
           <Route path="/titles/:id" element={<TitleDetail />} />
+          <Route path="/reviews/:id" element={<ReviewPage />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/rankings" element={<Rankings />} />
           <Route path="/my-list" element={<MyList />} />
