@@ -252,3 +252,33 @@ dialog h3 { margin: 0 0 8px; }
 }
 .subhead-row { justify-content: space-between; margin-top: 16px; }
 .subhead-row .subhead { margin: 0; }
+
+/* reviews, replies, spoilers */
+.reviews { min-height: 120px; }
+.reviews-head { justify-content: space-between; margin-top: 28px; }
+.reviews-head h2 { margin: 0; }
+.review-skeleton { height: 120px; }
+.review-head { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.review-text { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; }
+.reactions { display: flex; flex-wrap: wrap; gap: 6px; }
+.reactions button { padding: 4px 10px; font-size: 0.9rem; }
+.reactions .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.reactions button.on .count { color: inherit; }
+.review .hint { margin: 6px 0 0; font-size: 0.85rem; }
+.spoiler-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 6px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 6px; }
+.spoiler-toggle { display: block; margin-top: 6px; }
+.thread { margin-top: 12px; padding: 10px 12px; border-left: 2px solid var(--border); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.thread p { margin: 0; }
+.replies { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.reply-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; }
+.reply-delete { margin-left: auto; }
+.reply-form { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.reply-form textarea { width: 100%; resize: vertical; }
+.reply-form .count { margin-left: auto; font-size: 0.85rem; }
+.check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.check input { padding: 0; }
+.table-scroll { overflow-x: auto; }
+.profile-rating-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.profile-ratings li { align-items: flex-start; }
+.review-page { max-width: 720px; }
