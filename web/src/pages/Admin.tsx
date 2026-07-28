@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import AdminReports from '../components/AdminReports'
 import AdminSeries from '../components/AdminSeries'
 
 type AdminUser = { id: string; userName: string; email: string; emailVerified: boolean; isAdmin: boolean }
@@ -71,6 +72,8 @@ export default function Admin() {
       {importError && <p className="error">{importError}</p>}
 
       <AdminSeries />
+
+      <AdminReports />
 
       <h2>Users</h2>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setPage(1); setQuery(search) }}>

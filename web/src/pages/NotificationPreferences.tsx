@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   FriendAccepted: 'Someone accepts my friend request',
   Reply: 'Someone replies to my review',
   Reaction: 'Someone reacts to my review',
+  ReportOutcome: 'A report I filed is settled',
 }
 
 export default function NotificationPreferences() {

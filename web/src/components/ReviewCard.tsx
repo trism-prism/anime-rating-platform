@@ -6,6 +6,7 @@ import { timeAgo } from '../time'
 import { REACTIONS, type ReactionKind, type ReactionState, type ReviewItem } from '../types'
 import ConfirmDialog from './ConfirmDialog'
 import ReplyThread from './ReplyThread'
+import ReportButton from './ReportButton'
 import Spoiler from './Spoiler'
 
 const countOf = (r: ReviewItem, k: ReactionKind) => (k === 'Helpful' ? r.helpful : k === 'Unhelpful' ? r.unhelpful : r.funny)
@@ -98,6 +99,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
         <button className="link-button" aria-expanded={open} onClick={() => setOpen(!open)}>
           {review.replyCount} {review.replyCount === 1 ? 'reply' : 'replies'}{open ? ' (hide)' : ''}
         </button>
+        {user && !review.mine && <ReportButton path={`/reviews/${id}/report`} what="review" />}
         {isAdmin && <button className="link-button" disabled={busy} onClick={() => setConfirmRemove(true)}>Remove text</button>}
       </div>
       {why && <p className="muted hint">{user ? why : <><Link to="/login" className="link">Log in</Link> to react.</>}</p>}

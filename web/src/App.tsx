@@ -15,6 +15,7 @@ import Profile from './pages/Profile'
 import NotificationPreferences from './pages/NotificationPreferences'
 import Verify from './pages/Verify'
 import Admin from './pages/Admin'
+import Feed from './pages/Feed'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Privacy from './pages/Privacy'
 import GoogleCallback from './pages/GoogleCallback'
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/trending" element={<Trending />} />
           <Route path="/rankings" element={<Rankings />} />
           <Route path="/my-list" element={<MyList />} />
+          <Route path="/feed" element={<Feed />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
