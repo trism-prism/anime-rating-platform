@@ -78,7 +78,7 @@ public class RatingsController : ControllerBase
             r.Enjoyment = body.Enjoyment;
             r.Overall = overall;
             var hadText = r.ReviewText != null;
-            r.ReviewText = string.IsNullOrWhiteSpace(body.ReviewText) ? null : body.ReviewText.Trim();
+            r.ReviewText = string.IsNullOrWhiteSpace(body.ReviewText) ? null : Censor.Mask(body.ReviewText.Trim());
             r.Spoiler = r.ReviewText != null && body.Spoiler;
             if (audience != null) r.Audience = audience.Value;
             // replies and reactions stay in the database but nothing reaches them while there is no text; so does their notification
