@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import AniListImport from '../components/AniListImport'
 import EmailForm from '../components/EmailForm'
+import ExportForm from '../components/ExportForm'
 import PasswordForm from '../components/PasswordForm'
 import UserNameForm from '../components/UserNameForm'
 
@@ -19,6 +21,8 @@ export default function Settings() {
 
       <h2>Display name</h2>
       <UserNameForm />
+
+      <AniListImport />
 
       {loading ? null : !hasPassword ? (
         <>
@@ -42,6 +46,9 @@ export default function Settings() {
             </p>
           )}
           <EmailForm onChanged={refresh} />
+
+          <h2>Export your data</h2>
+          <ExportForm />
         </>
       )}
     </div>

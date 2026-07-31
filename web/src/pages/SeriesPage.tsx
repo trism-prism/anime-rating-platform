@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
+import AddToList from '../components/AddToList'
+import AlsoRated from '../components/AlsoRated'
 import Reviews from '../components/Reviews'
 import type { SeriesDetail, SeriesEntry } from '../types'
 
@@ -75,6 +77,8 @@ export default function SeriesPage() {
         </div>
       </div>
 
+      <AddToList seriesId={s.id} />
+
       <h2>In this series</h2>
       <ol className="entries">
         {s.entries.map((e) => (
@@ -92,6 +96,8 @@ export default function SeriesPage() {
           </li>
         ))}
       </ol>
+
+      <AlsoRated key={s.id} path={`/series/${s.id}`} />
 
       {s.related.length > 0 && (
         <>
