@@ -150,6 +150,9 @@ export default function AvatarMenu() {
               </Link>
             </div>
           )}
+          <Link to="/support" role="menuitem" onClick={() => setOpen(false)}>Support</Link>
+          <Link to="/terms" role="menuitem" onClick={() => setOpen(false)}>Terms of Service</Link>
+          <Link to="/faq" role="menuitem" onClick={() => setOpen(false)}>FAQ</Link>
           <button role="menuitem" onClick={doLogout}>Log out</button>
         </div>
       )}
