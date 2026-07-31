@@ -99,7 +99,7 @@ export default function ReplyThread({ reviewId, reviewMine, onCount, onResync }:
   return (
     <div className="thread" role="region" aria-label="Replies">
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); loadFirst() }}>Retry</button></p>}
-      {!items && !error && <p className="muted">Loading replies...</p>}
+      {!items && !error && <p className="muted">Loading replies</p>}
       {items && items.length === 0 && <p className="muted">No replies yet.</p>}
       {items && items.length > 0 && (
         <ul className="replies">
@@ -120,7 +120,7 @@ export default function ReplyThread({ reviewId, reviewMine, onCount, onResync }:
           ))}
         </ul>
       )}
-      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more replies'}</button>}
+      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading' : 'Load more replies'}</button>}
 
       {!user && <p className="muted"><Link to="/login" className="link">Log in</Link> to reply.</p>}
       {user && !emailVerified && (
@@ -139,7 +139,7 @@ export default function ReplyThread({ reviewId, reviewMine, onCount, onResync }:
           <div className="row">
             <label className="check"><input type="checkbox" checked={spoiler} onChange={(e) => setSpoiler(e.target.checked)} /> Contains spoilers</label>
             <span className="muted count">{text.length}/{MAX}</span>
-            <button type="submit" disabled={posting || !text.trim()}>{posting ? 'Posting...' : 'Reply'}</button>
+            <button type="submit" disabled={posting || !text.trim()}>{posting ? 'Posting' : 'Reply'}</button>
           </div>
         </form>
       )}

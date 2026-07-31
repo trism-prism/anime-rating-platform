@@ -66,7 +66,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
       {msg && <p role="status">{msg}</p>}
 
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); load() }}>Retry</button></p>}
-      {!data && !error && <p className="muted">Loading...</p>}
+      {!data && !error && <p className="muted">Loading</p>}
       {data && (
         <>
           {data.incoming.length > 0 && (

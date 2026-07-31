@@ -12,7 +12,7 @@ export default function ConfirmEmailChange() {
   const token = params.get('token')
   const valid = !!userId && !!newEmail && !!token
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>(valid ? 'loading' : 'error')
-  const [message, setMessage] = useState(valid ? '' : 'Invalid link.')
+  const [message, setMessage] = useState(valid ? '' : 'Invalid link')
   // the token is single-use and StrictMode runs effects twice in dev
   const called = useRef(false)
 
@@ -30,7 +30,7 @@ export default function ConfirmEmailChange() {
   return (
     <div className="auth-form">
       <h1>Confirm new email</h1>
-      {status === 'loading' && <p className="muted">Confirming...</p>}
+      {status === 'loading' && <p className="muted">Confirming</p>}
       {status === 'ok' && <p role="status">{message}</p>}
       {status === 'error' && <p className="error" role="alert">{message}</p>}
       {status !== 'loading' && <Link to="/login" className="link">Go to login</Link>}

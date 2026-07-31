@@ -36,7 +36,7 @@ export default function ListForm({ titleId }: { titleId: number }) {
     try {
       await api(`/me/watchlist/${titleId}`, { method: 'PUT', body: JSON.stringify({ status, progress }) })
       setInList(true)
-      setMsg('Saved to your list.')
+      setMsg('Saved to your list')
     } catch (err) {
       setError((err as Error).message)
     }

@@ -64,7 +64,7 @@ function Profile({ username }: { username: string }) {
     )
   }
   if (error) return <p className="error" role="alert">{error} <button onClick={() => { setError(''); setTick((t) => t + 1) }}>Retry</button></p>
-  if (!p) return <p className="muted">Loading...</p>
+  if (!p) return <p className="muted">Loading</p>
 
   const state = p.viewerState
   const name = encodeURIComponent(p.userName)
