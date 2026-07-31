@@ -119,7 +119,7 @@ public class VerificationTests
         var b = await AddUser(p, "b", true);
         await users.AddToRoleAsync(a, "Admin");
         await users.AddToRoleAsync(b, "Admin");
-        var admin = new AdminController(users);
+        var admin = new AdminController(users, p.GetRequiredService<AppDbContext>());
 
         Assert.IsType<NoContentResult>(await admin.Demote(a.Id));
         Assert.IsType<BadRequestObjectResult>(await admin.Demote(b.Id));

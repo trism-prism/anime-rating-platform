@@ -75,8 +75,9 @@ export default function Faq() {
       <h3>Can I delete my account?</h3>
       <p>
         Yes, in <Link to="/settings" className="link">Settings</Link>. It asks for your password
-        (or, if you only use Google, a code emailed to you) and removes your account and everything
-        you added. This cannot be undone. Details are in the{' '}
+        (or, if you only use Google, a code emailed to you) and removes your account, email, lists,
+        watch list, friends and notifications. Your ratings, reviews, replies and reports stay on the
+        site as "Deleted user", so averages and counts do not change. This cannot be undone. Details are in the{' '}
         <Link to="/privacy" className="link">privacy policy</Link>.
       </p>
       <h3>Can I import from AniList?</h3>

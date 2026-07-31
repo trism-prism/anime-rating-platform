@@ -14,6 +14,8 @@ public sealed class AdvisoryLock : IAsyncDisposable
     public const long SeriesKey = 0x616E696D6553;
     // the daily cleanup job: one instance at a time
     public const long RetentionKey = 0x616E696D6552;
+    // counting admins and then removing one (demote, or an admin deleting their account)
+    public const long AdminKey = 0x616E696D6541;
 
     readonly DbContext? _db;
     readonly long _key;

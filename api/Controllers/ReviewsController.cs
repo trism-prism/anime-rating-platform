@@ -74,7 +74,7 @@ public class ReviewsController : ControllerBase
         var q = _db.Replies.Where(x => x.RatingId == id).VisibleTo(_db, viewer, admin);
         if (cursor != null) q = q.Where(x => x.Id > cursor);
         var rows = await q.OrderBy(x => x.Id).Take(ReviewRules.PageSize + 1)
-            .Select(x => new { x.Id, UserName = x.User.UserName!, x.UserId, x.Body, x.Spoiler, x.CreatedAt }).ToListAsync();
+            .Select(x => new { x.Id, UserName = x.User.DeletedAt != null ? AppUser.DeletedName : x.User.UserName!, x.UserId, x.Body, x.Spoiler, x.CreatedAt }).ToListAsync();
         var more = rows.Count > ReviewRules.PageSize;
         rows = rows.Take(ReviewRules.PageSize).ToList();
         return Ok(new
@@ -296,7 +296,7 @@ public class ReviewsController : ControllerBase
         var rows = await q.Select(r => new ReviewRow
         {
             Id = r.Id, TitleId = r.TitleId, TitleName = r.Title.Name, SeriesId = r.Title.SeriesId, Volume = r.Volume,
-            UserName = r.User.UserName!, Mine = r.UserId == viewer,
+            UserName = r.User.DeletedAt != null ? AppUser.DeletedName : r.User.UserName!, Mine = r.UserId == viewer,
             Overall = r.Overall, Story = r.Story, Art = r.Art, Characters = r.Characters, Enjoyment = r.Enjoyment,
             ReviewText = r.ReviewText!, Spoiler = r.Spoiler, CreatedAt = r.CreatedAt,
             HelpfulCount = r.HelpfulCount, UnhelpfulCount = r.UnhelpfulCount, FunnyCount = r.FunnyCount, Score = r.Score
