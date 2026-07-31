@@ -4,7 +4,7 @@ import { api } from '../api'
 import { timeAgo } from '../time'
 import type { Notification, NotificationPage } from '../types'
 
-const icon = { width: 18, height: 18, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
+const icon = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
 
 const BellIcon = () => (
   <svg {...icon}>
@@ -179,7 +179,7 @@ export default function NotificationBell() {
           {error && (
             <p className="error bell-msg" role="alert">{error} <button onClick={() => loadFirst()}>Retry</button></p>
           )}
-          {!items && !error && <p className="muted bell-msg">Loading...</p>}
+          {!items && !error && <p className="muted bell-msg">Loading</p>}
           {items && items.length === 0 && <p className="muted bell-msg">No notifications yet.</p>}
           {items && items.length > 0 && (
             <ul className="bell-list">
@@ -199,7 +199,7 @@ export default function NotificationBell() {
               ))}
             </ul>
           )}
-          {next != null && <button className="bell-more" onClick={loadMore} disabled={busy}>{busy ? 'Loading...' : 'Load older'}</button>}
+          {next != null && <button className="bell-more" onClick={loadMore} disabled={busy}>{busy ? 'Loading' : 'Load older'}</button>}
         </div>
       )}
     </div>

@@ -42,7 +42,7 @@ export default function AniListImport() {
         <input value={name} maxLength={20} placeholder="AniList username" aria-label="AniList username" onChange={(e) => setName(e.target.value)} />
         <button disabled={!name.trim() || status?.running}>Import</button>
       </form>
-      {status?.running && <p className="muted">Importing...</p>}
+      {status?.running && <p className="muted">Importing</p>}
       {error && <p className="error">{error}</p>}
       {status?.error && <p className="error">{status.error}</p>}
       {r && <p>Added {r.added}, already on your list {r.alreadyOnList}, not found here {r.unmatched}.</p>}

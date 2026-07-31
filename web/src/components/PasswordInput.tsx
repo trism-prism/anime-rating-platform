@@ -18,7 +18,7 @@ export default function PasswordInput({ label, value, onChange, minLength, autoC
           value={value} onChange={(e) => onChange(e.target.value)} />
         <button type="button" className="icon-button" aria-label={shown ? 'Hide password' : 'Show password'}
           aria-pressed={shown} onClick={() => setShown(!shown)}>
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
             strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" />
             <circle cx="8" cy="8" r="2" />

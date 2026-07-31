@@ -25,7 +25,7 @@ export default function AddToList({ titleId, seriesId }: { titleId?: number; ser
     setError('')
     try {
       await api(`/me/lists/${picked}/items`, { method: 'POST', body: JSON.stringify({ titleId: titleId ?? null, seriesId: seriesId ?? null }) })
-      setMsg('Added.')
+      setMsg('Added')
     } catch (err) {
       setError((err as Error).message)
     }

@@ -40,7 +40,7 @@ function Picker({ label, value, onPick }: { label: string; value: Row | null; on
       <input aria-label={`${label}: search series`} placeholder={`${label}: search series`} value={text} onChange={(e) => setText(e.target.value)} />
       <div className="picker-list" role="group" aria-label={`${label} results`}>
         {!q && <p className="muted">Type a name to search.</p>}
-        {q && !ready && <p className="muted">Searching...</p>}
+        {q && !ready && <p className="muted">Searching</p>}
         {ready && res.error && <p className="error">{res.error}</p>}
         {ready && !res.error && res.list.length === 0 && <p className="muted">No series found.</p>}
         {ready && res.list.map((r) => (
@@ -91,12 +91,12 @@ function MergeTool() {
   return (
     <div className="admin-box">
       <h3>Merge two series</h3>
-      <div className="row" style={{ alignItems: 'flex-start' }} key={gen}>
+      <div className="row row-top" key={gen}>
         <Picker label="From (will be removed)" value={from} onPick={setFrom} />
         <Picker label="Into (kept)" value={into} onPick={setInto} />
       </div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <button disabled={!from || !into || !!problem || busy} onClick={() => setConfirming(true)}>Merge...</button>
+      <div className="row row-gap">
+        <button disabled={!from || !into || !!problem || busy} onClick={() => setConfirming(true)}>Merge</button>
         {problem && <span className="error">{problem}</span>}
       </div>
       <StatusLine status={status} />
@@ -145,12 +145,12 @@ function MoveTool() {
   return (
     <div className="admin-box">
       <h3>Move or split a title</h3>
-      <div className="row" style={{ alignItems: 'flex-start' }} key={gen}>
+      <div className="row row-top" key={gen}>
         <Picker label="Series" value={source} onPick={(r) => { setSource(r); setStatus(null) }} />
         <Picker label="Move into" value={dest} onPick={setDest} />
       </div>
-      <div style={{ minHeight: 120, marginTop: 8 }}>
-        {source && !series && <p className="muted">Loading titles...</p>}
+      <div className="admin-titles">
+        {source && !series && <p className="muted">Loading titles</p>}
         {series?.error && <p className="error">{series.error}</p>}
         {series?.series && (
           <table className="table">

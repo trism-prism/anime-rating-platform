@@ -23,9 +23,9 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
     <dialog ref={ref} aria-labelledby="confirm-title" onCancel={(e) => { e.preventDefault(); if (!busy) onCancel() }}>
       <h3 id="confirm-title">{title}</h3>
       <div>{children}</div>
-      <div className="row" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
+      <div className="row row-end">
         <button onClick={onCancel} disabled={busy}>Cancel</button>
-        <button onClick={onConfirm} disabled={busy} className="on">{busy ? 'Working...' : confirmLabel}</button>
+        <button onClick={onConfirm} disabled={busy} className="on">{busy ? 'Working' : confirmLabel}</button>
       </div>
     </dialog>
   )

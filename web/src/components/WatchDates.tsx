@@ -17,7 +17,7 @@ export default function WatchDates({ entry, onSaved }: { entry: WatchEntry; onSa
       const body = { startedOn: started || null, finishedOn: finished || null, rewatchCount: rewatches }
       await api(`/me/watchlist/${entry.titleId}/dates`, { method: 'PUT', body: JSON.stringify(body) })
       onSaved({ ...entry, startedOn: body.startedOn, finishedOn: body.finishedOn, rewatchCount: rewatches })
-      setMsg('Saved.')
+      setMsg('Saved')
     } catch (err) {
       setError((err as Error).message)
     }

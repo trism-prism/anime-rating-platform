@@ -29,7 +29,7 @@ export default function Admin() {
 
   useEffect(() => { if (isAdmin) load() }, [isAdmin, load])
 
-  if (loading) return <p className="muted">Loading...</p>
+  if (loading) return <p className="muted">Loading</p>
   if (!isAdmin) return <Navigate to="/" replace />
 
   async function toggle(u: AdminUser) {
@@ -63,7 +63,7 @@ export default function Admin() {
 
       <h2>Import titles</h2>
       <div className="row">
-        <button onClick={runImport} disabled={importing}>{importing ? 'Importing...' : 'Run import'}</button>
+        <button onClick={runImport} disabled={importing}>{importing ? 'Importing' : 'Run import'}</button>
         <span className="muted">This can take a few minutes.</span>
       </div>
       {importResult && (

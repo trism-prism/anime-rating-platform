@@ -42,14 +42,14 @@ export default function Feed() {
     }
   }
 
-  if (loading) return <p className="muted">Loading...</p>
+  if (loading) return <p className="muted">Loading</p>
   if (!user) return <Navigate to="/login" replace />
 
   return (
     <section aria-labelledby="feed-title">
       <h1 id="feed-title">Friends' activity</h1>
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); loadFirst() }}>Retry</button></p>}
-      {!items && !error && <p className="muted">Loading...</p>}
+      {!items && !error && <p className="muted">Loading</p>}
       {items && items.length === 0 && (
         <p className="muted">Nothing yet. When your friends rate or review something it shows up here. <Link to={`/u/${encodeURIComponent(user.userName)}`} className="link">Find friends</Link></p>
       )}
@@ -73,7 +73,7 @@ export default function Feed() {
           ))}
         </ul>
       )}
-      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more'}</button>}
+      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading' : 'Load more'}</button>}
     </section>
   )
 }

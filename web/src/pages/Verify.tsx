@@ -70,7 +70,7 @@ export default function Verify() {
     return (
       <div className="auth-form">
         <h1>Email verified</h1>
-        <p role="status">Thanks, you can write reviews now. Taking you back...</p>
+        <p role="status">Thanks, you can write reviews now. Taking you back</p>
       </div>
     )
 
