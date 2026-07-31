@@ -120,7 +120,7 @@ public class SessionService
 
     public async Task RevokeAll(string userId, Guid? except = null)
     {
-        // ponytail: dead rows are never deleted; add a cleanup job if the table grows
+        // dead rows are deleted by the daily retention job
         foreach (var s in await Active(userId))
             if (s.Id != except) s.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

@@ -18,7 +18,7 @@ namespace api.Controllers;
 public class GoogleController : ControllerBase
 {
     const string Provider = "Google";
-    const string CookieName = "g_oauth"; // holds "state.verifier" between start and callback
+    const string CookieName = "g_oauth"; // holds "state.verifier", plus ".1" when the user ticked the age and Terms boxes, between start and callback
     const string CookiePath = "/api/auth"; // the path the browser sees (Vercel rewrite, Vite proxy)
 
     readonly UserManager<AppUser> _users;
@@ -43,10 +43,10 @@ public class GoogleController : ControllerBase
 
     // the reason is a fixed code (never the code, tokens or email) so the log shows where a sign-in stopped;
     // details is for non-sensitive extras
-    IActionResult Failed(string reason, string details = "")
+    IActionResult Failed(string reason, string details = "", string error = "google")
     {
         _log.LogWarning("Google callback refused: {Reason}{Details}", reason, details);
-        return Redirect(Front + "/login?error=google");
+        return Redirect(Front + "/login?error=" + error);
     }
 
     // for a missing g_oauth cookie: how many cookies came, where from (host only) and to which host.
@@ -61,14 +61,14 @@ public class GoogleController : ControllerBase
     public IActionResult Providers() => Ok(new { google = _google.Configured });
 
     [HttpGet("google/start")]
-    public IActionResult Start()
+    public IActionResult Start(bool terms = false)
     {
         if (!_google.Configured) return NotFound();
         var state = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         var verifier = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         var challenge = WebEncoders.Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
-        Response.Cookies.Append(CookieName, state + "." + verifier, CookieOptions(TimeSpan.FromMinutes(10)));
+        Response.Cookies.Append(CookieName, state + "." + verifier + (terms ? ".1" : ""), CookieOptions(TimeSpan.FromMinutes(10)));
         var query = new Dictionary<string, string?>
         {
             ["client_id"] = _google.ClientId,
@@ -90,7 +90,8 @@ public class GoogleController : ControllerBase
         Response.Cookies.Delete(CookieName, CookieOptions(null)); // one try per start
         if (!_google.Configured) return Failed("not-configured");
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state)) return Failed("no-code"); // Google sent an error, e.g. access_denied
-        if (saved is not [var savedState, var verifier]) return Failed("no-cookie", CookieDiagnostics());
+        if (saved is null || saved.Length < 2 || saved.Length > 3 || (saved.Length == 3 && saved[2] != "1")) return Failed("no-cookie", CookieDiagnostics());
+        var (savedState, verifier, termsTicked) = (saved[0], saved[1], saved.Length == 3);
         if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state), Encoding.UTF8.GetBytes(savedState)))
             return Failed("state-mismatch");
 
@@ -111,7 +112,13 @@ public class GoogleController : ControllerBase
 
         if (user == null)
         {
-            user = new AppUser { Email = profile.Email, UserName = await UserNames.FromEmail(_users, profile.Email), EmailConfirmed = true };
+            // a new account needs the age and Terms boxes ticked on Register before the redirect to Google
+            if (!termsTicked) return Failed("terms-needed", "", "terms"); // the login page explains
+            user = new AppUser
+            {
+                Email = profile.Email, UserName = await UserNames.FromEmail(_users, profile.Email), EmailConfirmed = true,
+                TermsAcceptedAt = DateTime.UtcNow, TermsVersion = Terms.Version
+            };
             if (!(await _users.CreateAsync(user)).Succeeded) return Failed("create-failed"); // for example a second sign-up at the same moment
             if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded)
             {
@@ -127,6 +134,14 @@ public class GoogleController : ControllerBase
             // (after the link, so a failed link does not leave a wiped placeholder)
             if (!user.EmailConfirmed) await TakeOver(user);
             user.EmailConfirmed = true; // Google verified the address
+            await _users.UpdateAsync(user);
+        }
+
+        // an older account that ticks the boxes on Register now has accepted too
+        if (termsTicked && user.TermsAcceptedAt == null)
+        {
+            user.TermsAcceptedAt = DateTime.UtcNow;
+            user.TermsVersion = Terms.Version;
             await _users.UpdateAsync(user);
         }
 
