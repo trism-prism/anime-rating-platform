@@ -34,8 +34,8 @@ public class LockoutTests
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
             new SessionService(db, users, config, env), new CredentialCheck(users), new MemoryCache(new MemoryCacheOptions()), config, NullLogger<AuthController>.Instance);
 
-        Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
-        Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@b.com", "Passw0rd1!", null)));
+        Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null, true, true)));
+        Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@b.com", "Passw0rd1!", null, true, true)));
 
         Assert.Equal("kai", (await users.FindByEmailAsync("kai@a.com"))!.UserName);
         var second = (await users.FindByEmailAsync("kai@b.com"))!.UserName!;
