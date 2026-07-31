@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import AudienceSelect from '../components/AudienceSelect'
+import WatchDates from '../components/WatchDates'
 import { STATUSES, type Audience, type MyRating, type WatchEntry, type WatchStatus } from '../types'
 
 export default function MyList() {
@@ -104,6 +105,7 @@ export default function MyList() {
             }}
           />
           <button onClick={() => remove(e)}>Remove</button>
+          <WatchDates key={`${e.titleId}-${e.startedOn}-${e.finishedOn}-${e.rewatchCount}`} entry={e} onSaved={(n) => setList((l) => l && l.map((x) => (x.titleId === n.titleId ? n : x)))} />
         </div>
       ))}
 

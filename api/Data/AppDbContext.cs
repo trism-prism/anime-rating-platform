@@ -24,6 +24,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Reply> Replies => Set<Reply>();
     public DbSet<Reaction> Reactions => Set<Reaction>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<CustomList> CustomLists => Set<CustomList>();
+    public DbSet<CustomListItem> CustomListItems => Set<CustomListItem>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -125,6 +127,24 @@ public class AppDbContext : IdentityDbContext<AppUser>
             e.HasIndex(x => new { x.ReporterId, x.Target, x.TargetId, x.TargetUserId }).IsUnique().HasFilter("\"Status\" = 'Open'");
             e.HasIndex(x => x.Id).HasFilter("\"Status\" = 'Open'"); // the admin queue
             e.HasIndex(x => x.TargetUserId); // the cascade when an account goes
+        });
+        b.Entity<CustomList>(e =>
+        {
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Audience).HasConversion<string>();
+            e.HasIndex(x => new { x.UserId, x.Id });
+        });
+        b.Entity<CustomListItem>(e =>
+        {
+            e.HasOne(x => x.List).WithMany(l => l.Items).HasForeignKey(x => x.ListId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Title).WithMany().HasForeignKey(x => x.TitleId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Series).WithMany().HasForeignKey(x => x.SeriesId).OnDelete(DeleteBehavior.Cascade);
+            // nullable columns are distinct in Postgres, so one filtered unique index per kind
+            e.HasIndex(x => new { x.ListId, x.TitleId }).IsUnique().HasFilter("\"TitleId\" IS NOT NULL");
+            e.HasIndex(x => new { x.ListId, x.SeriesId }).IsUnique().HasFilter("\"SeriesId\" IS NOT NULL");
+            e.HasIndex(x => x.TitleId);
+            e.HasIndex(x => x.SeriesId);
+            e.ToTable(t => t.HasCheckConstraint("CK_CustomListItems_OneTarget", "(\"TitleId\" IS NULL) <> (\"SeriesId\" IS NULL)"));
         });
         b.Entity<NotificationPreference>(e =>
         {

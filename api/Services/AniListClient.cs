@@ -20,8 +20,24 @@ public record AMedia(int Id, string? Type, ATitle Title, AImage? CoverImage, str
     int? Chapters, List<string>? Genres, int Popularity, ACharacters? Characters,
     string? Format, ADate? StartDate, int? Volumes, ARelations? Relations);
 
+public record AListDate(int? Year, int? Month, int? Day);
+public record AListEntry(int MediaId, string? Status, int Progress, int Repeat, AListDate? StartedAt, AListDate? CompletedAt);
+
+// AniList answers 404 for an unknown user and for a private list
+public class AniListUserNotFound : Exception
+{
+    public AniListUserNotFound() : base("AniList user not found, or the list is private.") { }
+}
+
 public class AniListClient
 {
+    const string UserListQuery = @"query ($name: String, $type: MediaType, $chunk: Int) {
+  MediaListCollection(userName: $name, type: $type, chunk: $chunk, perChunk: 500, forceSingleCompletedList: true) {
+    hasNextChunk
+    lists { entries { mediaId status progress repeat startedAt { year month day } completedAt { year month day } } }
+  }
+}";
+
     const string Fields = @"id type title { romaji english } coverImage { large } description episodes chapters genres popularity
       format startDate { year month day } volumes
       relations { edges { relationType node { id } } }
@@ -61,7 +77,28 @@ public class AniListClient
     // up to 50 ids per call
     public Task<List<AMedia>> GetByIds(IEnumerable<int> ids) => Post(ByIdsQuery, new { ids = ids.Take(50).ToList() });
 
-    async Task<List<AMedia>> Post(string query, object variables)
+    // one user's list of one type (ANIME or MANGA), in chunks of 500 entries, at most maxChunks of them
+    public async Task<List<AListEntry>> GetUserList(string userName, string type, int maxChunks)
+    {
+        var entries = new List<AListEntry>();
+        for (var chunk = 1; chunk <= maxChunks; chunk++)
+        {
+            var root = await Graphql(UserListQuery, new { name = userName, type, chunk });
+            // a private list can come back as 200 with errors and no data
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("MediaListCollection", out var data) || data.ValueKind != JsonValueKind.Object)
+                throw new AniListUserNotFound();
+            foreach (var list in data.GetProperty("lists").EnumerateArray())
+                entries.AddRange(list.GetProperty("entries").Deserialize<List<AListEntry>>(Json)!);
+            if (!data.GetProperty("hasNextChunk").GetBoolean()) break;
+        }
+        return entries;
+    }
+
+    async Task<List<AMedia>> Post(string query, object variables) =>
+        (await Graphql(query, variables)).GetProperty("Page").GetProperty("media").Deserialize<List<AMedia>>(Json)!;
+
+    // posts a query and returns its "data" object; waits and retries on 429
+    async Task<JsonElement> Graphql(string query, object variables)
     {
         var body = JsonSerializer.Serialize(new { query, variables });
 
@@ -77,11 +114,11 @@ public class AniListClient
                 continue;
             }
 
+            if (res.StatusCode == HttpStatusCode.NotFound) throw new AniListUserNotFound();
             res.EnsureSuccessStatusCode();
             using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
             await Task.Delay(DelayMs);
-            return doc.RootElement.GetProperty("data").GetProperty("Page").GetProperty("media")
-                .Deserialize<List<AMedia>>(Json)!;
+            return doc.RootElement.GetProperty("data").Clone();
         }
         throw new Exception("AniList kept answering 429");
     }

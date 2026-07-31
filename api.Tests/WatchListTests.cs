@@ -54,4 +54,30 @@ public class WatchListTests
         Assert.IsType<BadRequestObjectResult>(await a.Put(1, new WatchListRequest("Watching", -1)));
         Assert.IsType<NotFoundResult>(await a.Put(99, new WatchListRequest("Watching", 1)));
     }
+
+    [Fact]
+    public async Task Dates_are_validated_and_stored_per_user()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new AppDbContext(options);
+        db.Titles.Add(new Title { Id = 1, Name = "Frieren", Series = new Series { Name = "Frieren" } });
+        await db.SaveChangesAsync();
+        var a = As(db, "user-a");
+        var d = (int y, int m, int day) => new DateOnly(y, m, day);
+
+        Assert.IsType<NotFoundResult>(await a.SetDates(1, new WatchDatesRequest(d(2025, 1, 1), null, 0))); // not on the list yet
+        await a.Put(1, new WatchListRequest("Completed", 12));
+        Assert.IsType<BadRequestObjectResult>(await a.SetDates(1, new WatchDatesRequest(d(2025, 2, 1), d(2025, 1, 1), 0))); // finished before started
+        Assert.IsType<BadRequestObjectResult>(await a.SetDates(1, new WatchDatesRequest(null, DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5), 0))); // future
+        Assert.IsType<BadRequestObjectResult>(await a.SetDates(1, new WatchDatesRequest(null, null, -1)));
+        Assert.IsType<BadRequestObjectResult>(await a.SetDates(1, new WatchDatesRequest(null, null, 5000)));
+
+        Assert.IsType<OkObjectResult>(await a.SetDates(1, new WatchDatesRequest(d(2025, 1, 1), d(2025, 1, 1), 2))); // same day is fine
+        var e = await db.WatchList.SingleAsync();
+        Assert.Equal((d(2025, 1, 1), d(2025, 1, 1), 2), (e.StartedOn, e.FinishedOn, e.RewatchCount));
+
+        await a.Put(1, new WatchListRequest("Watching", 3)); // a status change keeps the dates
+        Assert.Equal(2, (await db.WatchList.SingleAsync()).RewatchCount);
+        Assert.IsType<NotFoundResult>(await As(db, "user-b").SetDates(1, new WatchDatesRequest(null, null, 1))); // someone else's entry
+    }
 }
