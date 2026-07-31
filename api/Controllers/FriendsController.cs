@@ -38,7 +38,7 @@ public class FriendsController : ControllerBase
         var outgoing = await mine.Where(f => f.Status == FriendStatus.Pending && f.RequesterId == me).OrderByDescending(f => f.Id).Take(MaxRequestsListed).ToListAsync();
 
         var ids = friends.Concat(incoming).Concat(outgoing).Select(f => f.OtherId(me)).Distinct().ToList();
-        var names = await _db.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.UserName!);
+        var names = await _db.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DeletedAt != null ? AppUser.DeletedName : u.UserName!);
 
         return Ok(new
         {

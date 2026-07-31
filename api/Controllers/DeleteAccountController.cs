@@ -11,7 +11,7 @@ namespace api.Controllers;
 
 public record DeleteAccountRequest(string? CurrentPassword, string? Code);
 
-// Deleting your own account. Like export it needs the current password; an account that signs in with Google only has no
+// Deleting your own account (it is anonymized, see AccountDeletion). Like export it needs the current password; an account that signs in with Google only has no
 // password, so it asks for a fresh code emailed to the account address instead (the same pattern as verifying the email).
 [ApiController]
 [Authorize]
@@ -81,17 +81,19 @@ public class DeleteAccountController : ControllerBase
             EmailCodes.Clear(_cache, key);
         }
 
-        // without an admin nobody receives support messages or can moderate
-        if (await _users.IsInRoleAsync(user, "Admin") && (await _users.GetUsersInRoleAsync("Admin")).Count <= 1)
-            return Conflict(new { message = "You are the only admin. Make someone else an admin first." });
-
+        // without an admin nobody receives support messages or can moderate; the lock keeps two admins from both passing the count
         var email = user.Email;
-        if (!await AccountDeletion.Delete(_db, user.Id)) return Unauthorized();
+        await using (await AdvisoryLock.Wait(_db, AdvisoryLock.AdminKey))
+        {
+            if (await _users.IsInRoleAsync(user, "Admin") && (await _users.GetUsersInRoleAsync("Admin")).Count <= 1)
+                return Conflict(new { message = "You are the only admin. Make someone else an admin first." });
+            if (!await AccountDeletion.Delete(_db, user.Id)) return Unauthorized();
+        }
         _sessions.DeleteCookie(Response, user.Id);
 
         if (!string.IsNullOrEmpty(email))
         {
-            try { await _email.Send(email, "Your account was deleted", "Your AnimeRate account and the data in it were deleted. If this was not you, contact support right away."); }
+            try { await _email.Send(email, "Your account was deleted", "Your AnimeRate account was deleted. Your ratings and reviews stay on the site as \"Deleted user\". If this was not you, contact support right away."); }
             catch (Exception ex) { _log.LogError(ex.GetType().Name + " sending the deletion notice for user {UserId}", user.Id); }
         }
         return NoContent();

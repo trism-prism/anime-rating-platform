@@ -19,7 +19,7 @@ public static class SocialRules
         name = name?.Trim();
         if (!ValidUserName(name)) return Task.FromResult<AppUser?>(null);
         var normalized = name!.ToUpperInvariant();
-        return db.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalized);
+        return db.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalized && u.DeletedAt == null);
     }
 
     // The account a viewer may see: null when the name is unknown OR that user blocked the viewer, so callers can't tell the
@@ -29,7 +29,7 @@ public static class SocialRules
         name = name?.Trim();
         if (!ValidUserName(name)) return Task.FromResult<AppUser?>(null);
         var normalized = name!.ToUpperInvariant();
-        return db.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalized
+        return db.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalized && u.DeletedAt == null
             && !db.UserBlocks.Any(b => b.BlockerId == u.Id && b.BlockedId == viewerId));
     }
 

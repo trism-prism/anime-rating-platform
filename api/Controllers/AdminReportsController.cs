@@ -30,7 +30,7 @@ public class AdminReportsController : ControllerBase
         rows = rows.Take(PageSize).ToList();
 
         var ids = rows.SelectMany(r => new[] { r.ReporterId, r.TargetUserId }).Distinct().ToList();
-        var names = await _db.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.UserName!);
+        var names = await _db.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DeletedAt != null ? AppUser.DeletedName : u.UserName!);
         return Ok(new
         {
             items = rows.Select(r => new

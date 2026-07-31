@@ -67,14 +67,14 @@ Gmail allows only a few hundred sends a day for a normal account. `Gmail__*` win
 
 ## Sign in with Google
 
-Adds a "Continue with Google" link to the login and register pages. It uses its own OAuth client, separate from the Gmail sender's. The consent screen from the Gmail section is already published, and the scopes `openid`, `email` and `profile` need no Google verification.
+Adds a "Continue with Google" link to the login and register pages (new accounts can be created from either). It uses its own OAuth client, separate from the Gmail sender's. The consent screen from the Gmail section is already published, and the scopes `openid`, `email` and `profile` need no Google verification.
 
 1. In the same Google Cloud project: **APIs & Services > Credentials > Create Credentials > OAuth client ID**, application type **Web application**.
 2. Under **Authorized redirect URIs** add `https://<your vercel domain>/api/auth/google/callback` and `http://localhost:5173/api/auth/google/callback` > Create.
 3. In Railway > API service > Variables add `Google__ClientId` and `Google__ClientSecret` (you type the secret in Railway yourself, never in chat or the repo). `App__FrontendUrl` must be the Vercel domain, since it builds the redirect URI.
 4. Without both variables the link is hidden and `/auth/google/start` answers 404.
 
-Accounts made this way have no password and a verified email; "Forgot password" on the login page gives them a password. An existing account is linked by its Google-verified email.
+"Continue with Google" on the Login page also creates an account when the address is new; the text next to the button says the user is 13 or older and accepts the Terms and Privacy Policy, and the account records that acceptance like Register does (the link sends `terms=true`; without it the callback refuses with `terms-needed`). Accounts made this way have no password and a verified email; "Forgot password" on the login page gives them a password. An existing account is linked by its Google-verified email.
 
 Emailed 6-digit codes verify the account email and reset a forgotten password (nothing asks for a code at login), so they need a working mail sender (Gmail or Resend above).
 
@@ -87,5 +87,5 @@ Emailed 6-digit codes verify the account email and reset a forgotten password (n
 - Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
 - Gmail "token request failed: 400" (`invalid_grant`): the refresh token was revoked or expired, usually because the consent screen is still in Testing. Publish the app and create a new token.
 - Gmail "rejected the email: 403": the Gmail API is not enabled for the project (APIs & Services > Library).
-- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. Every refusal is logged as a warning `Google callback refused: <reason>` (`not-configured`, `no-code`, `no-cookie`, `state-mismatch`, `exchange-failed`, `locked`, `linked-other`, `create-failed`, `link-failed`); `exchange-failed` is preceded by the status code Google answered with or the id_token check that failed. `no-cookie` also logs the number of cookies on the request, the Referer's host (or `none`) and the Host header: 0 cookies means the browser did not send the `g_oauth` cookie back (blocked cookies, or the callback came through another host than the one that started the sign-in).
+- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. Every refusal is logged as a warning `Google callback refused: <reason>` (`not-configured`, `no-code`, `no-cookie`, `state-mismatch`, `exchange-failed`, `terms-needed`, `locked`, `linked-other`, `create-failed`, `link-failed`); `exchange-failed` is preceded by the status code Google answered with or the id_token check that failed. `no-cookie` also logs the number of cookies on the request, the Referer's host (or `none`) and the Host header: 0 cookies means the browser did not send the `g_oauth` cookie back (blocked cookies, or the callback came through another host than the one that started the sign-in).
 - Database errors: migrations run on every start; check the Railway deploy logs.

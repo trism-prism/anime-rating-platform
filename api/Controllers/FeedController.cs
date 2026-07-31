@@ -31,7 +31,7 @@ public class FeedController : ControllerBase
         var rows = await q.OrderByDescending(r => r.Id).Take(PageSize + 1)
             .Select(r => new
             {
-                r.Id, userName = r.User.UserName, r.TitleId, titleName = r.Title.Name, r.Volume, r.Overall, r.Spoiler, r.CreatedAt, Text = r.ReviewText
+                r.Id, userName = r.User.DeletedAt != null ? AppUser.DeletedName : r.User.UserName, r.TitleId, titleName = r.Title.Name, r.Volume, r.Overall, r.Spoiler, r.CreatedAt, Text = r.ReviewText
             }).ToListAsync();
         var more = rows.Count > PageSize;
         rows = rows.Take(PageSize).ToList();
