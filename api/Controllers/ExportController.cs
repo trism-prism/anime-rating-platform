@@ -14,6 +14,7 @@ namespace api.Controllers;
 
 public record ExportRequest(string? CurrentPassword, string? Format);
 
+public record ProfileRow(string UserName, DateTime JoinedAt, string? Bio, bool HasPicture);
 public record RatingRow(string Title, int? Volume, int Story, int Art, int Characters, int Enjoyment, double Overall, string Audience, DateTime CreatedAt);
 public record ReviewRow(string Title, int? Volume, string Text, bool Spoiler, string Audience, DateTime CreatedAt);
 public record ListEntryRow(string Title, string Type, string Status, int Progress, string Audience, DateOnly? StartedOn, DateOnly? FinishedOn, int RewatchCount);
@@ -63,16 +64,20 @@ public class ExportController : ControllerBase
         var items = await _db.CustomListItems.Where(i => i.List.UserId == me).OrderBy(i => i.ListId).ThenBy(i => i.Id)
             .Select(i => new CustomListItemRow(i.List.Name, i.TitleId != null ? "Title" : "Series", i.TitleId != null ? i.Title!.Name : i.Series!.Name, i.AddedAt)).ToListAsync();
 
+        // the picture itself is not exported, only whether there is one
+        var profile = new[] { new ProfileRow(user.UserName!, user.CreatedAt, user.Bio, await _db.Avatars.AnyAsync(a => a.UserId == me)) };
+
         Response.Headers.CacheControl = "no-store";
         if (!csv)
             return File(System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
-                new { exportedAt = DateTime.UtcNow, ratings, reviews, listEntries = entries, customLists = lists, customListItems = items },
+                new { exportedAt = DateTime.UtcNow, profile = profile[0], ratings, reviews, listEntries = entries, customLists = lists, customListItems = items },
                 new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true }),
                 "application/json", "anime-platform-export.json");
 
         using var zip = new MemoryStream();
         using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, true))
         {
+            AddCsv(archive, "profile.csv", profile);
             AddCsv(archive, "ratings.csv", ratings);
             AddCsv(archive, "reviews.csv", reviews);
             AddCsv(archive, "list-entries.csv", entries);

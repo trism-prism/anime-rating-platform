@@ -131,6 +131,12 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("report", ctx => SocialRules.PerUser(ctx, 10, TimeSpan.FromHours(1)));
     o.AddPolicy("account-delete", ctx => SocialRules.PerUser(ctx, 5, TimeSpan.FromHours(1)));
     o.AddPolicy("support", ctx => SocialRules.PerUser(ctx, 5, TimeSpan.FromHours(1))); // per IP when signed out
+    o.AddPolicy("bio-write", ctx => SocialRules.PerUser(ctx, 30, TimeSpan.FromHours(1)));
+    o.AddPolicy("avatar-write", ctx => SocialRules.PerUser(ctx, 30, TimeSpan.FromHours(1)));
+    // a page shows many avatars, so this is per IP and generous
+    o.AddPolicy("avatar-read", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 300, Window = TimeSpan.FromMinutes(1) }));
     o.AddPolicy("profile", ctx => SocialRules.PerUser(ctx, 60, TimeSpan.FromMinutes(1))); // per user, per IP when anonymous
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",

@@ -26,10 +26,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<CustomList> CustomLists => Set<CustomList>();
     public DbSet<CustomListItem> CustomListItems => Set<CustomListItem>();
+    public DbSet<UserAvatar> Avatars => Set<UserAvatar>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+
+        b.Entity<AppUser>().Property(u => u.Bio).HasMaxLength(Services.Avatars.MaxBio);
+        b.Entity<UserAvatar>(e =>
+        {
+            e.HasKey(a => a.UserId);
+            e.HasOne<AppUser>().WithOne().HasForeignKey<UserAvatar>(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         // trigram indexes serve the ILIKE '%text%' in SeriesSearch; the extension is created by the migration
         b.HasPostgresExtension("pg_trgm");
