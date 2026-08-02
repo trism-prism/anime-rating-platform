@@ -1,5 +1,5 @@
 // same-site: Vercel (and the Vite dev server) forward /api to the API, so the refresh cookie is first-party
-const BASE = '/api'
+export const BASE = '/api'
 
 export class ApiError extends Error {
   status: number
@@ -31,7 +31,7 @@ export function setLostHandler(fn: (userId: string) => void) {
 async function request<T>(path: string, options: RequestInit, bearer: string | null, file = false): Promise<T> {
   const headers = new Headers(options.headers)
   if (bearer) headers.set('Authorization', `Bearer ${bearer}`)
-  if (options.body) headers.set('Content-Type', 'application/json')
+  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
 
   const res = await fetch(BASE + path, { ...options, headers })
   if (file && res.ok) return (await res.blob()) as T

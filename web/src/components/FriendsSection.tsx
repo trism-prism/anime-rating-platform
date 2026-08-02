@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { api } from '../api'
 import type { FriendsData } from '../types'
+import UserLink from './UserLink'
 import ConfirmDialog from './ConfirmDialog'
 
-const profile = (name: string) => `/u/${encodeURIComponent(name)}`
+const Who = UserLink
 
-// shown on your own profile: friends, pending requests both ways, and add-by-username
-export default function FriendsSection({ onChange }: { onChange: () => void }) {
+// on the Friends page: friends, pending requests both ways, and add-by-username
+export default function FriendsSection() {
   const [data, setData] = useState<FriendsData | null>(null)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -29,12 +29,10 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
     try {
       await fn()
       load()
-      onChange()
       return true
     } catch (e) {
       setActionError((e as Error).message)
       load() // resync, so buttons for requests that are already gone disappear
-      onChange()
       return false
     } finally {
       setBusy(false)
@@ -55,8 +53,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
   const post = (path: string) => run(() => api(path, { method: 'POST' }))
 
   return (
-    <section aria-labelledby="friends-title">
-      <h2 id="friends-title">Friends</h2>
+    <section aria-label="Friends">
       <form className="row" onSubmit={add}>
         <label className="sr-only" htmlFor="friend-name">Add friend by username</label>
         <input id="friend-name" placeholder="Add friend by username" autoComplete="off" maxLength={256} value={name} onChange={(e) => setName(e.target.value)} />
@@ -78,7 +75,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
               <ul className="people">
                 {data.incoming.map((r) => (
                   <li key={r.requestId}>
-                    <Link to={profile(r.userName)} className="link">{r.userName}</Link>
+                    <Who name={r.userName} />
                     <span className="row">
                       <button disabled={busy} onClick={() => post(`/friends/requests/${r.requestId}/accept`)}>Accept</button>
                       <button disabled={busy} onClick={() => post(`/friends/requests/${r.requestId}/decline`)}>Decline</button>
@@ -94,7 +91,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
               <ul className="people">
                 {data.outgoing.map((r) => (
                   <li key={r.requestId}>
-                    <Link to={profile(r.userName)} className="link">{r.userName}</Link>
+                    <Who name={r.userName} />
                     <button disabled={busy} onClick={() => run(() => api(`/friends/requests/${r.requestId}`, { method: 'DELETE' }))}>Cancel</button>
                   </li>
                 ))}
@@ -107,7 +104,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
           ) : (
             <ul className="people">
               {data.friends.map((f) => (
-                <li key={f.userName}><Link to={profile(f.userName)} className="link">{f.userName}</Link></li>
+                <li key={f.userName}><Who name={f.userName} /></li>
               ))}
             </ul>
           )}

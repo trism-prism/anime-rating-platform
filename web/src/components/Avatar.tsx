@@ -1,9 +1,18 @@
-// Round avatar: the picture when there is one, else the first letter of the name.
-// (Profile pictures come later; imageUrl is here so callers do not change then.)
-export default function Avatar({ userName, imageUrl, small }: { userName: string; imageUrl?: string; small?: boolean }) {
+import { useState, useSyncExternalStore } from 'react'
+import { BASE } from '../api'
+import { avatarVersion, subscribeAvatars } from '../avatarVersion'
+import { DELETED_USER } from '../types'
+
+// Round avatar: the user's picture, else (no picture, deleted user, load error) the first letter of the name.
+export default function Avatar({ userName, small }: { userName: string; small?: boolean }) {
+  const v = useSyncExternalStore(subscribeAvatars, avatarVersion)
+  const src = `${BASE}/users/${encodeURIComponent(userName)}/avatar?v=${v}`
+  const [failed, setFailed] = useState('') // the src that answered 404, so a new picture is tried again
   return (
     <span className={small ? 'avatar small' : 'avatar'} aria-hidden="true">
-      {imageUrl ? <img src={imageUrl} alt="" /> : userName.charAt(0).toUpperCase()}
+      {userName !== DELETED_USER && failed !== src
+        ? <img src={src} alt="" onError={() => setFailed(src)} />
+        : userName.charAt(0).toUpperCase()}
     </span>
   )
 }
