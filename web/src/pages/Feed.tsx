@@ -4,7 +4,7 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { timeAgo } from '../time'
 import type { FeedItem, FeedPage } from '../types'
-import Avatar from '../components/Avatar'
+import UserLink from '../components/UserLink'
 import FriendsSection from '../components/FriendsSection'
 
 // recent ratings and reviews by friends; the API applies each rating's audience, keyset paged
@@ -64,7 +64,7 @@ export default function Feed() {
               <li key={r.ratingId}>
                 <div className="profile-rating-main">
                   <span>
-                    <span className="who"><Avatar userName={r.userName} small /><Link to={`/u/${encodeURIComponent(r.userName)}`} className="link"><strong>{r.userName}</strong></Link></span>
+                    <UserLink name={r.userName} />
                     {' rated '}
                     <Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>
                     <span className="muted">{r.volume != null && ` · Volume ${r.volume}`} · {timeAgo(r.createdAt)}</span>

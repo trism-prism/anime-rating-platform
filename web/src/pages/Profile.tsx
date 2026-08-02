@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
 import AvatarEditor from '../components/AvatarEditor'
 import InlineEdit from '../components/InlineEdit'
+import ProfileOverview from '../components/ProfileOverview'
 import ProfileLists from '../components/ProfileLists'
 import ReportButton from '../components/ReportButton'
 import type { Profile as ProfileData } from '../types'
@@ -96,12 +97,12 @@ function Profile({ username }: { username: string }) {
       </div>
 
       {state === 'Self' ? (
-        <InlineEdit label="Bio" value={p.bio ?? ''} display={p.bio ? <p className="bio">{p.bio}</p> : <p className="muted">No bio yet</p>}
+        <InlineEdit label="Bio" value={p.bio ?? ''} empty="Add a bio" display={<p className="bio">{p.bio}</p>}
           hint={(v) => `${v.length}/300`}
           field={(v, set) => <textarea rows={4} maxLength={300} value={v} onChange={(e) => set(e.target.value)} />}
           onSave={async (v) => {
-            await api('/me/bio', { method: 'PUT', body: JSON.stringify({ bio: v }) })
-            load() // best-effort: a failed reload must not replace the page
+            const r = await api<{ bio: string | null }>('/me/bio', { method: 'PUT', body: JSON.stringify({ bio: v }) })
+            setP((x) => x && { ...x, bio: r.bio }) // the server's trimmed and censored text
           }} />
       ) : p.bio && <p className="bio">{p.bio}</p>}
 
@@ -137,6 +138,7 @@ function Profile({ username }: { username: string }) {
       )}
       {actionError && <p className="error" role="alert">{actionError}</p>}
 
+      <ProfileOverview key={`o:${p.userName}:${p.viewerState}`} username={p.userName} />
       <ProfileLists key={`l:${p.userName}:${p.viewerState}`} username={p.userName} />
 
       <ConfirmDialog open={confirmBlock} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}

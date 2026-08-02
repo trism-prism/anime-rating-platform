@@ -7,8 +7,9 @@ export const Pencil = () => (
 )
 
 // shows `display` with an Edit button; Edit swaps in a form with `field(value, setValue)`, Save runs onSave
-export default function InlineEdit({ label, value, display, field, hint, onSave }: {
+export default function InlineEdit({ label, value, display, empty, field, hint, onSave }: {
   label: string
+  empty?: string // when set and the value is empty, a click-to-fill field with this text replaces display and the pencil
   value: string
   display: ReactNode
   field: (v: string, set: (v: string) => void) => ReactNode
@@ -45,10 +46,14 @@ export default function InlineEdit({ label, value, display, field, hint, onSave 
   }
 
   if (!editing) {
+    const start = () => { setDraft(value); setError(''); setEditing(true) }
+    if (empty && !value) {
+      return <button ref={edit} type="button" className="field-empty" onClick={start}><span>{empty}</span><span className="mono">{hint('')}</span></button>
+    }
     return (
       <div className="inline-edit">
         {display}
-        <button ref={edit} type="button" className="edit-pencil" aria-label={`Edit ${label}`} onClick={() => { setDraft(value); setError(''); setEditing(true) }}><Pencil /></button>
+        <button ref={edit} type="button" className="edit-pencil" aria-label={`Edit ${label}`} onClick={start}><Pencil /></button>
       </div>
     )
   }

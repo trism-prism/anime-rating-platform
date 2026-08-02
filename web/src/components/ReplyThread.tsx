@@ -3,8 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import { timeAgo } from '../time'
-import { DELETED_USER, type ReplyItem, type ReplyPage } from '../types'
-import Avatar from './Avatar'
+import { type ReplyItem, type ReplyPage } from '../types'
+import UserLink from './UserLink'
 import ReportButton from './ReportButton'
 import Spoiler from './Spoiler'
 
@@ -107,8 +107,7 @@ export default function ReplyThread({ reviewId, reviewMine, onCount, onResync }:
           {items.map((r) => (
             <li key={r.id}>
               <div className="reply-head">
-                <Avatar userName={r.userName} small />
-                {r.userName === DELETED_USER ? <strong>{DELETED_USER}</strong> : <Link to={`/u/${encodeURIComponent(r.userName)}`} className="link"><strong>{r.userName}</strong></Link>}
+                <UserLink name={r.userName} />
                 <span className="muted"> · {timeAgo(r.createdAt)}</span>
                 {user && !r.mine && <span> <ReportButton path={`/replies/${r.id}/report`} what="reply" /></span>}
                 {r.canDelete && (

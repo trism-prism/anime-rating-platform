@@ -224,6 +224,12 @@ export interface Profile {
   hasAvatar: boolean
 }
 
+export interface ProfileOverview {
+  ratingCount: number
+  topTitles: { ratingId: number; titleId: number; titleName: string; seriesId: number; coverUrl: string | null; overall: number; hasReview: boolean; spoiler: boolean; snippet: string | null }[]
+  topGenres: { name: string; average: number; count: number }[]
+}
+
 export interface FriendsData {
   friends: { userName: string; since: string }[]
   incoming: { requestId: number; userName: string; sentAt: string }[]
