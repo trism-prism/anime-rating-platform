@@ -24,8 +24,8 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
       <h3 id="confirm-title">{title}</h3>
       <div>{children}</div>
       <div className="row row-end">
-        <button onClick={onCancel} disabled={busy}>Cancel</button>
-        <button onClick={onConfirm} disabled={busy} className="on">{busy ? 'Working' : confirmLabel}</button>
+        <button type="button" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" onClick={onConfirm} disabled={busy} className="on">{busy ? 'Working' : confirmLabel}</button>
       </div>
     </dialog>
   )

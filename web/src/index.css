@@ -420,3 +420,14 @@ footer.page a:hover { color: var(--text); }
 /* roles arrive from the API in capitals; show them in sentence case */
 .characters .muted { text-transform: lowercase; }
 .characters .muted::first-letter { text-transform: uppercase; }
+
+/* own profile: large picture with a pencil, inline edit rows, picture dialog */
+.profile-avatar-lg { position: relative; display: inline-block; }
+.profile-avatar-lg .avatar { width: 128px; height: 128px; font-size: var(--fs-xl); }
+.edit-pencil { display: inline-flex; align-items: center; justify-content: center; padding: 0; width: var(--control-h); }
+.profile-avatar-lg .edit-pencil { position: absolute; right: 0; bottom: 0; border-radius: 999px; opacity: 0; }
+.profile-avatar-lg:hover .edit-pencil, .profile-avatar-lg .edit-pencil:focus-visible { opacity: 1; }
+@media (hover: none) { .profile-avatar-lg .edit-pencil { opacity: 1; } }
+.inline-edit { display: flex; align-items: flex-start; gap: var(--s-2); }
+.inline-edit > :first-child { margin-top: 0; }
+.avatar-preview { display: block; width: 128px; height: 128px; border-radius: 999px; object-fit: cover; margin: 0 0 var(--s-3); }

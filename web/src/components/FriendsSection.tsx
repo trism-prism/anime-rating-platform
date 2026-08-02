@@ -8,8 +8,8 @@ import ConfirmDialog from './ConfirmDialog'
 const profile = (name: string) => `/u/${encodeURIComponent(name)}`
 const Who = ({ name }: { name: string }) => <span className="who"><Avatar userName={name} small /><Link to={profile(name)} className="link">{name}</Link></span>
 
-// shown on your own profile: friends, pending requests both ways, and add-by-username
-export default function FriendsSection({ onChange }: { onChange: () => void }) {
+// on the Friends page: friends, pending requests both ways, and add-by-username
+export default function FriendsSection() {
   const [data, setData] = useState<FriendsData | null>(null)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -31,12 +31,10 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
     try {
       await fn()
       load()
-      onChange()
       return true
     } catch (e) {
       setActionError((e as Error).message)
       load() // resync, so buttons for requests that are already gone disappear
-      onChange()
       return false
     } finally {
       setBusy(false)
@@ -57,8 +55,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
   const post = (path: string) => run(() => api(path, { method: 'POST' }))
 
   return (
-    <section aria-labelledby="friends-title">
-      <h2 id="friends-title">Friends</h2>
+    <section aria-label="Friends">
       <form className="row" onSubmit={add}>
         <label className="sr-only" htmlFor="friend-name">Add friend by username</label>
         <input id="friend-name" placeholder="Add friend by username" autoComplete="off" maxLength={256} value={name} onChange={(e) => setName(e.target.value)} />

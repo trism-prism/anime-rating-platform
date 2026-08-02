@@ -6,8 +6,6 @@ import EmailForm from '../components/EmailForm'
 import DeleteAccountForm from '../components/DeleteAccountForm'
 import ExportForm from '../components/ExportForm'
 import PasswordForm from '../components/PasswordForm'
-import ProfileForm from '../components/ProfileForm'
-import UserNameForm from '../components/UserNameForm'
 
 export default function Settings() {
   const { user, emailVerified, hasPassword, loading, refresh } = useAuth()
@@ -21,14 +19,6 @@ export default function Settings() {
     <div className="settings">
       <h1>Settings</h1>
 
-      <h2>Display name</h2>
-      <UserNameForm />
-
-      <h2>Profile</h2>
-      <ProfileForm />
-
-      <AniListImport />
-
       {loading ? null : !hasPassword ? (
         <>
           <h2>Sign-in</h2>
@@ -36,9 +26,6 @@ export default function Settings() {
         </>
       ) : (
         <>
-          <h2>Password</h2>
-          <PasswordForm onChanged={refresh} />
-
           <h2>Email</h2>
           <p>
             <span className="muted">Current: </span>{user.email}{' '}
@@ -52,6 +39,15 @@ export default function Settings() {
           )}
           <EmailForm onChanged={refresh} />
 
+          <h2>Password</h2>
+          <PasswordForm onChanged={refresh} />
+        </>
+      )}
+
+      <AniListImport />
+
+      {!loading && hasPassword && (
+        <>
           <h2>Export your data</h2>
           <ExportForm />
         </>
