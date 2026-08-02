@@ -23,6 +23,7 @@ export default function Trending() {
   return (
     <div>
       <h1>Trending</h1>
+      <p className="muted">Updated from AniList trending</p>
       <div className="filters">
         {(['Anime', 'Manga'] as const).map((t) => (
           <button key={t} className={type === t ? 'on' : ''} aria-pressed={type === t} onClick={() => setType(t)}>{t}</button>
