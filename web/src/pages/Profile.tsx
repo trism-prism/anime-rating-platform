@@ -82,6 +82,8 @@ function Profile({ username }: { username: string }) {
         </div>
       </div>
 
+      {p.bio && <p className="bio">{p.bio}</p>}
+
       {state === null && <p><Link to="/login" className="link">Log in</Link> to add friends.</p>}
       {state && state !== 'Self' && (
         <div className="row profile-actions">

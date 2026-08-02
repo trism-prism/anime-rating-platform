@@ -239,6 +239,8 @@ export interface Profile {
   friendCount: number
   viewerState: FriendState | null // null when nobody is signed in
   requestId: number | null // set while a request between the two is pending
+  bio: string | null
+  hasAvatar: boolean
 }
 
 export interface FriendsData {
@@ -297,6 +299,8 @@ export interface ReportItem {
   createdAt: string
   reporter: string
   targetUser: string
+  bio: string | null // profile reports: what the profile shows now
+  hasAvatar: boolean
 }
 
 export interface ReportPage {
