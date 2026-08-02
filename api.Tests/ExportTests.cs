@@ -71,13 +71,37 @@ public class ExportTests
     }
 
     [Fact]
+    public async Task Export_has_the_bio_and_whether_there_is_a_picture_but_not_the_picture()
+    {
+        var (c, db) = await Setup();
+        var json = async () => JsonDocument.Parse(Body(await c.Export(new ExportRequest(Pass, "json")))).RootElement.GetProperty("profile");
+        Assert.False((await json()).GetProperty("hasPicture").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, (await json()).GetProperty("bio").ValueKind);
+
+        (await db.Users.FindAsync("a"))!.Bio = "about alice";
+        (await db.Users.FindAsync("b"))!.Bio = "BOB BIO";
+        db.Avatars.Add(new UserAvatar { UserId = "a", Data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 7, 7], ContentType = "image/png" });
+        await db.SaveChangesAsync();
+
+        var p = await json();
+        Assert.Equal(("alice", "about alice", true), (p.GetProperty("userName").GetString(), p.GetProperty("bio").GetString(), p.GetProperty("hasPicture").GetBoolean()));
+        var text = Encoding.UTF8.GetString(Body(await c.Export(new ExportRequest(Pass, "json"))));
+        Assert.DoesNotContain("BOB", text);
+        Assert.DoesNotContain("data", p.EnumerateObject().Select(x => x.Name.ToLowerInvariant()));
+
+        using var zip = new ZipArchive(new MemoryStream(Body(await c.Export(new ExportRequest(Pass, "csv")))));
+        Assert.Contains("alice,", new StreamReader(zip.GetEntry("profile.csv")!.Open()).ReadToEnd());
+        Assert.Contains("about alice,true", new StreamReader(zip.GetEntry("profile.csv")!.Open()).ReadToEnd());
+    }
+
+    [Fact]
     public async Task Csv_is_a_zip_of_tables_with_quoting_and_formula_protection() => await AssertCsv((await Setup()).Alice);
 
     internal static async Task AssertCsv(ExportController c)
     {
         var r = await c.Export(new ExportRequest(Pass, "CSV"));
         using var zip = new ZipArchive(new MemoryStream(Body(r)));
-        Assert.Equal(new[] { "custom-list-items.csv", "custom-lists.csv", "list-entries.csv", "ratings.csv", "reviews.csv" }, zip.Entries.Select(x => x.Name).Order().ToArray());
+        Assert.Equal(new[] { "custom-list-items.csv", "custom-lists.csv", "list-entries.csv", "profile.csv", "ratings.csv", "reviews.csv" }, zip.Entries.Select(x => x.Name).Order().ToArray());
         string Read(string name) => new StreamReader(zip.GetEntry(name)!.Open()).ReadToEnd();
 
         var ratings = Read("ratings.csv");
