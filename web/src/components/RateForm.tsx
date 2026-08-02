@@ -129,8 +129,8 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
         <input type="checkbox" checked={spoiler} disabled={!emailVerified || !review.trim()} onChange={(e) => { touched.current = true; setSpoiler(e.target.checked) }} /> Contains spoilers
       </label>
       <label className="row">
-        <span className="muted">Who can see this rating and review</span>
-        <AudienceSelect label="Who can see this rating and review" value={audience} onChange={(a) => { touched.current = true; setAudience(a) }} />
+        <span className="muted">Visibility</span>
+        <AudienceSelect label="Visibility" value={audience} onChange={(a) => { touched.current = true; setAudience(a) }} />
       </label>
       {loadError && (
         <p className="error" role="alert">Could not load your existing rating. <button type="button" onClick={() => { setErrorKey(''); setAttempt((n) => n + 1) }}>Retry</button></p>

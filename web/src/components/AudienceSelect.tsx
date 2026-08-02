@@ -6,7 +6,7 @@ const OPTIONS: { value: Audience; label: string }[] = [
   { value: 'OnlyMe', label: 'Only me' },
 ]
 
-// who can see a rating or a list entry; `label` names it for screen readers
+// visibility of a rating or a list entry; `label` names it for screen readers
 export default function AudienceSelect({ value, onChange, disabled, label }: {
   value: Audience
   onChange: (a: Audience) => void
