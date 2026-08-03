@@ -178,6 +178,7 @@ export interface MyRating {
 
 export type WatchStatus = 'Planning' | 'Watching' | 'Completed' | 'Dropped'
 export const STATUSES: WatchStatus[] = ['Planning', 'Watching', 'Completed', 'Dropped']
+export const STATUS_OPTIONS = STATUSES.map((s) => ({ value: s, label: s }))
 
 export interface WatchEntry {
   titleId: number

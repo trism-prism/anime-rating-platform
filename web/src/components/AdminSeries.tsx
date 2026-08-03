@@ -160,7 +160,7 @@ function MoveTool() {
                 const blocked = !dest ? 'Pick a destination series' : dest.id === series.id ? 'Already in that series' : dest.kind !== source?.kind ? 'Anime and manga never share a series' : ''
                 return (
                   <tr key={e.id}>
-                    <td>{e.position}</td>
+                    <td className="num">{e.position}</td>
                     <td>{e.name}</td>
                     <td className="muted">{e.seriesLocked ? 'Locked' : 'Importer-managed'}</td>
                     <td>

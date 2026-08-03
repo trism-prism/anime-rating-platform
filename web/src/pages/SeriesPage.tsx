@@ -61,7 +61,7 @@ export default function SeriesPage() {
         <div>
           <h1>{s.name}</h1>
           <p className="muted">
-            {s.type} · {s.entries.length} {s.entries.length === 1 ? 'entry' : 'entries'} · {s.average ?? '-'} / 10 from {s.ratingCount} {s.ratingCount === 1 ? 'rating' : 'ratings'}
+            {s.type} · {s.entries.length} {s.entries.length === 1 ? 'entry' : 'entries'} · <span className="num">{s.average ?? '-'}</span> / 10 from <span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}
           </p>
           {s.crossLinks.length > 0 && (
             <p>
@@ -91,7 +91,7 @@ export default function SeriesPage() {
             </div>
             <div className="entry-score">
               <strong>{e.average ?? '-'}</strong>
-              <div className="muted">{e.ratingCount} {e.ratingCount === 1 ? 'rating' : 'ratings'}</div>
+              <div className="muted"><span className="num">{e.ratingCount}</span> {e.ratingCount === 1 ? 'rating' : 'ratings'}</div>
             </div>
           </li>
         ))}

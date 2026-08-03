@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import AudienceSelect from '../components/AudienceSelect'
+import CreateListDialog from '../components/CreateListDialog'
+import Select from '../components/Select'
 import WatchDates from '../components/WatchDates'
-import { STATUSES, type Audience, type MyRating, type WatchEntry, type WatchStatus } from '../types'
+import { STATUSES, STATUS_OPTIONS, type Audience, type ListSummary, type MyRating, type WatchEntry, type WatchStatus } from '../types'
 
 export default function MyList() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const [lists, setLists] = useState<ListSummary[] | null>(null)
+  const [listsError, setListsError] = useState('')
+  const [creating, setCreating] = useState(false)
   const [list, setList] = useState<WatchEntry[] | null>(null)
   const [ratings, setRatings] = useState<MyRating[] | null>(null)
   const [filter, setFilter] = useState<WatchStatus | 'All'>('All')
@@ -21,6 +27,7 @@ export default function MyList() {
   useEffect(() => {
     if (!user) return
     api<WatchEntry[]>('/me/watchlist').then((l) => { setList(l); setListError('') }).catch((e: Error) => setListError(e.message))
+    api<ListSummary[]>('/me/lists').then((l) => { setLists(l); setListsError('') }).catch((e: Error) => setListsError(e.message))
     api<MyRating[]>('/me/ratings').then((r) => { setRatings(r); setRatingsError('') }).catch((e: Error) => setRatingsError(e.message))
   }, [user, tick])
 
@@ -37,13 +44,13 @@ export default function MyList() {
   }
 
   // one change at a time per row; on failure the lists are loaded again, so the select shows what the server has
-  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void) {
+  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void, extra: object = {}) {
     if (inFlight.current.has(key)) return
     inFlight.current.add(key)
     setChanging([...inFlight.current])
     setError('')
     try {
-      await api(path, { method: 'PUT', body: JSON.stringify({ audience }) })
+      await api(path, { method: 'PUT', body: JSON.stringify({ ...extra, audience }) })
       apply()
     } catch (err) {
       setError((err as Error).message)
@@ -59,6 +66,17 @@ export default function MyList() {
     try {
       await api(`/me/watchlist/${e.titleId}`, { method: 'DELETE' })
       setList((l) => l && l.filter((x) => x.titleId !== e.titleId))
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  async function removeList(l: ListSummary) {
+    if (!window.confirm(`Delete the list "${l.name}"?`)) return
+    setError('')
+    try {
+      await api(`/me/lists/${l.id}`, { method: 'DELETE' })
+      setLists((all) => all && all.filter((x) => x.id !== l.id))
     } catch (err) {
       setError((err as Error).message)
     }
@@ -83,9 +101,7 @@ export default function MyList() {
           <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
           <Link to={`/series/${e.seriesId}`} className="muted link-quiet">{e.seriesName}</Link>
           <span className="muted">{e.type}</span>
-          <select aria-label={`Status of ${e.name}`} value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus)}>
-            {STATUSES.map((s) => <option key={s}>{s}</option>)}
-          </select>
+          <Select label={`Status of ${e.name}`} value={e.status} options={STATUS_OPTIONS} onChange={(v) => update(e, v as WatchStatus)} />
           <AudienceSelect
             label={`Visibility of ${e.name}`}
             value={e.audience}
@@ -97,6 +113,24 @@ export default function MyList() {
           <WatchDates key={`${e.titleId}-${e.startedOn}-${e.finishedOn}`} entry={e} onSaved={(n) => setList((l) => l && l.map((x) => (x.titleId === n.titleId ? n : x)))} />
         </div>
       ))}
+
+      <div className="row reviews-head">
+        <h2>Custom lists</h2>
+        <button onClick={() => setCreating(true)}>Create list</button>
+      </div>
+      {!lists && listsError && <p className="error">{listsError} <button onClick={() => { setListsError(''); setTick((t) => t + 1) }}>Retry</button></p>}
+      {!lists && !listsError && <p className="muted">Loading</p>}
+      {lists && lists.length === 0 && <p className="muted">No lists yet.</p>}
+      {lists?.map((l) => (
+        <div key={l.id} className="list-row">
+          <Link to={`/lists/${l.id}`} className="list-name">{l.name}</Link>
+          <span className="muted"><span className="num">{l.itemCount}</span> {l.itemCount === 1 ? 'item' : 'items'}</span>
+          <AudienceSelect label={`Visibility of ${l.name}`} value={l.audience ?? 'Public'} disabled={changing.includes(`l-${l.id}`)}
+            onChange={(a) => changeAudience(`l-${l.id}`, `/me/lists/${l.id}`, a, () => setLists((all) => all && all.map((x) => (x.id === l.id ? { ...x, audience: a } : x))), { name: l.name })} />
+          <button onClick={() => removeList(l)}>Delete</button>
+        </div>
+      ))}
+      <CreateListDialog open={creating} onClose={() => setCreating(false)} onCreated={(l) => { setCreating(false); navigate(`/lists/${l.id}`) }} />
 
       <h2>My ratings</h2>
       {!ratings && ratingsError && <p className="error">{ratingsError} <button onClick={() => { setRatingsError(''); setTick((t) => t + 1) }}>Retry</button></p>}
@@ -112,8 +146,8 @@ export default function MyList() {
             {ratings.map((r) => (
               <tr key={`${r.titleId}-${r.volume ?? 0}`}>
                 <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
-                <td>{r.story}</td><td>{r.art}</td><td>{r.characters}</td><td>{r.enjoyment}</td>
-                <td><strong>{r.overall}</strong></td>
+                <td className="num">{r.story}</td><td className="num">{r.art}</td><td className="num">{r.characters}</td><td className="num">{r.enjoyment}</td>
+                <td className="num"><strong>{r.overall}</strong></td>
                 <td>
                   <AudienceSelect
                     label={`Visibility of your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}

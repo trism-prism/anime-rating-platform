@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import type { ListSummary } from '../types'
+import Select from './Select'
 
 // add this title or series to one of the signed-in user's custom lists
 export default function AddToList({ titleId, seriesId }: { titleId?: number; seriesId?: number }) {
@@ -18,7 +19,7 @@ export default function AddToList({ titleId, seriesId }: { titleId?: number; ser
   }, [user])
 
   if (!user || !lists) return null
-  if (lists.length === 0) return <><h2>Custom lists</h2><p className="muted">You have no custom lists yet. <Link to="/lists" className="link">Make one</Link>.</p></>
+  if (lists.length === 0) return <><h2>Custom lists</h2><p className="muted">You have no custom lists yet. <Link to="/my-list" className="link">Make one</Link>.</p></>
 
   async function add() {
     setMsg('')
@@ -35,10 +36,12 @@ export default function AddToList({ titleId, seriesId }: { titleId?: number; ser
     <>
     <h2>Custom lists</h2>
     <div className="row">
-      <select aria-label="Custom list" value={picked} onChange={(e) => setPicked(Number(e.target.value))}>
-        <option value={0}>Pick a list</option>
-        {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-      </select>
+      <Select
+        label="Custom list"
+        value={String(picked)}
+        options={[{ value: '0', label: 'Pick a list' }, ...lists.map((l) => ({ value: String(l.id), label: l.name }))]}
+        onChange={(v) => setPicked(Number(v))}
+      />
       <button disabled={picked === 0} onClick={add}>Add to list</button>
       {msg && <span className="muted">{msg}</span>}
       {error && <span className="error">{error}</span>}
