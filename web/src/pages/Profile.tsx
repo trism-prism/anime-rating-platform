@@ -10,6 +10,7 @@ import ProfileOverview from '../components/ProfileOverview'
 import ProfileLists from '../components/ProfileLists'
 import ReportButton from '../components/ReportButton'
 import { plural } from '../format'
+import { refreshPending } from '../pendingRequests'
 import { useTitle } from '../useTitle'
 import type { Profile as ProfileData } from '../types'
 
@@ -48,6 +49,7 @@ function Profile({ username }: { username: string }) {
     try {
       await fn()
       await load()
+      refreshPending() // an accepted or declined request changes the nav badge
     } catch (e) {
       setActionError((e as Error).message)
       await load() // it may have changed on the other side (cancelled, accepted): show what is really there

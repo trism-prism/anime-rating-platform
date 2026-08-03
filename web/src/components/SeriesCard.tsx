@@ -15,7 +15,7 @@ export default function SeriesCard({ id, name, coverUrl, type, average, ratingCo
         <div className="muted">
           {average == null ? 'Not rated yet' : (
             <>
-              <span className="num">{score(average)}</span> / 10
+              <span className="nowrap"><span className="num">{score(average)}</span> / 10</span>
               {ratingCount ? <> · <span className="num">{ratingCount}</span> {ratingCount === 1 ? 'rating' : 'ratings'}</> : null}
             </>
           )}

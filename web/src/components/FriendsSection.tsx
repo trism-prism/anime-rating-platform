@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api'
+import { setPending } from '../pendingRequests'
 import type { FriendsData } from '../types'
 import UserLink from './UserLink'
 import ConfirmDialog from './ConfirmDialog'
@@ -17,7 +18,7 @@ export default function FriendsSection() {
   const [confirming, setConfirming] = useState(false) // the "decline all" dialog
 
   const load = useCallback(() => {
-    api<FriendsData>('/me/friends').then((d) => { setData(d); setError('') }).catch((e: Error) => setError(e.message))
+    api<FriendsData>('/me/friends').then((d) => { setData(d); setPending(d.incoming.length); setError('') }).catch((e: Error) => setError(e.message))
   }, [])
 
   useEffect(load, [load])

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { refreshPending } from '../pendingRequests'
 import { timeAgo } from '../time'
 import type { Notification, NotificationPage } from '../types'
 import Avatar from './Avatar'
@@ -142,6 +143,7 @@ export default function NotificationBell() {
     // accepted: the row stays, read and no longer actionable; declined: the server deleted it
     setItems((l) => l && (accept ? l.map((x) => (x.id === n.id ? { ...x, read: true, actionable: false } : x)) : l.filter((x) => x.id !== n.id)))
     loadCount()
+    refreshPending()
   }
 
   async function markAll() {
