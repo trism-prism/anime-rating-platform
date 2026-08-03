@@ -10,14 +10,14 @@ const SIZE = 256
 
 // center-crop to a square and scale to 256x256, so what is stored is small whatever was chosen
 async function square(file: File): Promise<Blob> {
-  const img = await createImageBitmap(file).catch(() => { throw new Error('Could not read that image.') })
+  const img = await createImageBitmap(file).catch(() => { throw new Error("That file can't be used as a picture. Try a JPG or PNG.") })
   try {
     const side = Math.min(img.width, img.height)
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = SIZE
     canvas.getContext('2d')!.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE)
     // webp, or png where the browser can't write webp; the API looks at the bytes either way
-    return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('Could not read that image.'))), 'image/webp', 0.9))
+    return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("That file can't be used as a picture. Try a JPG or PNG."))), 'image/webp', 0.9))
   } finally {
     img.close()
   }
@@ -57,7 +57,7 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
     if (!f) return
     setName(f.name)
     try {
-      if (!TYPES.includes(f.type)) throw new Error('Choose a png, jpeg or webp image.')
+      if (!TYPES.includes(f.type)) throw new Error("That file can't be used as a picture. Try a JPG or PNG.")
       if (f.size > MAX_FILE) throw new Error('The picture must be 2 MB or smaller.')
       const b = await square(f)
       if (n !== latest.current) return
@@ -101,8 +101,8 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
           <label htmlFor={inputId}>Choose picture</label>
           {name && <span className="avatar-file-name muted">{name}</span>}
         </div>
-        <p className="muted hint">A png, jpeg or webp image up to 2 MB. Use a square image, ideally 256 x 256 px or larger. It is cropped to a 256 x 256 circle view, so keep the subject centered.</p>
-        <p className="muted hint">Pictures are public, including to people you have blocked.</p>
+        <p className="muted hint">Square pictures work best, ideally 256 x 256 px or larger. Keep your subject centered.</p>
+        <p className="muted hint">Pictures are public, including to people you&apos;ve blocked.</p>
         {error && <p className="error" role="alert">{error}</p>}
         <div className="row row-end">
           {hasAvatar && <button type="button" disabled={busy} onClick={remove}>Remove</button>}
