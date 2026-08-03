@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import SeriesCard from '../components/SeriesCard'
 import type { TitleType, TrendingItem } from '../types'
+import { useTitle } from '../useTitle'
 
 export default function Trending() {
+  useTitle('Trending')
   const [type, setType] = useState<TitleType>('Anime')
   const [items, setItems] = useState<{ type: TitleType; list: TrendingItem[] } | null>(null)
   const [error, setError] = useState('')
@@ -33,9 +35,12 @@ export default function Trending() {
       {loading && !error && <p className="muted">Loading</p>}
       {!loading && items.list.length === 0 && <p className="muted">Nothing trending right now.</p>}
       {!loading && (
+        <>
+        <h2 className="sr-only">Trending {type.toLowerCase()}</h2>
         <div className="grid">
           {items.list.map((t) => <SeriesCard key={t.id} id={t.id} name={t.name} coverUrl={t.coverUrl} type={t.type} average={t.averageOverall} />)}
         </div>
+        </>
       )}
     </div>
   )

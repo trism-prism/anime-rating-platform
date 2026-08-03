@@ -4,6 +4,7 @@ import { api, type SignedIn } from '../api'
 import { useAuth } from '../auth'
 import GoogleLink from '../components/GoogleLink'
 import PasswordInput from '../components/PasswordInput'
+import { useTitle } from '../useTitle'
 
 // ?error=... as set by the Google callback
 const GOOGLE_ERRORS: Record<string, string> = {
@@ -12,6 +13,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
 }
 
 export default function Login() {
+  useTitle('Login')
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()

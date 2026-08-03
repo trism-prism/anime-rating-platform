@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { api } from '../api'
 import type { Audience, ListSummary } from '../types'
 import AudienceSelect from './AudienceSelect'
@@ -10,6 +10,7 @@ export default function CreateListDialog({ open, onClose, onCreated }: {
   onCreated: (list: ListSummary) => void
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   const [name, setName] = useState('')
   const [audience, setAudience] = useState<Audience>('Public')
   const [busy, setBusy] = useState(false)
@@ -41,8 +42,8 @@ export default function CreateListDialog({ open, onClose, onCreated }: {
   }
 
   return (
-    <dialog ref={ref} aria-labelledby="create-list-title" onCancel={(e) => { e.preventDefault(); if (!busy) onClose() }}>
-      <h3 id="create-list-title">Create list</h3>
+    <dialog ref={ref} aria-labelledby={titleId} onCancel={(e) => { e.preventDefault(); if (!busy) onClose() }}>
+      <h3 id={titleId}>Create list</h3>
       <form className="stack" onSubmit={create}>
         <input value={name} maxLength={60} placeholder="List name" aria-label="List name" onChange={(e) => setName(e.target.value)} />
         <div className="row">

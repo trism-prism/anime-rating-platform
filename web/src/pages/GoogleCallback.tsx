@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { refreshSession } from '../api'
 import { useAuth } from '../auth'
+import { useTitle } from '../useTitle'
 
 // Google sent the browser back via the API, which set the refresh cookie; trade it for an access token
 export default function GoogleCallback() {
+  useTitle('Google sign-in')
   const [params] = useSearchParams()
   const { login } = useAuth()
   const navigate = useNavigate()

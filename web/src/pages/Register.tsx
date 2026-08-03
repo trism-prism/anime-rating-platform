@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import GoogleLink from '../components/GoogleLink'
 import PasswordInput from '../components/PasswordInput'
+import { useTitle } from '../useTitle'
 
 export default function Register() {
+  useTitle('Register')
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [userName, setUserName] = useState('')

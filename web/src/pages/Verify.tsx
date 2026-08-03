@@ -3,11 +3,13 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import { useCountdown } from '../useCountdown'
+import { useTitle } from '../useTitle'
 
 const RESEND_SECONDS = 30 // the server sends one code per 30 s
 
 // verify the account email with a 6-digit code; links here pass the page to return to as state.from
 export default function Verify() {
+  useTitle('Verify your email')
   const { user, emailVerified, loading, refresh } = useAuth()
   const navigate = useNavigate()
   const from: string = useLocation().state?.from ?? '/'

@@ -6,8 +6,10 @@ import EmailForm from '../components/EmailForm'
 import DeleteAccountForm from '../components/DeleteAccountForm'
 import ExportForm from '../components/ExportForm'
 import PasswordForm from '../components/PasswordForm'
+import { useTitle } from '../useTitle'
 
 export default function Settings() {
+  useTitle('Settings')
   const { user, emailVerified, hasPassword, loading, refresh } = useAuth()
 
   // pick up a verification done in another tab

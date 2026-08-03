@@ -3,17 +3,23 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import AudienceSelect from '../components/AudienceSelect'
+import ConfirmDialog from '../components/ConfirmDialog'
 import CreateListDialog from '../components/CreateListDialog'
+import { score } from '../format'
 import Select from '../components/Select'
 import WatchDates from '../components/WatchDates'
 import { STATUSES, STATUS_OPTIONS, type Audience, type ListSummary, type MyRating, type WatchEntry, type WatchStatus } from '../types'
+import { useTitle } from '../useTitle'
 
 export default function MyList() {
+  useTitle('My List')
   const { user } = useAuth()
   const navigate = useNavigate()
   const [lists, setLists] = useState<ListSummary[] | null>(null)
   const [listsError, setListsError] = useState('')
   const [creating, setCreating] = useState(false)
+  const [deleting, setDeleting] = useState<ListSummary | null>(null) // list awaiting delete confirmation
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [list, setList] = useState<WatchEntry[] | null>(null)
   const [ratings, setRatings] = useState<MyRating[] | null>(null)
   const [filter, setFilter] = useState<WatchStatus | 'All'>('All')
@@ -71,14 +77,19 @@ export default function MyList() {
     }
   }
 
-  async function removeList(l: ListSummary) {
-    if (!window.confirm(`Delete the list "${l.name}"?`)) return
+  async function removeList() {
+    const l = deleting
+    if (!l) return
     setError('')
+    setDeleteBusy(true)
     try {
       await api(`/me/lists/${l.id}`, { method: 'DELETE' })
       setLists((all) => all && all.filter((x) => x.id !== l.id))
     } catch (err) {
       setError((err as Error).message)
+    } finally {
+      setDeleteBusy(false)
+      setDeleting(null)
     }
   }
 
@@ -86,7 +97,7 @@ export default function MyList() {
 
   return (
     <div>
-      <h1>My list</h1>
+      <h1>My List</h1>
       {error && <p className="error">{error}</p>}
       <div className="filters">
         {(['All', ...STATUSES] as const).map((s) => (
@@ -95,7 +106,8 @@ export default function MyList() {
       </div>
       {!list && listError && <p className="error">{listError} <button onClick={() => { setListError(''); setTick((t) => t + 1) }}>Retry</button></p>}
       {!list && !listError && <p className="muted">Loading</p>}
-      {list && shown.length === 0 && <p className="muted">Nothing here yet. Add titles from their pages.</p>}
+      {list && list.length === 0 && <p className="muted">Add anime from <Link to="/" className="link">Browse</Link>.</p>}
+      {list && list.length > 0 && shown.length === 0 && <p className="muted">Nothing with this status.</p>}
       {shown.map((e) => (
         <div key={e.titleId} className="list-row">
           <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
@@ -127,9 +139,13 @@ export default function MyList() {
           <span className="muted"><span className="num">{l.itemCount}</span> {l.itemCount === 1 ? 'item' : 'items'}</span>
           <AudienceSelect label={`Visibility of ${l.name}`} value={l.audience ?? 'Public'} disabled={changing.includes(`l-${l.id}`)}
             onChange={(a) => changeAudience(`l-${l.id}`, `/me/lists/${l.id}`, a, () => setLists((all) => all && all.map((x) => (x.id === l.id ? { ...x, audience: a } : x))), { name: l.name })} />
-          <button onClick={() => removeList(l)}>Delete</button>
+          <button onClick={() => setDeleting(l)}>Delete</button>
         </div>
       ))}
+      <ConfirmDialog open={deleting !== null} title={`Delete "${deleting?.name ?? ''}"?`} confirmLabel="Delete list" busy={deleteBusy}
+        onConfirm={removeList} onCancel={() => setDeleting(null)}>
+        <p>The list and its {deleting?.itemCount ?? 0} {deleting?.itemCount === 1 ? 'item' : 'items'} are removed. The titles themselves stay in the catalogue.</p>
+      </ConfirmDialog>
       <CreateListDialog open={creating} onClose={() => setCreating(false)} onCreated={(l) => { setCreating(false); navigate(`/lists/${l.id}`) }} />
 
       <h2>My ratings</h2>
@@ -140,14 +156,14 @@ export default function MyList() {
         <div className="table-scroll">
         <table className="table">
           <thead>
-            <tr><th>Title</th><th>Story</th><th>Art</th><th>Chars</th><th>Fun</th><th>Overall</th><th>Visibility</th></tr>
+            <tr><th>Title</th><th>Story</th><th>Art</th><th>Characters</th><th>Enjoyment</th><th>Overall</th><th>Visibility</th></tr>
           </thead>
           <tbody>
             {ratings.map((r) => (
               <tr key={`${r.titleId}-${r.volume ?? 0}`}>
                 <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
                 <td className="num">{r.story}</td><td className="num">{r.art}</td><td className="num">{r.characters}</td><td className="num">{r.enjoyment}</td>
-                <td className="num"><strong>{r.overall}</strong></td>
+                <td className="num"><strong>{score(r.overall)}</strong></td>
                 <td>
                   <AudienceSelect
                     label={`Visibility of your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}

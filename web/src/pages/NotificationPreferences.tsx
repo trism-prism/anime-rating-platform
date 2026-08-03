@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import type { NotificationPref } from '../types'
+import { useTitle } from '../useTitle'
 
 const LABELS: Record<string, string> = {
   FriendRequest: 'Someone sends me a friend request',
@@ -13,6 +14,7 @@ const LABELS: Record<string, string> = {
 }
 
 export default function NotificationPreferences() {
+  useTitle('Notification preferences')
   const { user } = useAuth()
   const [prefs, setPrefs] = useState<NotificationPref[] | null>(null)
   const [error, setError] = useState('')

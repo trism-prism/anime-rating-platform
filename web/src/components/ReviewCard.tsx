@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
+import { score } from '../format'
 import { timeAgo } from '../time'
 import { REACTIONS, type ReactionKind, type ReactionState, type ReviewItem } from '../types'
 import UserLink from './UserLink'
@@ -76,7 +77,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
         <UserLink name={review.userName} />
         <span className="muted">
           {showTitle && <> · <Link to={`/titles/${review.titleId}`} className="link-quiet">{review.titleName}</Link></>}
-          {review.volume != null && ` · Volume ${review.volume}`} · {review.overall} / 10 · {timeAgo(review.createdAt)}
+          {review.volume != null && ` · Volume ${review.volume}`} · {score(review.overall)} / 10 · {timeAgo(review.createdAt)}
         </span>
       </div>
       {review.spoiler ? <Spoiler what="review">{text}</Spoiler> : text}

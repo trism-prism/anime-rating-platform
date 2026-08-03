@@ -9,6 +9,8 @@ import InlineEdit from '../components/InlineEdit'
 import ProfileOverview from '../components/ProfileOverview'
 import ProfileLists from '../components/ProfileLists'
 import ReportButton from '../components/ReportButton'
+import { plural } from '../format'
+import { useTitle } from '../useTitle'
 import type { Profile as ProfileData } from '../types'
 
 // keyed so another profile or another account starts from the loading state
@@ -28,6 +30,7 @@ function Profile({ username }: { username: string }) {
   const [busy, setBusy] = useState(false)
   const [confirmBlock, setConfirmBlock] = useState(false)
   const [tick, setTick] = useState(0)
+  useTitle(p?.userName ?? username)
 
   const load = useCallback(() => {
     return api<ProfileData>(`/users/${encodeURIComponent(username)}`)
@@ -91,7 +94,7 @@ function Profile({ username }: { username: string }) {
               }} />
           ) : <h1>{p.userName}</h1>}
           <p className="muted">
-            Joined {new Date(p.joinedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })} · {p.friendCount} {p.friendCount === 1 ? 'friend' : 'friends'}
+            Joined {new Date(p.joinedAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'long' })}{p.friendCount > 0 && <> · {plural(p.friendCount, 'friend')}</>}
           </p>
         </div>
       </div>

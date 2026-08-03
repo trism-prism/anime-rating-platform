@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { score } from '../format'
 import type { ProfileOverview as Overview } from '../types'
 
 // top rated titles, top genres by average score and the rating count, of the ratings the viewer may see
@@ -34,7 +35,7 @@ export default function ProfileOverview({ username }: { username: string }) {
                     </p>
                   )}
                 </div>
-                <span className="mono">{t.overall}</span>
+                <span className="num">{score(t.overall)}</span>
               </li>
             ))}
           </ol>
@@ -45,7 +46,7 @@ export default function ProfileOverview({ username }: { username: string }) {
           <h2>Top genres</h2>
           <ul className="overview-genres">
             {o.topGenres.map((g) => (
-              <li key={g.name}><span>{g.name}</span> <span className="mono muted">{g.average} avg</span></li>
+              <li key={g.name}><span>{g.name}</span> <span className="num muted">{score(g.average)} avg</span></li>
             ))}
           </ul>
         </>

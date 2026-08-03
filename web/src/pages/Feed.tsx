@@ -2,13 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { score } from '../format'
 import { timeAgo } from '../time'
 import type { FeedItem, FeedPage } from '../types'
 import UserLink from '../components/UserLink'
 import FriendsSection from '../components/FriendsSection'
+import { useTitle } from '../useTitle'
 
 // recent ratings and reviews by friends; the API applies each rating's audience, keyset paged
 export default function Feed() {
+  useTitle('Friends')
   const { user, loading } = useAuth()
   const [items, setItems] = useState<FeedItem[] | null>(null)
   const [next, setNext] = useState<number | null>(null)
@@ -73,7 +76,7 @@ export default function Feed() {
                   {r.hasReview && r.spoiler && <p className="muted">Review contains spoilers.</p>}
                   {r.hasReview && <Link to={`/reviews/${r.ratingId}`} className="link">Read review</Link>}
                 </div>
-                <strong>{r.overall} / 10</strong>
+                <strong>{score(r.overall)} / 10</strong>
               </li>
             ))}
           </ul>

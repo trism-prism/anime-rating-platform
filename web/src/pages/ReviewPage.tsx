@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import ReviewCard from '../components/ReviewCard'
+import { useTitle } from '../useTitle'
 import type { ReviewItem } from '../types'
 
 // one review with its thread open: where a reply or reaction notification leads
@@ -17,6 +18,7 @@ function Review({ id }: { id: string }) {
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState('')
   const gen = useRef(0)
+  useTitle(review ? `Review of ${review.titleName}` : null)
 
   const load = useCallback(() => {
     const g = ++gen.current

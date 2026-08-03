@@ -40,7 +40,7 @@ export default function ListForm({ titleId }: { titleId: number }) {
     try {
       await api(`/me/watchlist/${titleId}`, { method: 'PUT', body: JSON.stringify({ status, progress }) })
       setInList(true)
-      setMsg('Saved to your list')
+      setMsg('Saved to My List')
     } catch (err) {
       setError((err as Error).message)
     }
@@ -49,7 +49,7 @@ export default function ListForm({ titleId }: { titleId: number }) {
   return (
     <div className="row">
       <Select label="Watch status" value={status} options={STATUS_OPTIONS} onChange={(v) => setStatus(v as WatchStatus)} />
-      <button onClick={save} disabled={!loaded}>{inList ? 'Update list' : 'Add to my list'}</button>
+      <button onClick={save} disabled={!loaded}>{inList ? 'Update list' : 'Add to My List'}</button>
       {msg && <span className="muted">{msg}</span>}
       {error && <span className="error">{error}</span>}
     </div>
