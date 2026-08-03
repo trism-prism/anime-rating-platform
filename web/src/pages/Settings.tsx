@@ -20,47 +20,71 @@ export default function Settings() {
   return (
     <div className="settings">
       <h1>Settings</h1>
+      <div className="settings-layout">
+        {/* beside the cards on wide screens, a row of anchors above them on small ones */}
+        <nav className="settings-nav" aria-label="Settings sections">
+          <a href="#account">Account</a>
+          <a href="#import-export">Import and export</a>
+          <a href="#danger">Danger zone</a>
+        </nav>
 
-      {loading ? null : !hasPassword ? (
-        <>
-          <h2>Sign-in</h2>
-          <p className="muted">This account signs in with Google. To add a password, use Forgot password on the login page.</p>
-        </>
-      ) : (
-        <>
-          <h2>Email</h2>
-          <p>
-            <span className="muted">Current: </span>{user.email}{' '}
-            <span className={emailVerified ? 'badge ok' : 'badge'}>{emailVerified ? 'Verified' : 'Not verified'}</span>
-          </p>
-          {!emailVerified && (
-            <p className="muted hint">
-              Verified accounts can write reviews.{' '}
-              <Link to="/verify" state={{ from: '/settings' }} className="link">Verify your email</Link>
-            </p>
-          )}
-          <EmailForm onChanged={refresh} />
+        <div className="settings-cards">
+          <div id="account">
+            {loading ? null : !hasPassword ? (
+              <section className="settings-card" aria-labelledby="h-signin">
+                <h2 id="h-signin">Sign-in</h2>
+                <p className="card-desc">This account signs in with Google. To add a password, use Forgot password on the login page.</p>
+              </section>
+            ) : (
+              <>
+                <section className="settings-card" aria-labelledby="h-email">
+                  <h2 id="h-email">Email</h2>
+                  <p className="card-desc">
+                    {user.email}{' '}
+                    <span className={emailVerified ? 'badge ok' : 'badge'}>{emailVerified ? 'Verified' : 'Not verified'}</span>
+                  </p>
+                  {!emailVerified && (
+                    <p className="card-desc">
+                      Verified accounts can write reviews.{' '}
+                      <Link to="/verify" state={{ from: '/settings' }} className="link">Verify your email</Link>
+                    </p>
+                  )}
+                  <EmailForm onChanged={refresh} />
+                </section>
 
-          <h2>Password</h2>
-          <PasswordForm onChanged={refresh} />
-        </>
-      )}
+                <section className="settings-card" aria-labelledby="h-password">
+                  <h2 id="h-password">Password</h2>
+                  <p className="card-desc">Change the password you sign in with.</p>
+                  <PasswordForm onChanged={refresh} />
+                </section>
+              </>
+            )}
+          </div>
 
-      <AniListImport />
+          <div id="import-export">
+            <section className="settings-card" aria-labelledby="h-import">
+              <AniListImport />
+            </section>
 
-      {!loading && hasPassword && (
-        <>
-          <h2>Export your data</h2>
-          <ExportForm />
-        </>
-      )}
+            {!loading && hasPassword && (
+              <section className="settings-card" aria-labelledby="h-export">
+                <h2 id="h-export">Export your data</h2>
+                <p className="card-desc">Your ratings, reviews, list entries and custom lists, with dates.</p>
+                <ExportForm />
+              </section>
+            )}
+          </div>
 
-      {!loading && (
-        <>
-          <h2>Delete account</h2>
-          <DeleteAccountForm />
-        </>
-      )}
+          <div id="danger">
+            {!loading && (
+              <section className="settings-card danger-card" aria-labelledby="h-delete">
+                <h2 id="h-delete">Delete account</h2>
+                <DeleteAccountForm />
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
