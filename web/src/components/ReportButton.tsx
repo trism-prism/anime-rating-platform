@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api, ApiError } from '../api'
 import ConfirmDialog from './ConfirmDialog'
+import Select from './Select'
 
 const REASONS = ['Spam', 'Harassment', 'Hate', 'Spoiler', 'Other'] as const
 const MAX = 500
@@ -38,9 +39,7 @@ export default function ReportButton({ path, what }: { path: string; what: strin
           <div className="stack">
             <label>
               Reason{' '}
-              <select value={reason} onChange={(e) => setReason(e.target.value as (typeof REASONS)[number])}>
-                {REASONS.map((r) => <option key={r}>{r}</option>)}
-              </select>
+              <Select label="Reason" value={reason} options={REASONS.map((r) => ({ value: r, label: r }))} onChange={(v) => setReason(v as (typeof REASONS)[number])} />
             </label>
             <textarea aria-label="Note (optional)" placeholder="Note (optional)" rows={3} maxLength={MAX} value={note} onChange={(e) => setNote(e.target.value)} />
             <span className="muted count">{note.length}/{MAX}</span>

@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api'
 import PasswordInput from './PasswordInput'
+import Select from './Select'
+
+const FORMATS = [{ value: 'json', label: 'JSON' }, { value: 'csv', label: 'CSV (zip)' }]
 
 // download your ratings, reviews, list entries and custom lists; asks for the password like the other sensitive actions
 export default function ExportForm() {
@@ -38,10 +41,7 @@ export default function ExportForm() {
       <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
       <label className="row">
         <span>Format</span>
-        <select value={format} onChange={(e) => setFormat(e.target.value as 'json' | 'csv')}>
-          <option value="json">JSON</option>
-          <option value="csv">CSV (zip)</option>
-        </select>
+        <Select label="Format" value={format} options={FORMATS} onChange={(v) => setFormat(v as 'json' | 'csv')} />
       </label>
       {error && <p className="error" role="alert">{error}</p>}
       {msg && <p role="status">{msg}</p>}

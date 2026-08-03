@@ -1,4 +1,5 @@
 import type { Audience } from '../types'
+import Select from './Select'
 
 const OPTIONS: { value: Audience; label: string }[] = [
   { value: 'Public', label: 'Public' },
@@ -14,8 +15,6 @@ export default function AudienceSelect({ value, onChange, disabled, label }: {
   label: string
 }) {
   return (
-    <select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value as Audience)}>
-      {OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <Select label={label} value={value} options={OPTIONS} disabled={disabled} onChange={(v) => onChange(v as Audience)} />
   )
 }

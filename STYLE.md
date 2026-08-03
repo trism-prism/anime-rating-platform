@@ -33,7 +33,7 @@ Before the redesign, against unslop's list of signs. Where a sign was not presen
 - Character: calm, exact, a little dry. Words like clean or modern are not allowed.
 - World: a late night watchlist. A dim room, the screen's glow on warm graphite, a paper score slip. The covers are the only loud color on the page, so the chrome stays a warm graphite and gives them the room.
 - Moments: the covers themselves, and the score. A score is the thing people come for.
-- Signature: the score tag. A score is always set in the mono face; on a cover it sits as a small dark tag in the accent color, in the top left corner. Nothing else on the site looks like it.
+- Signature: the score tag. A score is always set in the number face (Space Grotesk); on a cover it sits as a small dark tag in the accent color, in the top left corner. Nothing else on the site looks like it.
 
 ## Tokens
 
@@ -58,7 +58,7 @@ Accent: `--accent` #ff7a59, a vermilion taken from a seal stamp. Ink on top of i
 
 Contrast (checked with a script, WCAG AA 4.5 needed): text 11.4 to 15.8, secondary 5.8 to 8.0, muted 4.7 to 6.5, accent on page 7.2, accent ink on accent 7.4, negative 4.9 to 6.8.
 
-Type: Geist for the interface and Geist Mono for scores, positions and times (both from `@fontsource-variable`, served from the app, no external request). Scale 12 meta, 13 captions, 15 body, 18 section title, 28 page title. Weights 400 and 500 only. Tabular figures everywhere. Letter spacing 0 except the page title (-0.01em).
+Type: Geist for the interface and Space Grotesk for numbers (scores, counts, positions, bars, bell badge), both from `@fontsource-variable`, bundled by Vite and served from the app, so no external request and `font-src 'self'` holds. Numbers use the `.num` class or the `--font-num` token, which set Space Grotesk with `tabular-nums`; running text stays proportional. Why: a mono face looked heavy next to prose ("0 ratings"), while Space Grotesk has clean tabular figures and a distinct zero and one. Scale 12 meta, 13 captions, 15 body, 18 section title, 28 page title. Weights 400 and 500 only. Letter spacing 0 except the page title (-0.01em).
 
 Radii: 4 thumbnails and tags, 8 controls, 12 cards and rows, 16 dialogs. A thumbnail in a row has 8 padding inside a 12 radius, so 4.
 
@@ -91,7 +91,7 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 - Empty states say what is missing and where to add it ("Nothing here yet. Add titles from their pages").
 - Errors appear next to what failed, in `--negative`, with `role="alert"`, and offer a retry when a retry makes sense.
 - Optimistic updates only for toggles that are safe to undo (reactions); roll back and show the error if the call fails. Writes that change data others see wait for the server.
-- No layout jumps: images have an aspect ratio before they load, messages reserve a line (`.admin-status`), counters use tabular figures.
+- No layout jumps: images have an aspect ratio before they load, messages reserve a line (`.admin-status`), counters use tabular figures (`.num`).
 - Keyboard: every action is reachable by Tab, Enter and Space; menus close on Escape and return focus to their button. Focus is always visible.
 - Forms: label above the field, hint below in muted, the error replaces the hint, the submit button shows a busy label and is disabled while the request runs, and the result (saved, failed) shows in a status line near the button.
 - Destructive actions ask for confirmation in a dialog that names what will be lost.

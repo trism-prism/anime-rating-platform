@@ -11,10 +11,10 @@ export default function SeriesCard({ id, name, coverUrl, type, average, ratingCo
       <div className="card-body">
         <div className="card-name" title={name}>{name}</div>
         <div className="muted">
-          {type} · {average ?? '-'} / 10
+          {type} · <span className="num">{average ?? '-'}</span> / 10
         </div>
         {ratingCount !== undefined && (
-          <div className="muted">{ratingCount} {ratingCount === 1 ? 'rating' : 'ratings'}</div>
+          <div className="muted"><span className="num">{ratingCount}</span> {ratingCount === 1 ? 'rating' : 'ratings'}</div>
         )}
       </div>
     </Link>
