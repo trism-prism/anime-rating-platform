@@ -550,3 +550,75 @@ a.button:hover { background: var(--raised-hover); border-color: var(--hairline-s
   .profile-head > div:last-child { flex: none; width: 100%; }
   .profile-head h1 { font-size: clamp(20px, 6.5vw, 28px); }
 }
+
+/* My List: one compact row per title; visibility, dates, rating details and remove sit behind the chevron */
+.mylist-tools { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
+.mylist-search { flex: 1 1 200px; min-width: 0; }
+.mylist-chips { display: flex; gap: var(--s-2); overflow-x: auto; padding: 3px; margin: 0 -3px var(--s-4); scrollbar-width: thin; }
+.mylist-chips button { flex: none; display: inline-flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
+.mylist-chips .count { font-size: var(--fs-sm); }
+.mylist-empty { margin-bottom: var(--s-6); }
+.mylist { list-style: none; margin: 0; padding: 0; }
+.mylist-row { background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-md); margin-bottom: var(--s-2); }
+.mylist-main { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto var(--control-h); align-items: center; column-gap: var(--s-3); padding: var(--s-2) var(--s-3); }
+.mylist-thumb img, .mylist-thumb .noimg { display: block; width: 36px; height: 48px; object-fit: cover; border-radius: var(--r-xs); }
+.mylist-text { min-width: 0; }
+.mylist-text .list-name { display: block; flex: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mylist-meta { display: flex; align-items: center; gap: var(--s-2); min-height: 22px; font-size: var(--fs-sm); }
+.mylist-meta:empty { display: none; }
+.mylist-meta a { display: inline-flex; align-items: center; min-height: 24px; color: var(--text-2); text-decoration: underline; text-decoration-color: var(--hairline-strong); text-underline-offset: 3px; }
+.mylist-meta a:hover { color: var(--text); }
+.mylist-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mylist-chip { flex: none; padding: 0 6px; border-radius: var(--r-xs); background: var(--surface-deep); color: var(--accent); font-size: var(--fs-xs); line-height: 20px; font-weight: var(--fw-medium); }
+.mylist-status .select-button { min-width: 0; width: 132px; }
+.mylist-error { margin: 0; padding: 0 var(--s-3) var(--s-2); font-size: var(--fs-sm); }
+.mylist-detail { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-3); border-top: 1px solid var(--hairline); }
+.mylist-detail[hidden] { display: none; }
+.mylist-block { display: flex; flex-direction: column; gap: var(--s-3); }
+.mylist-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); font-size: var(--fs-sm); color: var(--text-2); }
+.mylist-field > :first-child { min-width: 112px; }
+.mylist-field .hint { font-size: var(--fs-sm); }
+.mylist-dates { display: flex; flex-direction: column; gap: var(--s-3); }
+/* label and date on one line, the long form under the date */
+.mylist-dates .mylist-field { display: grid; grid-template-columns: 112px max-content; gap: var(--s-1) var(--s-3); }
+.mylist-dates .mylist-field .hint { grid-column: 2; min-height: 20px; }
+.mylist-dates > p { margin: 0; min-height: 20px; font-size: var(--fs-sm); }
+.mylist-scores { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: 0; }
+.mylist-scores div { display: flex; gap: var(--s-2); align-items: baseline; font-size: var(--fs-sm); }
+.mylist-scores dt { color: var(--text-2); }
+.mylist-scores dd { margin: 0; }
+.mylist-volumes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.mylist-volumes li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); font-size: var(--fs-sm); }
+.mylist-volumes li > :first-child { min-width: 112px; }
+.mylist-more { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin: var(--s-4) 0; }
+.mylist-more p { margin: 0; }
+.mylist-list-name { flex: 1; min-width: 140px; display: flex; flex-direction: column; }
+.mylist-list-name .list-name { flex: none; min-width: 0; }
+.mylist-list-name .muted { font-size: var(--fs-sm); }
+.mylist-toggle[aria-expanded='true'] svg { transform: rotate(180deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .mylist-toggle svg { transition: transform var(--t-fast) var(--ease); }
+}
+@media (min-width: 640px) {
+  /* details side by side; the remove button sits under all of them */
+  .mylist-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s-4) var(--s-8); align-items: start; }
+  .mylist-detail > :last-child:not(.mylist-block) { grid-column: 1 / -1; }
+}
+@media (max-width: 639px) {
+  /* status stays on the right; the title takes two lines, then the score and the series or progress */
+  .mylist-main { grid-template-columns: 40px minmax(0, 1fr) auto var(--control-h); column-gap: var(--s-2); padding: var(--s-2) var(--s-1) var(--s-2) var(--s-2); }
+  .mylist-thumb img, .mylist-thumb .noimg { width: 40px; height: 56px; }
+  .mylist-text .list-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; line-height: 20px; }
+  .mylist-status .select-button { width: 104px; padding: 0 var(--s-6) 0 var(--s-2); font-size: var(--fs-sm); }
+  .mylist-detail { padding: var(--s-3) var(--s-3) var(--s-4); }
+  .mylist-list-name { flex: 1 1 100%; } /* name on its own line, then visibility and delete */
+}
+@media (max-width: 359px) {
+  /* too narrow for four columns: the status moves under the title */
+  .mylist-main { grid-template-columns: 40px minmax(0, 1fr) var(--control-h); row-gap: var(--s-2); }
+  .mylist-thumb { grid-area: 1 / 1; }
+  .mylist-text { grid-area: 1 / 2; }
+  .mylist-toggle { grid-area: 1 / 3; }
+  .mylist-status { grid-area: 2 / 1 / 3 / 4; }
+  .mylist-status .select, .mylist-status .select-button { display: flex; width: 100%; }
+}
