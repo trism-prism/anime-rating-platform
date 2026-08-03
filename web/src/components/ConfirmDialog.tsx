@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 export default function ConfirmDialog({ open, title, children, confirmLabel, busy, onConfirm, onCancel }: {
   open: boolean
   title: string
-  children: ReactNode
+  children?: ReactNode
   confirmLabel: string
   busy: boolean
   onConfirm: () => void
@@ -19,6 +19,12 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
     if (open && !d.open) d.showModal()
     if (!open && d.open) d.close()
   }, [open])
+
+  // if the owner unmounts while it is open, close it so focus goes back to where it was
+  useEffect(() => {
+    const d = ref.current
+    return () => { if (d?.open) d.close() }
+  }, [])
 
   return (
     <dialog ref={ref} aria-labelledby={titleId} onCancel={(e) => { e.preventDefault(); if (!busy) onCancel() }}>

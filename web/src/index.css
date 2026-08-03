@@ -315,7 +315,6 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
   .grid { grid-template-columns: repeat(2, 1fr); gap: var(--s-3); }
 }
 
-.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .link-quiet { transition: color var(--t-fast) var(--ease); }
 .link-quiet:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 
@@ -376,9 +375,15 @@ dialog h3 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 .bell-list { list-style: none; margin: 0; padding: 0; }
 .bell-item { display: flex; align-items: center; gap: var(--s-1); padding-right: var(--s-2); border-bottom: 1px solid var(--hairline); }
 .bell-item:last-child { border-bottom: 0; }
-.bell-item.unread { background: var(--raised); box-shadow: inset 2px 0 0 var(--accent); }
-.bell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 0; background: none; text-align: left; padding: var(--s-3); min-height: 0; border-radius: 0; }
-.bell-main:hover:not(:disabled) { background: var(--raised-hover); }
+.bell-item.unread { background: var(--raised); }
+/* unread = dot + heavier text, so it doesn't rest on colour alone */
+.bell-item.unread .bell-text { font-weight: 600; }
+.bell-item.unread .bell-text strong { font-weight: 700; }
+.bell-item.unread .bell-text::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: var(--s-2); vertical-align: middle; border-radius: 50%; background: var(--accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.bell-main { color: var(--text); text-decoration: none; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 0; background: none; text-align: left; padding: var(--s-3); min-height: 0; border-radius: 0; }
+.nav a.bell-main { color: var(--text); padding: var(--s-3); border-radius: 0; }
+.nav a.bell-main:hover { background: var(--raised-hover); }
 .bell-time { font-size: var(--fs-xs); }
 .bell-actions { display: flex; gap: var(--s-1); }
 .bell-more { display: block; width: calc(100% - 24px); margin: var(--s-2) var(--s-3); }
@@ -391,10 +396,8 @@ dialog h3 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 .profile-avatar .avatar { width: 64px; height: 64px; font-size: var(--fs-xl); }
 .profile-actions { margin-bottom: var(--s-2); }
 .more { position: relative; }
-.more summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--raised); }
-.more summary:hover { background: var(--raised-hover); border-color: var(--hairline-strong); }
-.more summary::-webkit-details-marker { display: none; }
-.more-menu { position: absolute; z-index: 5; top: calc(100% + var(--s-1)); left: 0; display: flex; flex-direction: column; padding: var(--s-1); background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: 0 8px 24px rgb(0 0 0 / 0.4); }
+.more-button { padding: 0 var(--s-3); }
+.more-menu { left: 0; right: auto; z-index: 5; }
 .subhead { margin: var(--s-6) 0 var(--s-2); font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--text-2); }
 .people { list-style: none; margin: 0; padding: 0; }
 .people li { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); margin-bottom: var(--s-2); background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-md); }

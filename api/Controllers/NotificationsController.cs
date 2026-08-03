@@ -47,15 +47,25 @@ public class NotificationsController : ControllerBase
         var replyIds = rows.Where(n => n.Type == NotificationType.Reply).Select(n => n.SubjectId).ToList();
         var replyReview = await _db.Replies.Where(x => replyIds.Contains(x.Id)).Select(x => new { x.Id, x.RatingId }).ToDictionaryAsync(x => x.Id, x => x.RatingId);
         var reportIds = rows.Where(n => n.Type == NotificationType.ReportOutcome).Select(n => n.SubjectId).ToList();
-        var outcomes = await _db.Reports.Where(x => reportIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Status.ToString());
+        var reports = await _db.Reports.Where(x => reportIds.Contains(x.Id)).Select(x => new { x.Id, x.Status, x.Target }).ToDictionaryAsync(x => x.Id);
+        // the title each linked review is about, so a row can say which review it means
+        var reviewOf = rows.Select(n => n.Type == NotificationType.Reaction ? n.SubjectId
+            : n.Type == NotificationType.Reply && n.SubjectId != null && replyReview.TryGetValue(n.SubjectId.Value, out var r) ? r : (int?)null)
+            .Where(x => x != null).Select(x => x!.Value).Distinct().ToList();
+        var titleOf = await _db.Ratings.Where(x => reviewOf.Contains(x.Id)).Select(x => new { x.Id, x.Title.Name }).ToDictionaryAsync(x => x.Id, x => x.Name);
         var items = rows.Select(n => new
         {
             n.Id, type = n.Type.ToString(), n.actor, n.CreatedAt, n.read,
             actionable = n.pending,
-            outcome = n.Type == NotificationType.ReportOutcome && n.SubjectId != null ? outcomes.GetValueOrDefault(n.SubjectId.Value) : null,
+            outcome = n.Type == NotificationType.ReportOutcome && n.SubjectId != null && reports.TryGetValue(n.SubjectId.Value, out var rep) ? rep.Status.ToString() : null,
+            // what was reported: Review, Reply or Profile
+            contentType = n.Type == NotificationType.ReportOutcome && n.SubjectId != null && reports.TryGetValue(n.SubjectId.Value, out var rp) ? rp.Target.ToString() : null,
             requestId = n.pending ? n.SubjectId : null,
             reviewId = n.Type == NotificationType.Reaction ? n.SubjectId
-                : n.Type == NotificationType.Reply && n.SubjectId != null && replyReview.TryGetValue(n.SubjectId.Value, out var rid) ? rid : (int?)null
+                : n.Type == NotificationType.Reply && n.SubjectId != null && replyReview.TryGetValue(n.SubjectId.Value, out var rid) ? rid : (int?)null,
+            titleName = (n.Type == NotificationType.Reaction ? n.SubjectId
+                : n.Type == NotificationType.Reply && n.SubjectId != null && replyReview.TryGetValue(n.SubjectId.Value, out var tid) ? tid : (int?)null) is int w
+                ? titleOf.GetValueOrDefault(w) : null
         });
         return Ok(new { items, nextCursor = more ? rows[^1].Id : (int?)null });
     }

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { refreshPending } from '../pendingRequests'
 import { timeAgo } from '../time'
@@ -24,23 +24,33 @@ const CrossIcon = () => (
   </svg>
 )
 
-const TEXT: Record<Notification['type'], string> = {
-  FriendRequest: 'sent you a friend request',
-  FriendAccepted: 'accepted your friend request',
-  Reply: 'replied to your review',
-  Reaction: 'reacted to your review',
-  ReportOutcome: '',
+// what a row says; the title and content type come from the API (older payloads lack them, so there is a plain fallback)
+const line = (n: Notification) => {
+  const who = <strong>{n.actor}</strong>
+  const review = n.titleName ? <>your review of &ldquo;{n.titleName}&rdquo;</> : <>your review</>
+  switch (n.type) {
+    case 'FriendRequest': return <>{who} sent you a friend request</>
+    case 'FriendAccepted': return <>{who} accepted your friend request</>
+    case 'Reply': return <>{who} replied to {review}</>
+    case 'Reaction': return <>{who} reacted to {review}</>
+    default: { // a report outcome has no other person: its actor is the reporter
+      const what = (n.contentType ?? 'content').toLowerCase()
+      return n.outcome === 'Removed' ? <>The {what} you reported was removed.</> : <>Your report of a {what} was reviewed and dismissed.</>
+    }
+  }
 }
-// a report outcome has no other person: its actor is the reporter
-const line = (n: Notification) => n.type === 'ReportOutcome'
-  ? <>{n.outcome === 'Removed' ? 'The content you reported was removed.' : 'Your report was reviewed and dismissed.'}</>
-  : <><strong>{n.actor}</strong> {TEXT[n.type]}</>
+// replies and reactions lead to the review itself, friend notifications to the other person; a report outcome has nowhere to go
+const target = (n: Notification) => n.type === 'ReportOutcome' ? null : n.reviewId != null ? `/reviews/${n.reviewId}` : `/u/${encodeURIComponent(n.actor)}`
 
 // bell with an unread badge and a dropdown of notifications; rendered only while someone is signed in
 export default function NotificationBell() {
-  const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
-  const [open, setOpen] = useState(false)
+  const { pathname } = useLocation()
+  const panelId = useId()
+  // open belongs to the page it was opened on, so any route change closes it
+  const [openPath, setOpenPath] = useState<string | null>(null)
+  const open = openPath === pathname
+  const setOpen = (v: boolean) => setOpenPath(v ? pathname : null)
   const [items, setItems] = useState<Notification[] | null>(null)
   const [next, setNext] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -84,7 +94,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false)
+      if (!box.current?.contains(e.target as Node)) setOpenPath(null)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
@@ -120,16 +130,14 @@ export default function NotificationBell() {
     }
   }
 
-  async function openNotification(n: Notification) {
-    if (!n.read) {
-      setItems((l) => l && l.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
-      setUnread((u) => Math.max(0, u - 1))
-      api(`/me/notifications/${n.id}/read`, { method: 'POST' }).catch(loadCount) // failed: take the real count back
-    }
+  // opening a row marks it read; the link itself does the navigating
+  function markRead(n: Notification) {
     setOpen(false)
-    if (n.type === 'ReportOutcome') return
-    // replies and reactions lead to the review itself; friend notifications to the other person
-    navigate(n.reviewId != null ? `/reviews/${n.reviewId}` : `/u/${encodeURIComponent(n.actor)}`)
+    if (n.read) return
+    setItems((l) => l && l.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
+    setUnread((u) => Math.max(0, u - 1))
+    api(`/me/notifications/${n.id}/read`, { method: 'POST' })
+      .then(loadCount, loadCount) // settled either way: take the real count
   }
 
   async function answer(n: Notification, accept: boolean) {
@@ -160,11 +168,12 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="bell" ref={box} onKeyDown={onKeyDown}>
+    <div className="bell" ref={box} onKeyDown={onKeyDown}
+      onBlur={(e) => { if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) setOpen(false) }}>
       <button
         ref={button}
         className="bell-button"
-        aria-haspopup="true"
+        aria-controls={open ? panelId : undefined}
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         onClick={() => { if (!open) loadFirst(); setOpen(!open) }}
@@ -173,7 +182,7 @@ export default function NotificationBell() {
         {unread > 0 && <span className="bell-badge" aria-hidden="true">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div className="bell-panel" role="region" aria-label="Notifications">
+        <div className="bell-panel" id={panelId} role="region" aria-label="Notifications">
           <div className="bell-head">
             <strong>Notifications</strong>
             <button className="link-button" onClick={markAll} disabled={!items?.some((x) => !x.read)}>Mark all read</button>
@@ -183,15 +192,26 @@ export default function NotificationBell() {
             <p className="error bell-msg" role="alert">{error} <button onClick={() => loadFirst()}>Retry</button></p>
           )}
           {!items && !error && <p className="muted bell-msg">Loading</p>}
-          {items && items.length === 0 && <p className="muted bell-msg">No notifications yet.</p>}
+          {items && items.length === 0 && <p className="muted bell-msg">You&apos;re all caught up.</p>}
           {items && items.length > 0 && (
             <ul className="bell-list">
               {items.map((n) => (
                 <li key={n.id} className={n.read ? 'bell-item' : 'bell-item unread'}>
-                  <button className="bell-main" onClick={() => openNotification(n)}>
-                    <span className="who">{n.type !== 'ReportOutcome' && <Avatar userName={n.actor} small />}<span>{line(n)}</span></span>
-                    <span className="muted bell-time">{timeAgo(n.createdAt)}</span>
-                  </button>
+                  {(() => {
+                    const to = target(n)
+                    const body = (
+                      <>
+                        <span className="who">
+                          {n.type !== 'ReportOutcome' && <Avatar userName={n.actor} small />}
+                          <span className="bell-text">{!n.read && <span className="sr-only">Unread. </span>}{line(n)}</span>
+                        </span>
+                        <span className="muted bell-time">{timeAgo(n.createdAt)}</span>
+                      </>
+                    )
+                    return to
+                      ? <Link className="bell-main" to={to} onClick={() => markRead(n)}>{body}</Link>
+                      : <div className="bell-main">{body}</div>
+                  })()}
                   {n.actionable && (
                     <span className="bell-actions">
                       <button className="icon-button" aria-label={`Accept friend request from ${n.actor}`} disabled={answering.includes(n.id)} onClick={() => answer(n, true)}><CheckIcon /></button>
