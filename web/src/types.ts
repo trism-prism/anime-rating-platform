@@ -12,12 +12,14 @@ export interface SeriesSummary {
   entryCount: number
   average: number | null
   ratingCount: number
+  year: number | null
   genres: string[]
 }
 
-// keyset page: pass nextCursor back as ?cursor= until it is null
+// pass nextCursor back as ?cursor= until it is null; total is the count for the current search and filters
 export interface SeriesPage {
   items: SeriesSummary[]
+  total: number | null // only on the first page; keep the earlier one after that
   nextCursor: string | null
 }
 
@@ -46,6 +48,9 @@ export interface SeriesDetail {
   name: string
   type: TitleType
   coverUrl: string | null
+  synopsis: string | null // the first entry's
+  format: string | null
+  genres: string[]
   average: number | null
   ratingCount: number
   entries: SeriesEntry[]
