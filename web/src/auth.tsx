@@ -20,12 +20,19 @@ type Auth = {
 const MAX_ACCOUNTS = 5
 const AuthContext = createContext<Auth>(null!)
 
+// storage can be blocked (private modes, policies): then nobody stays signed in across reloads, but the app still runs
+const store = {
+  get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } },
+  set: (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* blocked */ } },
+  remove: (k: string) => { try { localStorage.removeItem(k) } catch { /* blocked */ } },
+}
+
 function loadAccounts(): Account[] {
   // the old version kept a 7-day token in localStorage; remove it
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+  store.remove('token')
+  store.remove('user')
   try {
-    return JSON.parse(localStorage.getItem('accounts') ?? '[]')
+    return JSON.parse(store.get('accounts') ?? '[]')
   } catch {
     return []
   }
@@ -33,15 +40,15 @@ function loadAccounts(): Account[] {
 
 // written at once (not only by the effect below) for callers that reload the page right after
 function persist(accounts: Account[], activeId: string | null) {
-  localStorage.setItem('accounts', JSON.stringify(accounts))
-  if (activeId) localStorage.setItem('activeUser', activeId)
-  else localStorage.removeItem('activeUser')
+  store.set('accounts', JSON.stringify(accounts))
+  if (activeId) store.set('activeUser', activeId)
+  else store.remove('activeUser')
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>(loadAccounts)
   const [activeId, setActiveId] = useState<string | null>(() => {
-    const id = localStorage.getItem('activeUser')
+    const id = store.get('activeUser')
     setSession(id, null) // api.ts then fetches the first access token by itself
     return id
   })

@@ -6,6 +6,7 @@ import EmailForm from '../components/EmailForm'
 import DeleteAccountForm from '../components/DeleteAccountForm'
 import ExportForm from '../components/ExportForm'
 import PasswordForm from '../components/PasswordForm'
+import { ThemeSwitch } from '../components/ThemeSwitch'
 import { useTitle } from '../useTitle'
 
 export default function Settings() {
@@ -24,6 +25,7 @@ export default function Settings() {
         {/* beside the cards on wide screens, a row of anchors above them on small ones */}
         <nav className="settings-nav" aria-label="Settings sections">
           <a href="#account">Account</a>
+          <a href="#appearance">Appearance</a>
           <a href="#import-export">Import and export</a>
           <a href="#danger">Danger zone</a>
         </nav>
@@ -59,6 +61,13 @@ export default function Settings() {
                 </section>
               </>
             )}
+          </div>
+
+          <div id="appearance">
+            <section className="settings-card" aria-labelledby="h-appearance">
+              <h2 id="h-appearance">Appearance</h2>
+              <ThemeSwitch />
+            </section>
           </div>
 
           <div id="import-export">
