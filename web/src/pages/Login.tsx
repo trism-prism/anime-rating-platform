@@ -51,7 +51,7 @@ export default function Login() {
       </label>
       <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
       {(error || googleError) && <p className="error">{error || googleError}</p>}
-      <button type="submit" disabled={busy}>Login</button>
+      <button type="submit" className="btn-primary" disabled={busy}>Login</button>
       <GoogleLink notice />
       <p className="muted"><Link to="/forgot-password" className="link">Forgot password?</Link></p>
       <p className="muted">No account? <Link to="/register" className="link">Register</Link></p>

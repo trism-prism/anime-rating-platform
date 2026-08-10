@@ -66,14 +66,15 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 
 ## Component rules
 
-- Buttons: raised surface with a hairline; hover steps the surface. A form's submit button (`type="submit"`) is the primary action in the accent. One primary per form.
+- Buttons: a plain button is secondary (raised surface, hairline; hover steps the surface). Variants are classes: `btn-primary` (accent, one per form or section, full width in `.auth-form`), `btn-secondary`, `btn-quiet`, `btn-danger` (negative outline; add `filled` on the confirm). Disabled is a flat card surface with muted text, never reduced opacity. Settings has no primary: every section uses secondary, Delete uses danger.
 - Selected state (filters, reactions you made): surface step plus an accent border.
 - Links in text: primary color with an underline that turns accent on hover. Never accent text.
 - Cards and rows: `--card` with a hairline, 12 radius. Poster cards step to `--raised` on hover and do not move.
 - Menus and popovers: `--card`, strong hairline, soft neutral shadow, fade and rise 4px.
 - Status: a 6px dot and secondary text, not a colored pill.
 - Charts: bars are 4px thin; neutral by default, the accent only on the leading bar (the biggest in a group, or the Overall score).
-- Icons: one set, inline svg, 16px, stroke 1.5, text-2 color.
+- Icons: one set, inline svg, stroke 1.5, text-2 color; 16px in controls, 20px (`Icon.tsx`) in the navigation.
+- Phones (under 640px): top bar is one row (brand, bell, avatar); Home, Trending, Rankings, My List and Friends sit in a fixed bottom tab bar (signed out: Home, Trending, Rankings, Log in). Controls are 44 high (`--control-h`). Content columns: `--w-narrow` 600 (forms, settings), `--w-reading` 800 (profile, review, list, friends, legal), `--w-wide` 1100 (browse, series, my list, admin); the footer uses the page's column.
 - Focus: a 2px accent ring with 2px offset on every focusable element. Never remove it.
 
 ## Copy rules

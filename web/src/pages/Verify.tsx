@@ -98,7 +98,7 @@ export default function Verify() {
       </label>
       {info && <p className="muted" role="status">{info}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      <button type="submit" disabled={busy}>Verify</button>
+      <button type="submit" className="btn-primary" disabled={busy}>Verify</button>
     </form>
   )
 }

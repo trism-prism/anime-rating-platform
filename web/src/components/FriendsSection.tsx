@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api'
+import { setPending } from '../pendingRequests'
 import type { FriendsData } from '../types'
 import UserLink from './UserLink'
 import ConfirmDialog from './ConfirmDialog'
@@ -17,7 +18,7 @@ export default function FriendsSection() {
   const [confirming, setConfirming] = useState(false) // the "decline all" dialog
 
   const load = useCallback(() => {
-    api<FriendsData>('/me/friends').then((d) => { setData(d); setError('') }).catch((e: Error) => setError(e.message))
+    api<FriendsData>('/me/friends').then((d) => { setData(d); setPending(d.incoming.length); setError('') }).catch((e: Error) => setError(e.message))
   }, [])
 
   useEffect(load, [load])
@@ -57,7 +58,7 @@ export default function FriendsSection() {
       <form className="row" onSubmit={add}>
         <label className="sr-only" htmlFor="friend-name">Add friend by username</label>
         <input id="friend-name" placeholder="Add friend by username" autoComplete="off" maxLength={256} value={name} onChange={(e) => setName(e.target.value)} />
-        <button type="submit" disabled={busy || !name.trim()}>Send request</button>
+        <button type="submit" className="btn-primary" disabled={busy || !name.trim()}>Send request</button>
       </form>
       {actionError && <p className="error" role="alert">{actionError}</p>}
       {msg && <p role="status">{msg}</p>}

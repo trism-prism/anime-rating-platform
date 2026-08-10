@@ -63,7 +63,7 @@ export default function InlineEdit({ label, value, display, empty, field, hint, 
       <p className="muted hint">{hint(draft)}</p>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="row">
-        <button type="submit" disabled={busy}>Save</button>
+        <button type="submit" className="btn-primary" disabled={busy}>Save</button>
         <button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
       </div>
     </form>

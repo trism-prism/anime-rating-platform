@@ -54,7 +54,7 @@ export default function Support() {
       </label>
       {error && <p className="error" role="alert">{error}</p>}
       {done && <p role="status">{done}</p>}
-      <button type="submit" disabled={busy}>Send</button>
+      <button type="submit" className="btn-primary" disabled={busy}>Send</button>
     </form>
   )
 }
