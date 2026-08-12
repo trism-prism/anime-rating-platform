@@ -4,9 +4,10 @@ import { api } from '../api'
 import GoogleLink from '../components/GoogleLink'
 import PasswordInput from '../components/PasswordInput'
 import { useTitle } from '../useTitle'
+import pageMeta from '../pageMeta.json'
 
 export default function Register() {
-  useTitle('Register')
+  useTitle(pageMeta['/register'].title)
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [userName, setUserName] = useState('')
