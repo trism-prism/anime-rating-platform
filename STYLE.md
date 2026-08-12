@@ -65,7 +65,7 @@ Two themes share the same token names: dark "Graphite" (the default values in `:
 
 Text roles: primary `--text`, secondary `--text-2`, muted `--text-muted` (meta and captions only). In light the nav and cards are the same warm white and the page is the cream, so surfaces separate by hairline instead of by darkness.
 
-Accent: vermilion taken from a seal stamp (brighter in dark, deeper in light so it holds as text). It marks the main action, the focus ring, the selected filter, the leading bar of a chart, the unread count and the score tag. Nothing else. Semantic colours are only meaning (status dots, errors).
+Accent: vermilion taken from a seal stamp (brighter in dark, deeper in light so it holds as text). It marks the main action, the selected filter, the leading bar of a chart, the unread count and the score tag. Nothing else. Semantic colours are only meaning (status dots, errors).
 
 ## Themes
 
@@ -76,7 +76,7 @@ Accent: vermilion taken from a seal stamp (brighter in dark, deeper in light so 
 - Controls: the Appearance card in Settings (radio group, arrow keys), "Theme: ..." in the account menu, and for signed-out visitors in the footer; the last two step through Light, Dark, System.
 - Covers carry a 1px hairline outline so a pale cover keeps an edge on a pale card. The score tag on a cover has its own fill (`--chip-bg`) in both themes so its text never depends on the image.
 
-Contrast, `npm run check:contrast` (also in CI): reads both token blocks and asserts 42 pairs per theme. Text pairs need 4.5 (text, secondary, muted on page, card, raised and hover surfaces; nav links; accent as text; primary and danger button ink; errors; the score tag). UI boundaries need 3 (control border on each surface, focus ring and selected edge, status dots, switch knob, chart bars on their track). Lowest in dark 4.7 for text and 3.5 for edges; lowest in light 4.6 for text (muted on the hover surface) and 3.6 for edges. Primary text on the page is 15.3 in light.
+Contrast, `npm run check:contrast` (also in CI): reads both token blocks and asserts 53 pairs per theme. Text pairs need 4.5 (text, secondary, muted on page, card, raised and hover surfaces; nav links; accent as text; primary and danger button ink; errors; the score tag). UI boundaries need 3 (control border on each surface, focus ring on every surface, selected edge, status dots, switch knob, chart bars on their track). Lowest in dark 4.7 for text and 3.5 for edges; lowest in light 4.6 for text (muted on the hover surface) and 3.6 for edges. Primary text on the page is 15.3 in light.
 
 Type: Geist for the interface and Space Grotesk for numbers (scores, counts, positions, bars, bell badge), both from `@fontsource-variable`, bundled by Vite and served from the app, so no external request and `font-src 'self'` holds. Numbers use the `.num` class or the `--font-num` token, which set Space Grotesk with `tabular-nums`; running text stays proportional. Why: a mono face looked heavy next to prose ("0 ratings"), while Space Grotesk has clean tabular figures and a distinct zero and one. Scale 12 meta, 13 captions, 15 body, 18 section title, 28 page title. Weights 400 and 500 only. Letter spacing 0 except the page title (-0.01em).
 
@@ -99,7 +99,7 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 - Rating: Quick rate (1 to 10, native radios, sets all four parts) first; Rate in detail opens the four sliders with 1 and 10 at the ends. Nothing is pre-filled and Save stays off until a quick score or all four sliders are set. Remove asks in a dialog.
 - Title page: facts across the top, then content left and the rating and list card right from 900px (sticky when the screen is 1100px or taller); one column below, in the order facts, synopsis, rating, list, characters, reviews.
 - Browse: search, type, genre and sort live in the address (replaced, not pushed). The loaded list and scroll position are kept in `sessionStorage` for Back. Sorts end in the id so pages never repeat.
-- Focus: a 2px accent ring with 2px offset on every focusable element. Never remove it.
+- Focus: a 2px ring in `--focus` (cool blue, not the accent or error colour) with 2px offset on every focusable element. Never remove it.
 
 ## Copy rules
 
