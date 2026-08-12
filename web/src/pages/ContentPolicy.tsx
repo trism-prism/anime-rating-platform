@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import Legal from '../components/Legal'
+import pageMeta from '../pageMeta.json'
 
 export default function ContentPolicy() {
   return (
-    <Legal title="Content policy" updated="2026-11-07">
+    <Legal title={pageMeta['/content-policy'].title} updated="2026-11-07">
       <p>
         Reviews and replies are for talking about anime and manga. Disagreeing is fine; hurting
         people is not.

@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useTitle } from '../useTitle'
+import pageMeta from '../pageMeta.json'
 
 // works signed out; `website` is a honeypot that real visitors never see
 export default function Support() {
-  useTitle('Support')
+  useTitle(pageMeta['/support'].title)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
