@@ -14,6 +14,7 @@
   ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://anime-rating-platform-production.up.railway.app/:path*" },
+    { "source": "/:kind(series|titles)/:id(\\d+)", "destination": "/api/preview?kind=:kind&id=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
