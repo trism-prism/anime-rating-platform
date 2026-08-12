@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { usePending, usePendingSync } from '../pendingRequests'
 import AvatarMenu from './AvatarMenu'
@@ -17,6 +17,9 @@ const columnOf = (path: string) => (under(path, ['/settings']) ? 'reading' : und
 export default function Layout() {
   const { user, emailVerified, loading } = useAuth()
   const { pathname } = useLocation()
+  const navType = useNavigationType()
+  // a link to another page starts at its top; Back keeps what the page restores itself (Browse)
+  useEffect(() => { if (navType === 'PUSH') window.scrollTo(0, 0) }, [pathname, navType])
   const navigate = useNavigate()
   const [hidden, setHidden] = useState(false) // dismissed until the next page load
   const showBanner = !!user && !loading && !emailVerified && !hidden && pathname !== '/verify'
@@ -46,7 +49,7 @@ export default function Layout() {
           </>
         ) : !loading && (
           <>
-            <NavLink to="/login" className="nav-text">Login</NavLink>
+            <NavLink to="/login" className="nav-text">Log in</NavLink>
             <NavLink to="/register" className="nav-text">Register</NavLink>
           </>
         )}

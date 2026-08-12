@@ -104,7 +104,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
         {user && !review.mine && <ReportButton path={`/reviews/${id}/report`} what="review" />}
         {isAdmin && <button className="link-button" disabled={busy} onClick={() => setConfirmRemove(true)}>Remove text</button>}
       </div>
-      {why && <p className="muted hint">{user ? why : <><Link to="/login" className="link">Log in</Link> to react.</>}</p>}
+      {user && why && <p className="muted hint">{why}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
       {open && (

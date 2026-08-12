@@ -111,12 +111,13 @@ public class ProfileTests
     {
         var open = Mem();
         await Seed(open);
-        Assert.Equal(404, Status(await Pic(open, "alice"))); // none yet: the client draws the initial letter
+        Assert.Equal(204, Status(await Pic(open, "alice"))); // none yet: the client draws the initial letter
         await Upload(open, "a", Png);
 
         var file = (FileContentResult)await Pic(open, "ALICE"); // the name lookup ignores case
         Assert.Equal(Png, file.FileContents);
-        Assert.Equal(404, Status(await Pic(open, "carol"))); // no picture
+        Assert.Equal(204, Status(await Pic(open, "carol"))); // no picture
+        Assert.Equal(204, Status(await Pic(open, "nobody"))); // no such account
         // a matching If-None-Match gets a 304 with no body; a stale one gets the picture
         string Etag(AppDbContext db) => $"\"{db.Avatars.AsNoTracking().Single().UpdatedAt.Ticks}\"";
         using (var db = open())
@@ -131,7 +132,7 @@ public class ProfileTests
         Assert.True(Json(await Profile(open, "c", "alice")).GetProperty("hasAvatar").GetBoolean());
 
         await Mine(open, "a", c => c.RemoveAvatar());
-        Assert.Equal(404, Status(await Pic(open, "alice")));
+        Assert.Equal(204, Status(await Pic(open, "alice")));
         Assert.Equal(404, Status(await Pic(open, "bad name!")));
     }
 
@@ -149,7 +150,7 @@ public class ProfileTests
 
         Assert.Null((await Load(open, "a")).Bio);
         Assert.Equal(1, await AvatarCount(open)); // only Bob's is left
-        Assert.Equal(404, Status(await Pic(open, "deleted-a")));
+        Assert.Equal(204, Status(await Pic(open, "deleted-a")));
     }
 
     static async Task<int> Report(Func<AppDbContext> open, string by, string user)

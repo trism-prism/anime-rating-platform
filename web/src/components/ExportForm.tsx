@@ -3,11 +3,11 @@ import { api } from '../api'
 import PasswordInput from './PasswordInput'
 
 const FORMATS = [
-  { value: 'csv', label: 'Spreadsheets (CSV, zipped)' },
-  { value: 'json', label: 'Backup file (JSON)' },
+  { value: 'csv', label: 'Spreadsheets' },
+  { value: 'json', label: 'Full backup' },
 ] as const
 
-// download your ratings, reviews, list entries and custom lists; asks for the password like the other sensitive actions
+// download your profile (username, month joined, bio), ratings, reviews, list entries and custom lists; asks for the password like the other sensitive actions
 export default function ExportForm() {
   const [password, setPassword] = useState('')
   const [format, setFormat] = useState<'json' | 'csv'>('csv')
@@ -48,6 +48,7 @@ export default function ExportForm() {
             {f.label}
           </label>
         ))}
+        {format === 'json' && <p className="muted hint">Everything in one file you can keep.</p>}
       </fieldset>
       <p className="muted hint">Up to 5 downloads an hour.</p>
       {error && <p className="error" role="alert">{error}</p>}

@@ -74,7 +74,7 @@ export default function AdminReports() {
 
   return (
     <section aria-labelledby="reports-title">
-      <h2 id="reports-title">Reports</h2>
+      <h2 id="reports-title">Reports{items && items.length > 0 && <> <span className="count-badge inline" aria-hidden="true">{items.length}{next !== null ? '+' : ''}</span><span className="sr-only">, {items.length}{next !== null ? ' or more' : ''} open</span></>}</h2>
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); loadFirst() }}>Retry</button></p>}
       {actionError && <p className="error" role="alert">{actionError}</p>}
       {!items && !error && <p className="muted">Loading</p>}

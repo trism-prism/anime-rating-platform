@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { score } from '../format'
 import type { ProfileOverview as Overview } from '../types'
+import Cover from './Cover'
 
 // top rated titles, top genres by average score and the rating count, of the ratings the viewer may see
-export default function ProfileOverview({ username }: { username: string }) {
+export default function ProfileOverview({ username, own = false }: { username: string; own?: boolean }) {
   const [o, setO] = useState<Overview | null>(null)
   const [error, setError] = useState('')
   const [tick, setTick] = useState(0)
@@ -16,7 +17,14 @@ export default function ProfileOverview({ username }: { username: string }) {
 
   if (error) return <p className="error" role="alert">{error} <button onClick={() => setTick((t) => t + 1)}>Retry</button></p>
   if (!o) return null
-  if (o.ratingCount === 0) return <p className="muted">No ratings yet.</p>
+  if (o.ratingCount === 0) {
+    return own ? (
+      <div className="empty-profile">
+        <p className="muted">You have not rated anything yet.</p>
+        <Link to="/" className="button">Browse anime</Link>
+      </div>
+    ) : <p className="muted">Nothing rated yet.</p>
+  }
   return (
     <section className="overview" aria-label="Overview">
       <p className="muted">{o.ratingCount} {o.ratingCount === 1 ? 'rating' : 'ratings'}</p>
@@ -26,7 +34,7 @@ export default function ProfileOverview({ username }: { username: string }) {
           <ol className="overview-titles">
             {o.topTitles.map((t) => (
               <li key={t.ratingId}>
-                {t.coverUrl ? <img src={t.coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
+                <Cover src={t.coverUrl} name={t.titleName} />
                 <div className="overview-main">
                   <Link to={`/series/${t.seriesId}`} className="link">{t.titleName}</Link>
                   {t.hasReview && (
