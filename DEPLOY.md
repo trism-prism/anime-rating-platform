@@ -61,7 +61,7 @@ Sends from your own Gmail to any recipient, over HTTPS (Railway blocks SMTP). Wh
    - `Gmail__ClientId`
    - `Gmail__ClientSecret`
    - `Gmail__RefreshToken`
-   - `Gmail__From` = `Anime Rating Platform <youraddress@gmail.com>`
+   - `Gmail__From` = `GengaRate <youraddress@gmail.com>`
 
 Gmail allows only a few hundred sends a day for a normal account. `Gmail__*` wins over `Resend__*` when both are set.
 

@@ -18,7 +18,7 @@ const swap = (src, re, value) => src.replace(re, (_, a, b) => a + value + b)
 
 // meta: { name, description ('' keeps the shell's), cover (absolute https url or null), path ('/series/1') }.
 export function render(html, { name, description, cover, path }, origin) {
-  const full = `${name} · AnimeRate`
+  const full = `${name} · GengaRate`
   let out = html
   out = swap(out, /(<title>)[^<]*(<\/title>)/, esc(full))
   out = swap(out, /(<meta property="og:title" content=")[^"]*(")/, esc(full))

@@ -1,4 +1,4 @@
-# Anime Rating Platform
+# GengaRate
 
 Rate anime and manga on story, art, characters and enjoyment, and write reviews. Titles, characters and voice actors are imported from the AniList GraphQL API.
 

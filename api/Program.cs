@@ -44,7 +44,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
-    o.SwaggerDoc("v1", new() { Title = "AnimeRate API", Version = "v1" });
+    o.SwaggerDoc("v1", new() { Title = "GengaRate API", Version = "v1" });
     o.AddSecurityDefinition("Bearer", new()
     {
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
@@ -214,7 +214,7 @@ app.UseSwagger(o => o.RouteTemplate = "docs/{documentName}/openapi.json");
 app.UseSwaggerUI(o =>
 {
     o.RoutePrefix = "docs";
-    o.SwaggerEndpoint("/docs/v1/openapi.json", "AnimeRate API v1");
+    o.SwaggerEndpoint("/docs/v1/openapi.json", "GengaRate API v1");
 });
 
 app.MapControllers();

@@ -3,6 +3,7 @@
 import { describe, render, safeCover } from './_render.js'
 
 const API = 'https://anime-rating-platform-production.up.railway.app'
+// DOMAIN: site origin; keep in step with og:url in index.html
 const ORIGIN = 'https://anime-rating-platform-pi.vercel.app'
 const timeout = () => AbortSignal.timeout(4000)
 

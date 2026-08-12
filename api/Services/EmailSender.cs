@@ -116,7 +116,7 @@ public class EmailSender
             throw new ArgumentException("Email address and subject must not contain line breaks.");
         var from = _config["Gmail:From"];
         if (string.IsNullOrEmpty(from))
-            throw new InvalidOperationException("Gmail:From is not set (for example: Anime Rating Platform <you@gmail.com>).");
+            throw new InvalidOperationException("Gmail:From is not set (for example: GengaRate <you@gmail.com>).");
 
         var token = await GetGmailAccessToken(_config["Gmail:RefreshToken"]!);
 

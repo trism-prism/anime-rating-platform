@@ -74,7 +74,7 @@ public class EmailSenderTests
             ["Gmail:ClientId"] = "cid",
             ["Gmail:ClientSecret"] = "csecret",
             ["Gmail:RefreshToken"] = refresh,
-            ["Gmail:From"] = "Anime Rating Platform <me@gmail.com>"
+            ["Gmail:From"] = "GengaRate <me@gmail.com>"
         };
         if (withResend) settings["Resend:ApiKey"] = "re_test_key";
         var config = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
@@ -98,7 +98,7 @@ public class EmailSenderTests
         var raw = JsonDocument.Parse(handler.Calls[1].Body).RootElement.GetProperty("raw").GetString()!;
         var message = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(raw));
         Assert.Contains("To: kai@a.com\r\n", message);
-        Assert.Contains("From: Anime Rating Platform <me@gmail.com>\r\n", message);
+        Assert.Contains("From: GengaRate <me@gmail.com>\r\n", message);
         var b64 = message.Split("\r\n\r\n", 2)[1].Replace("\r\n", "");
         Assert.Equal("Confirm: https://x.test/c?t=1", Encoding.UTF8.GetString(Convert.FromBase64String(b64)));
     }

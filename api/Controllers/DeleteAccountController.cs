@@ -93,7 +93,7 @@ public class DeleteAccountController : ControllerBase
 
         if (!string.IsNullOrEmpty(email))
         {
-            try { await _email.Send(email, "Your account was deleted", "Your AnimeRate account was deleted. Your ratings and reviews stay on the site as \"Deleted user\". If this was not you, contact support right away."); }
+            try { await _email.Send(email, "Your account was deleted", "Your GengaRate account was deleted. Your ratings and reviews stay on the site as \"Deleted user\". If this was not you, contact support right away."); }
             catch (Exception ex) { _log.LogError(ex.GetType().Name + " sending the deletion notice for user {UserId}", user.Id); }
         }
         return NoContent();

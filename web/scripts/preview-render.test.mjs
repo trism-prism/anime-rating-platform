@@ -11,7 +11,7 @@ const out = render(shell, { name: evil, description: describe(`<i>${evil}</i><br
 assert(!out.includes('<script>alert'), 'raw script tag leaked')
 assert(!out.includes('"><script>'), 'attribute break-out')
 assert.equal((out.match(/<title>/g) || []).length, 1)
-assert(out.includes('&lt;script&gt;alert(1)&lt;/script&gt; $&amp; $1 &#39;x&#39; &amp; &lt;/title&gt; · AnimeRate'), 'name not escaped literally')
+assert(out.includes('&lt;script&gt;alert(1)&lt;/script&gt; $&amp; $1 &#39;x&#39; &amp; &lt;/title&gt; · GengaRate'), 'name not escaped literally')
 assert(out.includes(`<meta property="og:url" content="${origin}/series/7" />`))
 assert(out.includes('content="https://s4.anilist.co/c.jpg?a=1&amp;b=%222%22"'), 'cover not escaped')
 assert(!out.includes('og:image:width') && out.includes('twitter:card" content="summary"'))

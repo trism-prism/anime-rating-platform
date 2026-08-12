@@ -9,7 +9,7 @@ export default function Terms() {
   return (
     <Legal title={pageMeta['/terms'].title} updated={TERMS_UPDATED}>
       <p>
-        AnimeRate is a hobby and portfolio project, run by one person. It is free, it comes without
+        GengaRate is a hobby and portfolio project, run by one person. It is free, it comes without
         any promise of uptime, and these terms are short on purpose. By creating an account or using
         the site you agree to them.
       </p>
