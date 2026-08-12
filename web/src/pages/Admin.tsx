@@ -63,6 +63,8 @@ export default function Admin() {
     <>
       <h1>Admin</h1>
 
+      <AdminReports />
+
       <h2>Import titles</h2>
       <div className="row">
         <button onClick={runImport} disabled={importing}>{importing ? 'Importing' : 'Run import'}</button>
@@ -74,8 +76,6 @@ export default function Admin() {
       {importError && <p className="error">{importError}</p>}
 
       <AdminSeries />
-
-      <AdminReports />
 
       <h2>Users</h2>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setPage(1); setQuery(search) }}>

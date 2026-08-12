@@ -115,6 +115,7 @@ export default function SeriesPage() {
   for (const g of s.related) {
     const label = RELATION[g.type] ?? 'Related'
     for (const r of g.items) {
+      if (r.seriesId === s.id) continue // never a chip to the page you are on
       const have = related.get(r.seriesId)
       if (!have || (have.label === 'Related' && label !== 'Related')) related.set(r.seriesId, { seriesId: r.seriesId, name: r.seriesName, label })
     }
@@ -197,17 +198,17 @@ export default function SeriesPage() {
         <>
           {rated.length > 0 && (
             collapsible ? (
-              <h3 className="entries-sub">
-                <button type="button" className="link-button" aria-expanded={unratedOpen} onClick={() => setShowUnrated({ id: id ?? '', open: !unratedOpen })}>
-                  Not rated yet ({unrated.length}) <span className="muted">{unratedOpen ? 'Hide' : 'Show'}</span>
+              <div className="entries-sub">
+                <button type="button" className="expander" aria-expanded={unratedOpen} aria-controls="unrated-entries" onClick={() => setShowUnrated({ id: id ?? '', open: !unratedOpen })}>
+                  {unratedOpen ? 'Hide unrated entries' : `Show ${unrated.length} unrated entries`} <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6.5l4 4 4-4" /></svg>
                 </button>
-              </h3>
+              </div>
             ) : (
               <h3 className="entries-sub">Not rated yet</h3>
             )
           )}
           {unratedOpen && (
-            <ul className="entries">
+            <ul id="unrated-entries" className="entries">
               {unrated.map((e) => <EntryRow key={e.id} e={e} />)}
             </ul>
           )}
@@ -224,7 +225,7 @@ export default function SeriesPage() {
               <li key={r.seriesId}>
                 <Link to={`/series/${r.seriesId}`} className="chip">
                   <span className="chip-rel">{r.label}</span>
-                  <span className="chip-name">{r.name}</span>
+                  <span className="chip-name" title={r.name}>{r.name}</span>
                 </Link>
               </li>
             ))}

@@ -33,7 +33,7 @@ export default function NotificationPreferences() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // shown at once; the box stays disabled until the server answers, so two quick clicks can't finish out of order,
+  // shown at once; the switch stays aria-busy (clicks ignored) until the server answers, so two quick clicks can't finish out of order,
   // and on failure it goes back to what the server has
   async function toggle(p: NotificationPref) {
     if (saving.includes(p.type)) return

@@ -55,7 +55,7 @@ export default function FriendsSection() {
 
   return (
     <section aria-label="Friends">
-      <form className="row" onSubmit={add}>
+      <form className="add-friend" onSubmit={add}>
         <label className="sr-only" htmlFor="friend-name">Add friend by username</label>
         <input id="friend-name" placeholder="Add friend by username" autoComplete="off" maxLength={256} value={name} onChange={(e) => setName(e.target.value)} />
         <button type="submit" className="btn-primary" disabled={busy || !name.trim()}>Send request</button>
