@@ -21,7 +21,7 @@ assert.equal(describe('<i>a</i><br>b &amp; c'), 'a b & c')
 
 // no cover: site image and its size tags stay; empty description keeps the shell's
 const plain = render(shell, { name: 'Naruto', description: '', cover: null, path: '/titles/2' }, origin)
-assert(plain.includes('og-image.png') && plain.includes('og:image:width') && plain.includes('summary_large_image'))
+assert(plain.includes('og-image-home.png') && plain.includes('og:image:width') && plain.includes('summary_large_image'))
 assert(plain.includes('Rate anime and manga on story'))
 assert.equal(safeCover('javascript:alert(1)'), null)
 assert.equal(safeCover('http://x.test/a.jpg'), null)
