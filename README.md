@@ -1,8 +1,8 @@
 # GengaRate
 
-Rate anime and manga on story, art, characters and enjoyment. Keep lists, write reviews, follow friends. Titles come from AniList.
+This is a personal/portfolio project I built for fun. I figured building and deploying a live site would be a good challenge and a way to show off my design skills. All the titles on the site come from AniList.
 
-Live at [www.gengarate.com](https://www.gengarate.com). *Genga* are the key drawings an animator draws before the in-betweens.
+The live site is at [www.gengarate.com](https://www.gengarate.com).
 
 ## Parts
 
@@ -34,7 +34,7 @@ flowchart LR
   API -->|password check| HB
 ```
 
-The browser only ever talks to the Vercel origin. `/api/*` is rewritten to Railway, so the refresh cookie stays first-party.
+The browser only ever talks to the Vercel origin. `/api/*` is rewritten to Railway, so the refresh cookie is first-party.
 
 ## Repo
 
@@ -81,7 +81,7 @@ flowchart TB
   Background --> Services
 ```
 
-## Where to look
+## A bunch of boring documentation
 
 | | |
 |---|---|
@@ -96,7 +96,7 @@ flowchart TB
 
 The route list lives in the API itself: `/docs` (Swagger UI), `/docs/v1/openapi.json`.
 
-## Run locally
+## How to run it locally in case you're into that ig
 
 Needs the .NET 8 SDK, Node 20+ and PostgreSQL.
 
