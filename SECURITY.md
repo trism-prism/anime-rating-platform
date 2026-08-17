@@ -24,7 +24,7 @@ Please include what you found, the steps to reproduce it, and what an attacker c
 ## What is already done
 
 - Passwords are hashed by ASP.NET Identity, must be at least 12 characters, and are checked against known breaches with k-anonymity (only a 5 character hash prefix leaves the server). Repeated wrong passwords lock the account for a few minutes.
-- Sign-in uses a 15 minute access token in memory and a rotating 30 day refresh token in an HttpOnly, Secure, SameSite cookie. Reusing an old refresh token ends the session. Sessions can be ended per device, and a password or email change signs the other devices out.
+- Sign-in uses a 15 minute access token in memory and a rotating 30 day refresh token in an HttpOnly, Secure, SameSite cookie. Reusing an old refresh token ends the session. A password or email change signs the other devices out.
 - Sensitive actions (change password or email, export, delete account) ask for the current password, or for a fresh emailed code when the account has none. Emailed codes are single purpose, expire within minutes and allow 5 tries per 15 minutes.
 - Rate limits on sign-in, reports, replies, reactions, the support form and other write routes.
 - Every route that returns a review, reply or list goes through one visibility rule (audience, friendships, blocks); user ids are always read from the signed token, never from the request.
