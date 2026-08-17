@@ -24,7 +24,7 @@ API on Railway (with Postgres), website on Vercel. Both deploy from `main` on Gi
 1. Go to vercel.com, sign in with GitHub, **Add New > Project**, import this repo.
 2. Set **Root Directory** to `web`. The Vite settings are detected on their own.
 3. No environment variables are needed. The site calls `/api/...` on its own address and `web/vercel.json` forwards that to the Railway API (so the login cookie belongs to the site, not to Railway). If your Railway domain differs from the one in `web/vercel.json`, change the rewrite there. Deploy.
-4. Copy the Vercel URL (for example `https://anime-rating-platform.vercel.app`).
+4. Copy the Vercel URL (for example `https://www.gengarate.com`).
 
 ## 3. Point the API at the website
 

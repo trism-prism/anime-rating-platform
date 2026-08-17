@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { describe, render, safeCover } from '../api/_render.js'
 
 const shell = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
-const origin = 'https://anime-rating-platform-pi.vercel.app'
+const origin = 'https://www.gengarate.com'
 const evil = `"><script>alert(1)</script> $& $1 'x' & </title>`
 const out = render(shell, { name: evil, description: describe(`<i>${evil}</i><br>` + 'word '.repeat(100)), cover: safeCover('https://s4.anilist.co/c.jpg?a=1&b="2"'), path: '/series/7' }, origin)
 
