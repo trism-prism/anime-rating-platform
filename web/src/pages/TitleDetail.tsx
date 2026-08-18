@@ -9,7 +9,9 @@ import AddToList from '../components/AddToList'
 import AlsoRated from '../components/AlsoRated'
 import Cover from '../components/Cover'
 import Reviews from '../components/Reviews'
+import ScopeSelect from '../components/ScopeSelect'
 import Select from '../components/Select'
+import { scopeEmpty, useScope, withScope } from '../scope'
 import { cleanSynopsis, formatLabel, score, sentence, sizeLabel } from '../format'
 import { useTitle } from '../useTitle'
 import type { TitleDetail as Detail } from '../types'
@@ -17,6 +19,7 @@ import type { TitleDetail as Detail } from '../types'
 export default function TitleDetail() {
   const { id } = useParams()
   const { user } = useAuth()
+  const [scope] = useScope()
   const [title, setTitle] = useState<Detail | null>(null)
   const [error, setError] = useState<{ id: string; message: string } | null>(null)
   const [tick, setTick] = useState(0) // bump to refetch after rating
@@ -25,13 +28,13 @@ export default function TitleDetail() {
 
   useEffect(() => {
     let stale = false
-    api<Detail>(`/titles/${id}`)
+    api<Detail>(withScope(`/titles/${id}`, scope))
       .then((d) => { if (!stale) { setTitle(d); setError(null) } })
       .catch((e: Error) => !stale && id && setError({ id, message: e.message }))
     return () => {
       stale = true
     }
-  }, [id, tick])
+  }, [id, scope, tick])
   const load = () => setTick((t) => t + 1)
 
   if (error && error.id === id) {
@@ -77,8 +80,9 @@ export default function TitleDetail() {
               <span className="muted"> from <span className="num">{title.ratingCount}</span> {title.ratingCount === 1 ? 'rating' : 'ratings'}</span>
             </div>
           ) : (
-            <p className="muted">Not rated yet</p>
+            <p className="muted">{scopeEmpty(scope, 'rated', 'Not rated yet')}</p>
           )}
+          <div className="title-scope"><ScopeSelect /></div>
         </div>
       </div>
 
@@ -155,7 +159,7 @@ export default function TitleDetail() {
 
           <div style={{ order: 70 }}><AlsoRated key={`also-${title.id}`} path={`/titles/${title.id}`} /></div>
 
-          <div style={{ order: 80 }}><Reviews key={`reviews-${title.id}`} path={`/titles/${title.id}`} showTitle={false} refresh={tick} /></div>
+          <div style={{ order: 80 }}><Reviews key={`reviews-${title.id}-${scope}`} path={`/titles/${title.id}`} showTitle={false} refresh={tick} /></div>
         </div>
 
         <div className="title-side">

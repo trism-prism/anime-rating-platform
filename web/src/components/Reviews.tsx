@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import type { ReviewItem, ReviewPage } from '../types'
+import { scopeEmpty, useScope, withScope } from '../scope'
 import ReviewCard from './ReviewCard'
 import Select from './Select'
 
@@ -12,6 +13,7 @@ const SORTS = [{ value: 'helpful', label: 'Most helpful' }, { value: 'newest', l
 // the Reviews section of a title or series page: path is "/titles/5" or "/series/3"; `refresh` changes when the page's own ratings did
 export default function Reviews({ path, showTitle, refresh = 0 }: { path: string; showTitle: boolean; refresh?: number }) {
   const { user } = useAuth()
+  const [scope] = useScope() // the page keys this component on it, so a new scope starts from the first page
   const [sort, setSort] = useState<Sort>('helpful')
   const [items, setItems] = useState<ReviewItem[] | null>(null)
   const [next, setNext] = useState<string | null>(null)
@@ -23,10 +25,10 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
   // state is set only when the answer arrives; an answer from an older call (another sort) is dropped
   const loadFirst = useCallback(() => {
     const g = ++gen.current
-    api<ReviewPage>(`${path}/reviews?sort=${sort}`)
+    api<ReviewPage>(withScope(`${path}/reviews?sort=${sort}`, scope))
       .then((p) => { if (g === gen.current) { setItems(p.items); setNext(p.nextCursor); setError(''); setMoreError('') } })
       .catch((e: Error) => { if (g === gen.current) setError(e.message) })
-  }, [path, sort])
+  }, [path, sort, scope])
 
   // a changed `refresh` (the user saved a rating) reloads in place, without blanking the list
   useEffect(() => { loadFirst() }, [loadFirst, refresh])
@@ -40,7 +42,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
     setLoadingMore(true)
     setMoreError('')
     try {
-      const p = await api<ReviewPage>(`${path}/reviews?sort=${sort}&cursor=${encodeURIComponent(next)}`)
+      const p = await api<ReviewPage>(withScope(`${path}/reviews?sort=${sort}&cursor=${encodeURIComponent(next)}`, scope))
       if (g !== gen.current) return
       setItems((l) => {
         const have = new Set((l ?? []).map((x) => x.id))
@@ -72,7 +74,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
       <div className="reviews" aria-busy={!items && !error}>
         {error && <p className="error" role="alert">{error} <button onClick={retry}>Retry</button></p>}
         {!items && !error && <div className="skeleton review-skeleton" role="status"><span className="sr-only">Loading reviews</span></div>}
-        {items && items.length === 0 && <p className="muted">No reviews yet.</p>}
+        {items && items.length === 0 && <p className="muted">{scopeEmpty(scope, 'reviewed', 'No reviews yet.')}</p>}
         {items?.map((r) => <ReviewCard key={r.id} review={r} showTitle={showTitle} onChange={update} />)}
       </div>
       {moreError && <p className="error" role="alert">{moreError} <button onClick={loadMore}>Retry</button></p>}
