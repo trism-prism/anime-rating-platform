@@ -73,19 +73,23 @@ public class ProfilesController : ControllerBase
         return data == null ? NoContent() : File(data, meta.ContentType);
     }
 
+    // ?scope= by the rating's audience: all (default), friends = shared with friends only, me = kept private (own profile only, else 400).
     // keyset by rating id, newest first, 20 per page. The viewer rule decides which ratings show (a block either way shows none);
     // the name lookup is the same one the profile uses, so an unknown name and a user who blocked the viewer are one 404.
     [EnableRateLimiting("profile")]
     [HttpGet("users/{username}/ratings")]
-    public async Task<IActionResult> Ratings(string username, int? cursor)
+    public async Task<IActionResult> Ratings(string username, int? cursor, string? scope = null)
     {
         if (SocialRules.ExpiredToken(Request, User)) return Unauthorized();
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         var viewer = User.FindFirst("sub")?.Value;
         var user = await SocialRules.FindVisible(_db, viewer, username);
         if (user == null) return NotFound();
+        if (sc.Mode == RatingScope.Me && viewer != user.Id) return BadRequest("scope=me is only for your own profile");
 
         var admin = await ReviewRules.IsAdmin(_db, viewer);
-        var q = _db.Ratings.Where(r => r.UserId == user.Id).VisibleTo(_db, viewer, admin);
+        var q = _db.Ratings.Where(r => r.UserId == user.Id).VisibleTo(_db, viewer, admin).ByAudience(sc);
         if (cursor != null) q = q.Where(r => r.Id < cursor);
         var rows = await q.OrderByDescending(r => r.Id).Take(RatingsPage + 1)
             .Select(r => new
@@ -114,15 +118,18 @@ public class ProfilesController : ControllerBase
     // Genres need 2+ rated titles; if fewer than 3 qualify the rest are filled from the thinner ones so the section isn't empty.
     [EnableRateLimiting("profile-overview")]
     [HttpGet("users/{username}/overview")]
-    public async Task<IActionResult> Overview(string username)
+    public async Task<IActionResult> Overview(string username, string? scope = null)
     {
         if (SocialRules.ExpiredToken(Request, User)) return Unauthorized();
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         var viewer = User.FindFirst("sub")?.Value;
         var user = await SocialRules.FindVisible(_db, viewer, username);
         if (user == null) return NotFound();
+        if (sc.Mode == RatingScope.Me && viewer != user.Id) return BadRequest("scope=me is only for your own profile");
 
         var admin = await ReviewRules.IsAdmin(_db, viewer);
-        var q = _db.Ratings.Where(r => r.UserId == user.Id).VisibleTo(_db, viewer, admin);
+        var q = _db.Ratings.Where(r => r.UserId == user.Id).VisibleTo(_db, viewer, admin).ByAudience(sc);
         var ratingCount = await q.CountAsync();
         // a user's ratings are few enough to group in memory, like the stats page; the review text is not loaded for all of them
         var whole = await q.Where(r => r.Volume == null)
