@@ -136,7 +136,35 @@ flowchart LR
   T --> R["Rankings<br/>3+ ratings, audience ignored"]
 ```
 
-Per-volume ratings are stored but excluded from title averages. Aggregates, rankings and "also rated" ignore audience, so an Only me rating still counts toward the totals, anonymously.
+Per-volume ratings are stored but excluded from title averages. By default aggregates, rankings and "also rated" ignore audience, so an Only me rating still counts toward the site-wide totals, anonymously. A signed-in viewer can narrow that with a scope, below.
+
+## Ratings scope
+
+Optional `?scope=all|friends|me` on every read route that shows ratings. It filters the listed ratings and reviews and recomputes the averages, counts and rankings from what is left.
+
+```mermaid
+flowchart TB
+  Q(["GET with ?scope="]) --> V{"Valid?<br/>all, friends, me"}
+  V -->|no| E["400"]
+  V -->|yes| S{"Signed in?"}
+  S -->|no| ALL
+  S -->|yes| SC{"scope"}
+  SC -->|all| ALL["Every rating, any audience<br/>stored title totals, unchanged"]
+  SC -->|friends| FR["Ratings by accepted friends<br/>that the viewer may see<br/>no friend's Only me, no blocked pairs"]
+  SC -->|me| ME["The viewer's own ratings<br/>any audience"]
+  ALL & FR & ME --> OUT["Averages, counts, rankings<br/>review lists, also rated"]
+```
+
+| Route | Scoped | Notes |
+|---|---|---|
+| `/titles/{id}`, `/series/{id}` | averages, counts, volume averages, entries | nothing in scope: average null, count 0 |
+| `/series` (browse) | score tag, Top rated, Popular | Top rated lists only series rated in scope and `total` shrinks |
+| `/rankings` | all five categories | the 3-rating minimum applies to the scoped count |
+| `/titles/{id}/reviews`, `/series/{id}/reviews` | the list, cursor paging unchanged | sits on top of the viewer rule |
+| `/…/also-rated` | fans and co-ratings | scoped answers skip the shared cache |
+| `/users/{username}/ratings`, `/overview` | by each rating's Audience | other people: `all`, `friends` (shared with friends only), `me` is 400. Your own: `all`, `friends`, `me` (Only me) |
+
+Not scoped: `/trending` (AniList), `/me/stats`, `/me/ratings`, `/reviews/{id}`, `GET /titles`, writes. Without a signed-in viewer `friends` and `me` behave as `all`.
 
 ## Rating write
 
