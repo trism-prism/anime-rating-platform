@@ -28,8 +28,10 @@ public class SeriesController : ControllerBase
     // A to Z follows the database collation (Postgres) and plain ordinal order on InMemory.
     // total is counted on the first page only (cursor == null); the client keeps it for later pages.
     [HttpGet("series")]
-    public async Task<IActionResult> List(string? search, TitleType? type, string? genre, string? cursor, string? sort, int take = 24)
+    public async Task<IActionResult> List(string? search, TitleType? type, string? genre, string? cursor, string? sort, int take = 24, string? scope = null)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         take = Math.Clamp(take, 1, 100);
         var skip = 0;
         if (cursor != null && !TryDecode(cursor, out skip)) return BadRequest("Bad cursor.");
@@ -39,18 +41,43 @@ public class SeriesController : ControllerBase
         // genres are stored as "Action,Drama"; wrap in commas so "Action" doesn't match "Action Comedy"
         if (!string.IsNullOrWhiteSpace(genre)) q = q.Where(s => s.Titles.Any(t => ("," + t.Genres + ",").Contains("," + genre + ",")));
         if (!string.IsNullOrWhiteSpace(search)) q = q.Match(_db, Clean(search), false);
-        if (sort == "top") q = q.Where(s => s.Titles.Any(t => t.RatingCount > 0));
+
+        // ?scope=friends|me: the per-title totals come from just those ratings instead of the stored ones (below)
+        var mine = sc.Scoped ? await _db.Ratings.InScope(_db, sc).TitleTotals() : null;
+        if (sort == "top" && mine == null) q = q.Where(s => s.Titles.Any(t => t.RatingCount > 0));
 
         int? total = cursor == null ? await q.CountAsync() : null;
+
         var keyed = q.Select(s => new
         {
             s.Id, s.Name, s.Kind, s.CoverUrl, s.Popularity,
             Ratings = s.Titles.Sum(t => t.RatingCount),
             Avg = s.Titles.Where(t => t.RatingCount > 0).Average(t => (double?)(t.RatingSum / t.RatingCount)) ?? 0,
             Year = s.Titles.Max(t => t.Year) ?? 0, // 0 so unknown years sort last (Postgres puts NULL first when descending)
-            Entries = s.Titles.Select(t => new { t.RatingCount, t.RatingSum, t.Genres }).ToList()
+            Entries = s.Titles.Select(t => new { t.Id, t.RatingCount, t.RatingSum, t.Genres }).ToList()
         });
-        var ordered = sort switch
+
+        // Scoped popular / top: the series with scoped ratings are ordered here (few: only what the viewer or their friends rated);
+        // popular then continues with the unrated ones by popularity, so the order is still total and ends in id.
+        List<int>? pick = null;
+        if (mine != null && sort != "newest" && sort != "az")
+        {
+            var top = sort == "top";
+            var titleSeries = await _db.Titles.Where(t => mine.Keys.Contains(t.Id)).Select(t => new { t.Id, t.SeriesId }).ToListAsync();
+            var bySeries = titleSeries.GroupBy(t => t.SeriesId).ToDictionary(g => g.Key, g => (
+                N: g.Sum(t => mine[t.Id].N), Avg: g.Average(t => mine[t.Id].Sum / mine[t.Id].N)));
+            var allowed = bySeries.Keys.ToList();
+            var rated = (await q.Where(s => allowed.Contains(s.Id)).Select(s => new { s.Id, s.Popularity }).ToListAsync())
+                .Select(s => (s.Id, s.Popularity, bySeries[s.Id].N, bySeries[s.Id].Avg)).ToList();
+            if (top) total = cursor == null ? rated.Count : (int?)null;
+            pick = (top ? rated.OrderByDescending(s => s.Avg).ThenByDescending(s => s.N).ThenByDescending(s => s.Id)
+                        : rated.OrderByDescending(s => s.N).ThenByDescending(s => s.Popularity).ThenByDescending(s => s.Id))
+                .Select(s => s.Id).Skip(skip).Take(take + 1).ToList();
+            if (!top && pick.Count < take + 1)
+                pick.AddRange(await q.Where(s => !allowed.Contains(s.Id)).OrderByDescending(s => s.Popularity).ThenByDescending(s => s.Id)
+                    .Select(s => s.Id).Skip(Math.Max(0, skip - rated.Count)).Take(take + 1 - pick.Count).ToListAsync());
+        }
+        var ordered = pick != null ? keyed.Where(s => pick.Contains(s.Id)) : sort switch
         {
             "top" => keyed.OrderByDescending(s => s.Avg).ThenByDescending(s => s.Ratings).ThenByDescending(s => s.Id),
             "newest" => keyed.OrderByDescending(s => s.Year).ThenByDescending(s => s.Popularity).ThenByDescending(s => s.Id),
@@ -58,15 +85,16 @@ public class SeriesController : ControllerBase
             _ => keyed.OrderByDescending(s => s.Ratings).ThenByDescending(s => s.Popularity).ThenByDescending(s => s.Id),
         };
 
-        var rows = await ordered.Skip(skip).Take(take + 1).ToListAsync();
+        var rows = await ordered.Skip(pick != null ? 0 : skip).Take(take + 1).ToListAsync();
+        if (pick != null) rows = rows.OrderBy(r => pick.IndexOf(r.Id)).ToList();
         var more = rows.Count > take;
         rows = rows.Take(take).ToList();
         var items = rows.Select(s => new
         {
             s.Id, s.Name, type = s.Kind.ToString(), s.CoverUrl, s.Popularity,
             entryCount = s.Entries.Count,
-            average = RatingStats.SeriesAverage(s.Entries.Select(e => (e.RatingCount, e.RatingSum))),
-            ratingCount = s.Entries.Sum(e => e.RatingCount),
+            average = RatingStats.SeriesAverage(s.Entries.Select(e => Totals(mine, e.Id, e.RatingCount, e.RatingSum))),
+            ratingCount = s.Entries.Sum(e => Totals(mine, e.Id, e.RatingCount, e.RatingSum).Count),
             year = s.Year == 0 ? (int?)null : s.Year,
             genres = s.Entries.SelectMany(e => e.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries)).Distinct().ToList()
         });
@@ -74,8 +102,10 @@ public class SeriesController : ControllerBase
     }
 
     [HttpGet("series/{id:int}")]
-    public async Task<IActionResult> Get(int id)
+    public async Task<IActionResult> Get(int id, string? scope = null)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         var s = await _db.Series.Where(x => x.Id == id).Select(x => new { x.Id, x.Name, x.Kind, x.CoverUrl }).FirstOrDefaultAsync();
         if (s == null) return NotFound();
 
@@ -85,6 +115,11 @@ public class SeriesController : ControllerBase
                 t.Id, t.AniListId, t.Name, t.Format, t.Year, t.Position, t.Volumes, t.Episodes, t.Chapters, t.CoverUrl,
                 t.RatingCount, t.RatingSum, t.Genres
             }).ToListAsync();
+        if (sc.Scoped)
+        {
+            var mine = await _db.Ratings.Where(r => r.Title.SeriesId == id).InScope(_db, sc).TitleTotals();
+            entries = entries.Select(e => { var (n, sum) = Totals(mine, e.Id, 0, 0); return e with { RatingCount = n, RatingSum = sum }; }).ToList();
+        }
         // only the lead entry's text is needed, so it is read apart from the list
         var synopsis = await _db.Titles.Where(t => t.SeriesId == id).OrderBy(t => t.Position).Select(t => t.Synopsis).FirstOrDefaultAsync();
 
@@ -143,6 +178,10 @@ public class SeriesController : ControllerBase
         }
         return Ok(found.Select(f => new { f.Id, f.Name, kind = f.Kind.ToString() }));
     }
+
+    // an entry's (count, sum): the stored totals, or under a scope the totals of the scoped ratings (none = 0)
+    static (int Count, double Sum) Totals(Dictionary<int, (int N, double Sum)>? scoped, int titleId, int count, double sum) =>
+        scoped == null ? (count, sum) : scoped.TryGetValue(titleId, out var t) ? (t.N, t.Sum) : (0, 0);
 
     static string Clean(string? s)
     {

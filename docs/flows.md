@@ -36,6 +36,20 @@ flowchart LR
 
 Sorts: Popular (most ratings), Top rated, Newest, A to Z. Every order ends in the id so pages never repeat. A rating bumps a version that discards the stored snapshot.
 
+### Ratings scope
+
+Signed-in people get a Ratings dropdown: All (default), Friends only, Only me. It sits with the filters on Browse and Rankings, and under the score on Series and Title pages. One choice drives them all, including reviews and Also rated, and it is kept in `localStorage` until you switch account or log out. The scope is part of the Browse address and snapshot, so Back never restores another scope's page.
+
+```mermaid
+flowchart LR
+  D["Ratings: All / Friends only / Only me"] --> P["Browse · Rankings<br/>Series · Title<br/>reviews · Also rated"]
+  P --> A["GET ...?scope=friends<br/>averages, counts, lists recomputed"]
+  A --> N{"anything in scope?"}
+  N -->|no| EM["'None of your friends have rated this yet.'<br/>'You haven't rated this yet.'"]
+```
+
+On a profile the dropdown is separate and local: another person's profile offers All and Friends only (what they shared with friends), your own adds Only me. It drives the overview (top titles, top genres, rating count).
+
 ## Rate a title
 
 ```mermaid

@@ -31,22 +31,22 @@ public class ReviewsController : ControllerBase
     // whole-title and volume reviews of one title; sort=helpful (default) or newest; keyset paging, 10 per page
     [AllowAnonymous]
     [HttpGet("titles/{id:int}/reviews")]
-    public async Task<IActionResult> ForTitle(int id, string? sort, string? cursor)
+    public async Task<IActionResult> ForTitle(int id, string? sort, string? cursor, string? scope = null)
     {
         if (SocialRules.ExpiredToken(Request, User)) return Unauthorized();
         if (!await _db.Titles.AnyAsync(t => t.Id == id)) return NotFound();
-        return await Page(_db.Ratings.Where(r => r.TitleId == id), sort, cursor);
+        return await Page(_db.Ratings.Where(r => r.TitleId == id), sort, cursor, scope);
     }
 
     // whole-title reviews of the series' titles, each labelled with its title
     // ponytail: no index spans a series' titles; fine while a series has a handful of titles
     [AllowAnonymous]
     [HttpGet("series/{id:int}/reviews")]
-    public async Task<IActionResult> ForSeries(int id, string? sort, string? cursor)
+    public async Task<IActionResult> ForSeries(int id, string? sort, string? cursor, string? scope = null)
     {
         if (SocialRules.ExpiredToken(Request, User)) return Unauthorized();
         if (!await _db.Series.AnyAsync(s => s.Id == id)) return NotFound();
-        return await Page(_db.Ratings.Where(r => r.Volume == null && r.Title.SeriesId == id), sort, cursor);
+        return await Page(_db.Ratings.Where(r => r.Volume == null && r.Title.SeriesId == id), sort, cursor, scope);
     }
 
     [AllowAnonymous]
@@ -246,12 +246,14 @@ public class ReviewsController : ControllerBase
         canDelete = viewer != null && (authorId == viewer || reviewAuthorId == viewer || admin)
     };
 
-    async Task<IActionResult> Page(IQueryable<Rating> source, string? sort, string? cursor)
+    async Task<IActionResult> Page(IQueryable<Rating> source, string? sort, string? cursor, string? scope)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         var helpful = sort != "newest"; // anything else (or nothing) sorts by helpful
         var viewer = ViewerId;
         var admin = await ReviewRules.IsAdmin(_db, viewer);
-        var q = source.Reviews().VisibleTo(_db, viewer, admin);
+        var q = source.Reviews().VisibleTo(_db, viewer, admin).InScope(_db, sc);
         if (cursor != null)
         {
             if (!TryDecode(cursor, helpful, out var score, out var last)) return BadRequest(new { message = "Bad cursor." });

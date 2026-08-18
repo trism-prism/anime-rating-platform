@@ -888,3 +888,8 @@ a.button:hover { background: var(--raised-hover); border-color: var(--hairline-s
   .select-button::after { background: ButtonText; }
   .select-list li[aria-selected='true'] { outline: 2px solid Highlight; outline-offset: -2px; }
 }
+
+/* ratings scope: sits with the score, or above the profile overview; its 36 (44 on phones) control keeps the row height steady */
+.title-scope, .profile-scope { margin-top: var(--s-3); }
+.series-score .scope-select { flex-basis: 100%; }
+.profile-scope { margin-bottom: var(--s-4); }

@@ -1,5 +1,6 @@
 using api.Data;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ class Score { public int TitleId { get; set; } public double Value { get; set; }
 [Route("rankings")]
 public class RankingsController : ControllerBase
 {
-    // a series with one or two ratings would top the list, so ignore those
+    // a series with one or two ratings would top the list, so ignore those (the count is the scoped one under ?scope=friends|me)
     public const int MinVotes = 3;
 
     readonly AppDbContext _db;
@@ -22,10 +23,12 @@ public class RankingsController : ControllerBase
     public RankingsController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> Get(string category = "overall", TitleType? type = null, int take = 20)
+    public async Task<IActionResult> Get(string category = "overall", TitleType? type = null, int take = 20, string? scope = null)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         // whole-title ratings only: one account rating three volumes must not meet MinVotes
-        var ratings = _db.Ratings.Where(r => r.Volume == null);
+        var ratings = _db.Ratings.Where(r => r.Volume == null).InScope(_db, sc);
         IQueryable<Score>? scores = category.ToLower() switch
         {
             "overall" => ratings.Select(r => new Score { TitleId = r.TitleId, Value = r.Overall }),
