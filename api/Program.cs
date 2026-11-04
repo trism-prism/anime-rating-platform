@@ -3,11 +3,35 @@ using api.Services;
 using System.Text;
 using api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Railway sets PORT; listen on it
+var port = Environment.GetEnvironmentVariable("PORT");
+if (port != null) builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+// Railway gives DATABASE_URL (postgres://...); use it when no connection string is set
+var connectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrEmpty(connectionString))
+{
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrEmpty(databaseUrl)) connectionString = DatabaseUrl.ToNpgsql(databaseUrl);
+}
+
+// an empty or short key would make every token forgeable, so stop at startup
+if (!args.Contains("import") && (builder.Configuration["Jwt:Key"] ?? "").Length < 32)
+    throw new InvalidOperationException("Jwt:Key (env Jwt__Key) must be set and at least 32 characters long.");
+
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor;
+    o.KnownNetworks.Clear(); // Railway's proxy isn't loopback
+    o.KnownProxies.Clear();
+});
 
 // Add services to the container.
 
@@ -18,7 +42,7 @@ builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+    o.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<EmailSender>();
 
@@ -70,6 +94,9 @@ if (args.Contains("import"))
     return;
 }
 
+using (var scope = app.Services.CreateScope())
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+
 // create the Admin role and give it to Admin:Email once that user has registered
 using (var scope = app.Services.CreateScope())
 {
@@ -88,12 +115,14 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseHttpsRedirection();
+app.UseForwardedHeaders();
+if (app.Environment.IsDevelopment()) app.UseHttpsRedirection(); // in production Railway's proxy handles HTTPS
 
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/health", () => "ok");
 
 app.Run();
