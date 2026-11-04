@@ -52,4 +52,29 @@ public class RatingTests
         var none = Assert.IsType<OkObjectResult>(await As("a", db).Mine());
         Assert.Empty((System.Collections.IEnumerable)none.Value!);
     }
+
+    [Fact]
+    public async Task Review_over_2000_chars_is_rejected()
+    {
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new AppDbContext(opts);
+        db.Titles.Add(new Title { Id = 1, AniListId = 1, Name = "Test" });
+        await db.SaveChangesAsync();
+
+        Assert.IsType<BadRequestObjectResult>(await As("a", db).Put(1, new RatingRequest(8, 8, 8, 8, new string('x', 2001))));
+        Assert.IsType<OkObjectResult>(await As("a", db).Put(1, new RatingRequest(8, 8, 8, 8, new string('x', 2000))));
+    }
+
+    [Fact]
+    public async Task Long_search_is_truncated_not_an_error()
+    {
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new AppDbContext(opts);
+        db.Titles.Add(new Title { Id = 1, AniListId = 1, Name = new string('a', 100) });
+        await db.SaveChangesAsync();
+
+        // the extra chars are cut off, so the 100-char name still matches
+        var res = Assert.IsType<OkObjectResult>(await new TitlesController(db).List(new string('a', 100) + "zzz", null, null));
+        Assert.Contains("total = 1", res.Value!.ToString());
+    }
 }

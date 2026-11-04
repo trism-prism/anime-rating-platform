@@ -21,6 +21,7 @@ public class TitlesController : ControllerBase
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
+        if (search?.Length > 100) search = search[..100];
         var q = _db.Titles.AsQueryable();
         if (!string.IsNullOrWhiteSpace(search)) q = q.Where(t => t.Name.ToLower().Contains(search.ToLower()));
         if (type != null) q = q.Where(t => t.Type == type);
