@@ -46,10 +46,29 @@ Either:
 - [ ] Trending and Rankings pages load
 - [ ] Wrong password 5 times locks the account for 15 minutes
 
+## Free email with the Gmail API
+
+Sends from your own Gmail to any recipient, over HTTPS (Railway blocks SMTP). When `Gmail__RefreshToken` is set it is used instead of Resend.
+
+1. Go to console.cloud.google.com, click the project picker at the top > **New Project**, name it and create it.
+2. **APIs & Services > Library**, search "Gmail API" > **Enable**.
+3. **APIs & Services > OAuth consent screen**: user type **External** > Create. Fill in the app name and your email. Under **Test users** add your own Gmail address. Under **Scopes** add `https://www.googleapis.com/auth/gmail.send`. Then click **Publish app** (status "In production"), otherwise the refresh token expires after 7 days. The "unverified app" warning you see later is normal for personal use.
+4. **APIs & Services > Credentials > Create Credentials > OAuth client ID**: application type **Web application**. Under **Authorized redirect URIs** add `https://developers.google.com/oauthplayground` > Create. Keep the client ID and client secret.
+5. Open developers.google.com/oauthplayground. Click the gear icon > tick **Use your own OAuth credentials** > paste the client ID and secret. In step 1 on the left enter the scope `https://www.googleapis.com/auth/gmail.send` > **Authorize APIs**, sign in with your Gmail and continue past the unverified-app warning. In step 2 click **Exchange authorization code for tokens** and copy the **Refresh token**.
+6. In Railway > API service > Variables add (you type the secrets in Railway yourself, never paste them in chat or the repo):
+   - `Gmail__ClientId`
+   - `Gmail__ClientSecret`
+   - `Gmail__RefreshToken`
+   - `Gmail__From` = `Anime Rating Platform <youraddress@gmail.com>`
+
+Gmail allows only a few hundred sends a day for a normal account. `Gmail__*` wins over `Resend__*` when both are set.
+
 ## If something breaks
 
 - API crashes at start with `Jwt:Key`: the variable is missing or under 32 characters.
 - CORS error in the browser console: `Cors__Origins` does not exactly match the Vercel URL.
 - No email: check that `Resend__ApiKey` is set and `Resend__From` is correct.
 - Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
+- Gmail "token request failed: 400" (`invalid_grant`): the refresh token was revoked or expired, usually because the consent screen is still in Testing. Publish the app and create a new token.
+- Gmail "rejected the email: 403": the Gmail API is not enabled for the project (APIs & Services > Library).
 - Database errors: migrations run on every start; check the Railway deploy logs.
