@@ -10,9 +10,9 @@ API on Railway (with Postgres), website on Vercel. Both deploy from `main` on Gi
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (click "Add Reference" and pick the Postgres one). The app converts it itself. If you set `ConnectionStrings__Default` instead, that wins.
    - `Jwt__Key` = a random string of 48+ characters (for example run `openssl rand -base64 48` in Git Bash). The app refuses to start without it.
    - `Jwt__Issuer` = `anime-rating-platform`
-   - `Smtp__User` = your Gmail address
-   - `Smtp__Password` = a Gmail app password: Google account > Security > 2-Step Verification (turn it on) > App passwords > create one, copy the 16 letters
-   - `Smtp__From` = your Gmail address
+   - `Resend__ApiKey` = an API key from resend.com > API Keys > Create API Key (sending access). Paste it only into Railway, never into chat or the repo. Railway blocks outbound SMTP, so mail goes through Resend's HTTPS API.
+   - `Resend__From` = `onboarding@resend.dev` until you have a domain (see below)
+   - Resend limit: without a verified domain, Resend only delivers to the email of your own Resend account, and the sender must be `onboarding@resend.dev`. To email other users, resend.com > Domains > add and verify a domain (DNS records), then set `Resend__From` to an address on it, for example `noreply@yourdomain.com`.
    - `Admin__Email` = the email you will register with on the site. It only bootstraps the first admin: once that account has verified its email and logs in, it becomes Admin (only while no admin exists). Add or remove other admins on the site's Admin page, so no Railway change is needed later. Emergency recovery: if every admin is locked out, set `Admin__Email` to another verified account; it only works while no admin exists
    - `App__FrontendUrl` and `Cors__Origins`: put `http://localhost:5173` for now, you fix them in step 3
 4. API service > **Settings**: turn on **Wait for CI** so a deploy only runs after the GitHub checks pass.
@@ -50,6 +50,6 @@ Either:
 
 - API crashes at start with `Jwt:Key`: the variable is missing or under 32 characters.
 - CORS error in the browser console: `Cors__Origins` does not exactly match the Vercel URL.
-- No email: check `Smtp__*` and that the app password has no spaces.
+- No email: check that `Resend__ApiKey` is set and `Resend__From` is correct.
+- Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
 - Database errors: migrations run on every start; check the Railway deploy logs.
-- No email on Railway and logs say 'Network is unreachable': add variable DOTNET_SYSTEM_NET_DISABLEIPV6=1 (the container has no IPv6 route).

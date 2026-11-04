@@ -46,7 +46,7 @@ builder.Services.AddScoped<AniListImporter>();
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
 
-builder.Services.AddScoped<EmailSender>();
+builder.Services.AddHttpClient<EmailSender>();
 
 builder.Services.AddIdentityCore<AppUser>(o =>
 {
