@@ -99,6 +99,8 @@ button:disabled { opacity: 0.4; cursor: default; }
 .auth-form p { margin: 0; }
 .auth-form .hint { font-size: 0.85rem; }
 .link { color: var(--accent); }
+.badge { display: inline-block; border: 1px solid var(--border); border-radius: 999px; padding: 0 10px; font-size: 0.85rem; color: #ffb86c; }
+.badge.ok { color: #6fdc8c; }
 
 button.on { border-color: var(--accent); color: var(--accent); }
 textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
