@@ -5,7 +5,7 @@
     "buildCommand": "dotnet publish api/api.csproj -c Release -o out"
   },
   "deploy": {
-    "startCommand": "dotnet out/api.dll",
+    "startCommand": "cd out && dotnet api.dll",
     "healthcheckPath": "/health"
   }
 }
