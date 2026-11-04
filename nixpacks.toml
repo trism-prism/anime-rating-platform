@@ -1,0 +1,4 @@
+# Railway: use a nixpkgs release that ships the final .NET 8 SDK
+[phases.setup]
+nixpkgsArchive = "24.05"
+nixPkgs = ["dotnet-sdk_8"]
