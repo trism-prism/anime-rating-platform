@@ -49,7 +49,7 @@ public class AuthController : ControllerBase
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
         if (!await TrySendConfirmation(user))
-            return Ok(new { message = "Account created, but the confirmation email could not be sent. Use resend on the login page later." });
+            return Ok(new { message = "Account created, but the confirmation email could not be sent. Verify your email in Account settings later." });
         return Ok(new { message = "Check your email to confirm your account." });
     }
 
@@ -127,7 +127,7 @@ public class AuthController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
         }
 
-        // ResetPasswordAsync already changed the security stamp; JWTs are revoked by it once sessions land
+        // ResetPasswordAsync already changed the security stamp, but JWTs are NOT revoked by it yet; stage 3 (sessions) will do that
         await _users.SetLockoutEndDateAsync(user, null);
         await _users.ResetAccessFailedCountAsync(user);
         return Ok(new { message = "Password changed. You can log in now." });

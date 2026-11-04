@@ -16,7 +16,6 @@ public class PwnedPasswordValidator : IPasswordValidator<AppUser>
     {
         _http = http;
         _log = log;
-        _http.Timeout = TimeSpan.FromSeconds(3);
     }
 
     public async Task<IdentityResult> ValidateAsync(UserManager<AppUser> manager, AppUser user, string? password)

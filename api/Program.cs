@@ -47,6 +47,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
 
 builder.Services.AddHttpClient<EmailSender>();
+builder.Services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3));
 
 builder.Services.AddIdentityCore<AppUser>(o =>
 {
@@ -62,11 +63,14 @@ builder.Services.AddIdentityCore<AppUser>(o =>
     o.Password.RequireUppercase = false;
     o.Password.RequireNonAlphanumeric = false;
 })
-    .AddPasswordValidator<PwnedPasswordValidator>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+// after AddIdentityCore, or it would replace the built-in length rule. Resolved through the typed
+// client so the timeout applies (AddPasswordValidator would inject a plain HttpClient).
+builder.Services.AddScoped<IPasswordValidator<AppUser>>(sp => sp.GetRequiredService<PwnedPasswordValidator>());
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>

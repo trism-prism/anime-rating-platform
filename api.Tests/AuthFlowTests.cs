@@ -40,7 +40,8 @@ public class AuthFlowTests
         services.AddLogging();
         services.AddHttpContextAccessor();
         services.AddAuthentication();
-        services.AddSingleton(new HttpClient(hibp));
+        services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3))
+            .ConfigurePrimaryHttpMessageHandler(() => hibp);
         services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
         services.AddIdentityCore<AppUser>(o =>
         {
@@ -52,8 +53,9 @@ public class AuthFlowTests
             o.Password.RequireLowercase = false;
             o.Password.RequireUppercase = false;
             o.Password.RequireNonAlphanumeric = false;
-        }).AddPasswordValidator<PwnedPasswordValidator>()
-            .AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
+        }).AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
+        // after AddIdentityCore, as in Program.cs, so the built-in length rule stays
+        services.AddScoped<IPasswordValidator<AppUser>>(sp => sp.GetRequiredService<PwnedPasswordValidator>());
         return services.BuildServiceProvider();
     }
 
@@ -197,6 +199,28 @@ public class AuthFlowTests
         using var p = Build(new Hibp($"{sha[5..]}:1\r\n"));
         var result = await p.GetRequiredService<UserManager<AppUser>>().CreateAsync(new AppUser { UserName = "a", Email = "a@example.com" }, Pass);
         Assert.Contains(result.Errors, e => e.Description == "This password appears in a known data breach. Pick another one.");
+    }
+
+    [Fact]
+    public void Validator_is_wired_like_Program_cs_with_the_3_second_timeout()
+    {
+        // same registrations as Program.cs, with scope and build validation on
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddHttpContextAccessor();
+        services.AddAuthentication();
+        services.AddHttpClient<EmailSender>();
+        services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3));
+        services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        services.AddIdentityCore<AppUser>().AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
+        services.AddScoped<IPasswordValidator<AppUser>>(sp => sp.GetRequiredService<PwnedPasswordValidator>());
+        using var p = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        using var scope = p.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var validator = scope.ServiceProvider.GetServices<IPasswordValidator<AppUser>>().OfType<PwnedPasswordValidator>().Single();
+        var http = (HttpClient)typeof(PwnedPasswordValidator).GetField("_http", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(validator)!;
+        Assert.Equal(TimeSpan.FromSeconds(3), http.Timeout);
     }
 
     [Fact]
