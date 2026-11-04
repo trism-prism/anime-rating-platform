@@ -6,6 +6,7 @@ using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 
@@ -17,6 +18,7 @@ public record LoginRequest(string Email, string Password);
 
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting("auth")]
 [Route("auth")]
 public class AuthController : ControllerBase
 {
