@@ -100,6 +100,23 @@ button:disabled { opacity: 0.4; cursor: default; }
 .auth-form .hint { font-size: 0.85rem; }
 .link { color: var(--accent); }
 
+button.on { border-color: var(--accent); color: var(--accent); }
+textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.num { width: 80px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.rate-form { max-width: 520px; display: flex; flex-direction: column; gap: 10px; }
+.rate-row { display: flex; align-items: center; gap: 10px; }
+.rate-row input { flex: 1; padding: 0; }
+
+.list-row, .rankings li { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.list-name { flex: 1; min-width: 160px; font-weight: 600; }
+.list-name:hover { color: var(--accent); }
+.rankings { list-style: decimal inside; padding: 0; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.table th { color: var(--muted); font-weight: 500; }
+
 @media (max-width: 600px) {
   .detail { flex-direction: column; }
   .cover { max-width: 60%; }
