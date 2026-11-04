@@ -5,6 +5,7 @@ Rate anime and manga on story, art, characters and enjoyment, and write reviews.
 - `api/` ASP.NET Core 8 Web API, EF Core, PostgreSQL, Identity + JWT
 - `api.Tests/` xUnit tests
 - `web/` React + Vite + TypeScript
+- API: `GET /me/watchlist`, `PUT /me/watchlist/{titleId}` (status, progress), `DELETE /me/watchlist/{titleId}` (login required)
 
 ## Run locally
 Needs the .NET 8 SDK, Node 20+ and PostgreSQL.
