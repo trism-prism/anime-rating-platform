@@ -47,17 +47,19 @@ builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
 
 builder.Services.AddHttpClient<EmailSender>();
+builder.Services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3));
 
 builder.Services.AddIdentityCore<AppUser>(o =>
 {
     o.SignIn.RequireConfirmedEmail = false;
     o.User.RequireUniqueEmail = true;
-    o.Lockout.MaxFailedAccessAttempts = 5;
-    o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    o.Lockout.MaxFailedAccessAttempts = 10;
+    o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     o.Lockout.AllowedForNewUsers = true;
-    o.Password.RequiredLength = 8;
-    o.Password.RequireDigit = true;
-    o.Password.RequireLowercase = true;
+    // length only, no composition rules; breached passwords are refused by PwnedPasswordValidator
+    o.Password.RequiredLength = 12;
+    o.Password.RequireDigit = false;
+    o.Password.RequireLowercase = false;
     o.Password.RequireUppercase = false;
     o.Password.RequireNonAlphanumeric = false;
 })
@@ -65,6 +67,10 @@ builder.Services.AddIdentityCore<AppUser>(o =>
     .AddEntityFrameworkStores<AppDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+// after AddIdentityCore, or it would replace the built-in length rule. Resolved through the typed
+// client so the timeout applies (AddPasswordValidator would inject a plain HttpClient).
+builder.Services.AddScoped<IPasswordValidator<AppUser>>(sp => sp.GetRequiredService<PwnedPasswordValidator>());
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>

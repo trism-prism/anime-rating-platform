@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -36,10 +37,8 @@ export default function Register() {
       <label>Username (optional)
         <input value={userName} onChange={(e) => setUserName(e.target.value)} />
       </label>
-      <label>Password
-        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
-      <p className="muted hint">At least 8 characters, with a digit and a lowercase letter.</p>
+      <PasswordInput label="Password" value={password} onChange={setPassword} minLength={12} autoComplete="new-password" />
+      <p className="muted hint">At least 12 characters. A passphrase works well. Passwords found in data breaches are refused.</p>
       {error && <p className="error">{error}</p>}
       <button type="submit" disabled={busy}>Create account</button>
       <p className="muted">Have an account? <Link to="/login" className="link">Login</Link></p>
