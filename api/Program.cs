@@ -52,15 +52,17 @@ builder.Services.AddIdentityCore<AppUser>(o =>
 {
     o.SignIn.RequireConfirmedEmail = false;
     o.User.RequireUniqueEmail = true;
-    o.Lockout.MaxFailedAccessAttempts = 5;
-    o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    o.Lockout.MaxFailedAccessAttempts = 10;
+    o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     o.Lockout.AllowedForNewUsers = true;
-    o.Password.RequiredLength = 8;
-    o.Password.RequireDigit = true;
-    o.Password.RequireLowercase = true;
+    // length only, no composition rules; breached passwords are refused by PwnedPasswordValidator
+    o.Password.RequiredLength = 12;
+    o.Password.RequireDigit = false;
+    o.Password.RequireLowercase = false;
     o.Password.RequireUppercase = false;
     o.Password.RequireNonAlphanumeric = false;
 })
+    .AddPasswordValidator<PwnedPasswordValidator>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddSignInManager()

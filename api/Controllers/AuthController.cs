@@ -15,6 +15,7 @@ namespace api.Controllers;
 public record RegisterRequest(string Email, string Password, string? UserName);
 public record EmailRequest(string Email);
 public record LoginRequest(string Email, string Password);
+public record ResetPasswordRequest(string UserId, string Token, string NewPassword);
 
 [ApiController]
 [AllowAnonymous]
@@ -85,11 +86,60 @@ public class AuthController : ControllerBase
         if (user == null) return Unauthorized(new { message = "Invalid email or password." });
 
         var result = await _signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
-        if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 15 minutes." });
-        if (!result.Succeeded) return Unauthorized(new { message = "Invalid email or password." });
+        if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 5 minutes." });
+        if (!result.Succeeded)
+        {
+            // warn only when the lockout is close
+            var left = _users.Options.Lockout.MaxFailedAccessAttempts - user.AccessFailedCount;
+            if (left <= 3) return Unauthorized(new { message = $"Invalid email or password. {left} tries left." });
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
 
         await AdminBootstrap.TryPromote(_users, _config, user);
         return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName, emailVerified = user.EmailConfirmed });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(EmailRequest req)
+    {
+        var user = await _users.FindByEmailAsync(req.Email);
+        if (user != null) await TrySendPasswordReset(user);
+        // same answer whether or not the email exists, or the send failed
+        return Ok(new { message = "If that email exists, a reset link was sent." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest req)
+    {
+        var invalid = BadRequest(new { message = "Invalid or expired reset link." });
+        var user = await _users.FindByIdAsync(req.UserId);
+        if (user == null) return invalid;
+
+        string raw;
+        try { raw = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Token)); }
+        catch (FormatException) { return invalid; }
+
+        // also runs the password policy; a bad token is the only error not shown to the user
+        var result = await _users.ResetPasswordAsync(user, raw, req.NewPassword);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidToken))) return invalid;
+            return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+        }
+
+        // ResetPasswordAsync already changed the security stamp; JWTs are revoked by it once sessions land
+        await _users.SetLockoutEndDateAsync(user, null);
+        await _users.ResetAccessFailedCountAsync(user);
+        return Ok(new { message = "Password changed. You can log in now." });
+    }
+
+    async Task TrySendPasswordReset(AppUser user)
+    {
+        try { await _email.SendPasswordReset(_users, user); }
+        catch (Exception ex)
+        {
+            _log.LogError(ex.GetType().Name + " sending reset email for user {UserId}", user.Id);
+        }
     }
 
     // the exception can hold the link, so log only the user id
