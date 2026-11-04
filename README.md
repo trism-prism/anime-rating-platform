@@ -35,3 +35,6 @@ More setup notes are added as features land.
 - `GET /me/ratings` your ratings
 - `GET /trending?type=Anime|Manga` what is trending on AniList right now, limited to titles we have
 - `GET /rankings?category=overall|story|art|characters|enjoyment&type=&take=20` best rated titles (at least 3 ratings)
+- `GET /me/watchlist` your watch list
+- `PUT /me/watchlist/{titleId}` set status and progress
+- `DELETE /me/watchlist/{titleId}` remove an entry
