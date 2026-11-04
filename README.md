@@ -5,7 +5,6 @@ Rate anime and manga on story, art, characters and enjoyment, and write reviews.
 - `api/` ASP.NET Core 8 Web API, EF Core, PostgreSQL, Identity + JWT
 - `api.Tests/` xUnit tests
 - `web/` React + Vite + TypeScript
-- API: `GET /me/watchlist`, `PUT /me/watchlist/{titleId}` (status, progress), `DELETE /me/watchlist/{titleId}` (login required)
 
 ## Run locally
 Needs the .NET 8 SDK, Node 20+ and PostgreSQL.
@@ -34,3 +33,6 @@ More setup notes are added as features land.
 - `PUT /titles/{id}/rating` create or update your rating (log in first)
 - `DELETE /titles/{id}/rating` remove your rating
 - `GET /me/ratings` your ratings
+- `GET /me/watchlist` your watch list
+- `PUT /me/watchlist/{titleId}` set status and progress
+- `DELETE /me/watchlist/{titleId}` remove an entry
