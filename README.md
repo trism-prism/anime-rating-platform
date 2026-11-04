@@ -26,3 +26,10 @@ Set as environment variables (`__` for nesting) in production, or with `dotnet u
 - `ConnectionStrings__Default`
 
 More setup notes are added as features land.
+
+## API
+- `GET /titles?search=&type=&genre=&page=&pageSize=` paged list, most popular first
+- `GET /titles/{id}` title with characters, average scores and reviews
+- `PUT /titles/{id}/rating` create or update your rating (log in first)
+- `DELETE /titles/{id}/rating` remove your rating
+- `GET /me/ratings` your ratings
