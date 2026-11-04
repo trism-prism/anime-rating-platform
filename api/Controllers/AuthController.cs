@@ -1,0 +1,111 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using api.Models;
+using api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.IdentityModel.Tokens;
+
+namespace api.Controllers;
+
+public record RegisterRequest(string Email, string Password, string? UserName);
+public record EmailRequest(string Email);
+public record LoginRequest(string Email, string Password);
+
+[ApiController]
+[AllowAnonymous]
+[Route("auth")]
+public class AuthController : ControllerBase
+{
+    readonly UserManager<AppUser> _users;
+    readonly SignInManager<AppUser> _signIn;
+    readonly EmailSender _email;
+    readonly IConfiguration _config;
+
+    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, IConfiguration config)
+    {
+        _users = users;
+        _signIn = signIn;
+        _email = email;
+        _config = config;
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register(RegisterRequest req)
+    {
+        var user = new AppUser { Email = req.Email, UserName = string.IsNullOrWhiteSpace(req.UserName) ? req.Email : req.UserName };
+        var result = await _users.CreateAsync(user, req.Password);
+        if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+
+        await SendConfirmation(user);
+        return Ok(new { message = "Check your email to confirm your account." });
+    }
+
+    [HttpGet("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail(string userId, string token)
+    {
+        var user = await _users.FindByIdAsync(userId);
+        if (user == null) return BadRequest(new { message = "Invalid confirmation link." });
+
+        string raw;
+        try { raw = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token)); }
+        catch (FormatException) { return BadRequest(new { message = "Invalid confirmation link." }); }
+
+        var result = await _users.ConfirmEmailAsync(user, raw);
+        if (!result.Succeeded) return BadRequest(new { message = "Invalid or expired confirmation link." });
+        return Ok(new { message = "Email confirmed. You can log in now." });
+    }
+
+    [HttpPost("resend-confirmation")]
+    public async Task<IActionResult> Resend(EmailRequest req)
+    {
+        var user = await _users.FindByEmailAsync(req.Email);
+        if (user != null && !user.EmailConfirmed) await SendConfirmation(user);
+        // same answer either way
+        return Ok(new { message = "If the account exists, a new confirmation email was sent." });
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginRequest req)
+    {
+        var user = await _users.FindByEmailAsync(req.Email);
+        if (user == null) return Unauthorized(new { message = "Invalid email or password." });
+
+        var result = await _signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
+        if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 15 minutes." });
+        if (result.IsNotAllowed) return StatusCode(403, new { message = "Confirm your email first" });
+        if (!result.Succeeded) return Unauthorized(new { message = "Invalid email or password." });
+
+        return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName });
+    }
+
+    async Task SendConfirmation(AppUser user)
+    {
+        var token = await _users.GenerateEmailConfirmationTokenAsync(user);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var link = $"{_config["App:FrontendUrl"]}/confirm-email?userId={user.Id}&token={encoded}";
+        await _email.Send(user.Email!, "Confirm your email", $"Confirm your account: {link}");
+    }
+
+    async Task<string> CreateToken(AppUser user)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, user.Id),
+            new(JwtRegisteredClaimNames.Email, user.Email!)
+        };
+        claims.AddRange((await _users.GetRolesAsync(user)).Select(r => new Claim(ClaimTypes.Role, r)));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var token = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Issuer"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddDays(7),
+            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
