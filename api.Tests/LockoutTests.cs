@@ -28,10 +28,11 @@ public class LockoutTests
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         var config = new ConfigurationBuilder().Build();
         var users = provider.GetRequiredService<UserManager<AppUser>>();
+        var db = provider.GetRequiredService<AppDbContext>();
+        var events = new SecurityLog(db);
         var controller = new AuthController(users,
-            provider.GetRequiredService<SignInManager<AppUser>>(),
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(provider.GetRequiredService<AppDbContext>(), users, config, env), config, NullLogger<AuthController>.Instance);
+            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance);
 
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@b.com", "Passw0rd1!", null)));
@@ -55,10 +56,11 @@ public class LockoutTests
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Production };
         var config = new ConfigurationBuilder().Build();
         var users = provider.GetRequiredService<UserManager<AppUser>>();
+        var db = provider.GetRequiredService<AppDbContext>();
+        var events = new SecurityLog(db);
         var controller = new AuthController(users,
-            provider.GetRequiredService<SignInManager<AppUser>>(),
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(provider.GetRequiredService<AppDbContext>(), users, config, env), config, NullLogger<AuthController>.Instance);
+            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance);
 
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
         var resend = Assert.IsType<ObjectResult>(await controller.Resend(new EmailRequest("kai@a.com")));

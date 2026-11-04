@@ -14,6 +14,8 @@ public record EmailRequest(string Email);
 public record LoginRequest(string Email, string Password);
 public record UserIdRequest(string UserId);
 public record ResetPasswordRequest(string UserId, string Token, string NewPassword);
+public record TwoFactorLoginRequest(string ChallengeToken, string Code);
+public record ConfirmEmailChangeRequest(string UserId, string NewEmail, string Token);
 
 [ApiController]
 [AllowAnonymous]
@@ -22,19 +24,21 @@ public record ResetPasswordRequest(string UserId, string Token, string NewPasswo
 public class AuthController : ControllerBase
 {
     readonly UserManager<AppUser> _users;
-    readonly SignInManager<AppUser> _signIn;
     readonly EmailSender _email;
     readonly SessionService _sessions;
+    readonly CredentialCheck _check;
+    readonly SecurityLog _events;
     readonly IConfiguration _config;
     readonly ILogger<AuthController> _log;
 
-    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, SessionService sessions, IConfiguration config, ILogger<AuthController> log)
+    public AuthController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, SecurityLog events, IConfiguration config, ILogger<AuthController> log)
     {
         _log = log;
         _users = users;
-        _signIn = signIn;
         _email = email;
         _sessions = sessions;
+        _check = check;
+        _events = events;
         _config = config;
     }
 
@@ -85,9 +89,9 @@ public class AuthController : ControllerBase
         var user = await _users.FindByEmailAsync(req.Email);
         if (user == null) return Unauthorized(new { message = "Invalid email or password." });
 
-        var result = await _signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
-        if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 5 minutes." });
-        if (!result.Succeeded)
+        var check = await _check.Password(user, req.Password, HttpContext);
+        if (check == Check.Locked) return CredentialCheck.Locked();
+        if (check == Check.Wrong)
         {
             // warn only when the lockout is close
             var left = _users.Options.Lockout.MaxFailedAccessAttempts - user.AccessFailedCount;
@@ -95,9 +99,32 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
+        // no session yet: the code step comes first (the failed count is kept until it passes)
+        if (user.TwoFactorEnabled) return Ok(new { twoFactorRequired = true, challengeToken = _sessions.ChallengeToken(user) });
+        return await OpenSession(user);
+    }
+
+    [HttpPost("2fa")]
+    public async Task<IActionResult> TwoFactor(TwoFactorLoginRequest req)
+    {
+        var id = _sessions.ReadChallenge(req.ChallengeToken);
+        var user = id == null ? null : await _users.FindByIdAsync(id);
+        if (user == null || !user.TwoFactorEnabled) return Unauthorized(new { message = "Sign-in expired. Log in again." });
+
+        var check = await _check.Code(user, req.Code, HttpContext);
+        if (check == Check.Locked) return CredentialCheck.Locked();
+        if (check == Check.Wrong) return Unauthorized(new { message = "Invalid code." });
+        return await OpenSession(user);
+    }
+
+    // password (and code) are right: start the session and set the cookie
+    async Task<IActionResult> OpenSession(AppUser user)
+    {
+        await _users.ResetAccessFailedCountAsync(user);
         await AdminBootstrap.TryPromote(_users, _config, user);
         var (session, refreshToken) = await _sessions.Create(user, Request.Headers.UserAgent.ToString(), HttpContext.Connection.RemoteIpAddress?.ToString());
         _sessions.SetCookie(Response, user.Id, refreshToken);
+        await _events.Add(user.Id, "login", HttpContext);
         return Ok(await SignedIn(user, session.Id));
     }
 
@@ -122,7 +149,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Logout(UserIdRequest req)
     {
         var token = Request.Cookies[SessionService.CookieName(req.UserId)];
-        if (token != null) await _sessions.RevokeByToken(req.UserId, token);
+        // only a real session's cookie writes an event, so nobody can fill another user's log
+        if (token != null && await _sessions.RevokeByToken(req.UserId, token)) await _events.Add(req.UserId, "logout", HttpContext);
         _sessions.DeleteCookie(Response, req.UserId);
         return NoContent();
     }
@@ -159,7 +187,34 @@ public class AuthController : ControllerBase
         await _sessions.RevokeAll(user.Id);
         await _users.SetLockoutEndDateAsync(user, null);
         await _users.ResetAccessFailedCountAsync(user);
+        await _events.Add(user.Id, "password-reset", HttpContext);
         return Ok(new { message = "Password changed. You can log in now." });
+    }
+
+    // the link from the email sent to the new address (see AccountController.ChangeEmail)
+    [HttpPost("confirm-email-change")]
+    public async Task<IActionResult> ConfirmEmailChange(ConfirmEmailChangeRequest req)
+    {
+        var invalid = BadRequest(new { message = "Invalid or expired link." });
+        var user = await _users.FindByIdAsync(req.UserId);
+        if (user == null) return invalid;
+
+        string raw;
+        try { raw = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Token)); }
+        catch (FormatException) { return invalid; }
+
+        var result = await _users.ChangeEmailAsync(user, req.NewEmail, raw);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(e => e.Code is nameof(IdentityErrorDescriber.DuplicateEmail) or nameof(IdentityErrorDescriber.InvalidEmail)))
+                return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+            return invalid;
+        }
+
+        // the new address changes the security stamp anyway, so every device signs in again
+        await _sessions.RevokeAll(user.Id);
+        await _events.Add(user.Id, "email-changed", HttpContext);
+        return Ok(new { message = "Email changed. Log in again with the new address." });
     }
 
     async Task TrySendPasswordReset(AppUser user)

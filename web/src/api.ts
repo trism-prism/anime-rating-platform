@@ -12,6 +12,9 @@ export class ApiError extends Error {
 // what /auth/login and /auth/refresh return
 export type SignedIn = { accessToken: string; userId: string; email: string; userName: string; emailVerified: boolean }
 
+// /auth/login answers this instead when the account has two-factor on; /auth/2fa then returns SignedIn
+export type TwoFactorStep = { twoFactorRequired: true; challengeToken: string }
+
 // the access token lives in memory only; the long-lived refresh token is an HttpOnly cookie
 let token: string | null = null
 let activeUser: string | null = null

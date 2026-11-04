@@ -38,7 +38,7 @@ public class SessionService
     // only the hash is stored, so a database leak gives no usable token
     static string Hash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
     static string NewToken() => WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
-    static string Trim(string? s, int max) => s == null ? "" : s.Length > max ? s[..max] : s;
+    public static string Trim(string? s, int max) => s == null ? "" : s.Length > max ? s[..max] : s;
     static bool IsActive(Session s) => s.RevokedAt == null && s.ExpiresAt > DateTime.UtcNow;
 
     public async Task<(Session Session, string RefreshToken)> Create(AppUser user, string? userAgent, string? ip)
@@ -120,15 +120,39 @@ public class SessionService
         await _db.SaveChangesAsync();
     }
 
-    // logout: the cookie's token identifies the session
-    public async Task RevokeByToken(string userId, string token)
+    // an identity change (password, email, 2FA) renews the security stamp, which ends sessions at their next refresh.
+    // So the caller's own session takes the new stamp and every other one ends now.
+    public async Task KeepOnly(string userId, Guid? keep)
+    {
+        var user = await _users.FindByIdAsync(userId);
+        foreach (var s in await Active(userId))
+        {
+            if (s.Id == keep) s.SecurityStamp = user?.SecurityStamp ?? "";
+            else s.RevokedAt = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync();
+    }
+
+    // logout: the cookie's token identifies the session; false when it matched none
+    public async Task<bool> RevokeByToken(string userId, string token)
     {
         var hash = Hash(token);
         var s = await _db.Sessions.FirstOrDefaultAsync(x => x.UserId == userId && (x.CurrentTokenHash == hash || x.PreviousTokenHash == hash));
-        if (s == null) return;
+        if (s == null) return false;
         s.RevokedAt ??= DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        return true;
     }
+
+    SymmetricSecurityKey Key() => new(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+
+    string Sign(IEnumerable<Claim> claims, string audience, TimeSpan life) =>
+        new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow + life,
+            signingCredentials: new SigningCredentials(Key(), SecurityAlgorithms.HmacSha256)));
 
     public async Task<string> AccessToken(AppUser user, Guid sid)
     {
@@ -139,15 +163,32 @@ public class SessionService
             new(JwtRegisteredClaimNames.Sid, sid.ToString())
         };
         claims.AddRange((await _users.GetRolesAsync(user)).Select(r => new Claim(ClaimTypes.Role, r)));
+        return Sign(claims, _config["Jwt:Issuer"]!, TimeSpan.FromMinutes(15));
+    }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Issuer"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(15),
-            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
-        return new JwtSecurityTokenHandler().WriteToken(token);
+    // proves the password step for 5 minutes; its own audience keeps the API from accepting it as an access token
+    public string ChallengeToken(AppUser user) =>
+        Sign(new[] { new Claim(JwtRegisteredClaimNames.Sub, user.Id), new Claim("purpose", "2fa") },
+            _config["Jwt:Issuer"] + ":2fa", TimeSpan.FromMinutes(5));
+
+    // the user id in a valid challenge token, else null
+    public string? ReadChallenge(string? token)
+    {
+        try
+        {
+            var p = new JwtSecurityTokenHandler { MapInboundClaims = false }.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidIssuer = _config["Jwt:Issuer"],
+                ValidAudience = _config["Jwt:Issuer"] + ":2fa",
+                IssuerSigningKey = Key(),
+                ClockSkew = TimeSpan.FromSeconds(30)
+            }, out _);
+            return p.FindFirst("purpose")?.Value == "2fa" ? p.FindFirst("sub")?.Value : null;
+        }
+        catch (Exception) // malformed, expired, wrong audience or signature
+        {
+            return null;
+        }
     }
 
     CookieOptions CookieOptions(TimeSpan? maxAge) => new()

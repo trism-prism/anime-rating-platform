@@ -45,7 +45,7 @@ Either:
 - [ ] Log in works even before the email is confirmed; posting review text needs a confirmed email
 - [ ] Log in, rate a title, it appears in My List
 - [ ] Trending and Rankings pages load
-- [ ] Wrong password 5 times locks the account for 15 minutes
+- [ ] Wrong password 10 times locks the account for 5 minutes
 
 ## Free email with the Gmail API
 

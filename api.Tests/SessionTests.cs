@@ -52,14 +52,17 @@ public class SessionTests
     {
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = env };
-        return new AuthController(users, p.GetRequiredService<SignInManager<AppUser>>(),
+        return new AuthController(users,
             new EmailSender(Config, NullLogger<EmailSender>.Instance, host, new HttpClient()),
-            Sessions(p, env), Config, NullLogger<AuthController>.Instance)
+            Sessions(p, env), Check(p), Events(p), Config, NullLogger<AuthController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = http } };
     }
 
+    static SecurityLog Events(ServiceProvider p) => new(p.GetRequiredService<AppDbContext>());
+    static CredentialCheck Check(ServiceProvider p) => new(p.GetRequiredService<UserManager<AppUser>>(), Events(p));
+
     static SessionsController SessionsApi(ServiceProvider p, AppUser user, Guid sid) =>
-        new(Sessions(p))
+        new(Sessions(p), Events(p))
         {
             ControllerContext = new ControllerContext
             {

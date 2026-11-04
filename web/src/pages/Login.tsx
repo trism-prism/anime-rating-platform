@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { api, type SignedIn } from '../api'
+import { api, type SignedIn, type TwoFactorStep } from '../api'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
 
@@ -11,6 +11,8 @@ export default function Login() {
   const note: string | undefined = location.state?.note // set by Register
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [challenge, setChallenge] = useState<string | null>(null) // set once the password was right and a code is needed
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -19,11 +21,24 @@ export default function Login() {
     setError('')
     setBusy(true)
     try {
-      const s = await api<SignedIn>('/auth/login', {
+      if (challenge) {
+        const s = await api<SignedIn>('/auth/2fa', {
+          method: 'POST',
+          body: JSON.stringify({ challengeToken: challenge, code }),
+        })
+        await login(s)
+        navigate('/')
+        return
+      }
+      const r = await api<SignedIn | TwoFactorStep>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
-      await login(s)
+      if ('twoFactorRequired' in r) {
+        setChallenge(r.challengeToken)
+        return
+      }
+      await login(r)
       navigate('/')
     } catch (err) {
       setError((err as Error).message)
@@ -31,6 +46,27 @@ export default function Login() {
       setBusy(false)
     }
   }
+
+  function startOver() {
+    setChallenge(null)
+    setCode('')
+    setPassword('')
+    setError('')
+  }
+
+  if (challenge)
+    return (
+      <form className="auth-form" onSubmit={submit}>
+        <h1>Two-factor authentication</h1>
+        <label>Code
+          <input required autoFocus autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+        </label>
+        <p className="muted hint">Enter the 6-digit code from your authenticator app. No phone? Use a recovery code instead.</p>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button type="submit" disabled={busy}>Continue</button>
+        <button type="button" onClick={startOver} disabled={busy}>Back to login</button>
+      </form>
+    )
 
   return (
     <form className="auth-form" onSubmit={submit}>

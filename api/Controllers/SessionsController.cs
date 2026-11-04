@@ -11,8 +11,13 @@ namespace api.Controllers;
 public class SessionsController : ControllerBase
 {
     readonly SessionService _sessions;
+    readonly SecurityLog _events;
 
-    public SessionsController(SessionService sessions) => _sessions = sessions;
+    public SessionsController(SessionService sessions, SecurityLog events)
+    {
+        _sessions = sessions;
+        _events = events;
+    }
 
     string UserId => User.FindFirst("sub")!.Value;
     string? CurrentId => User.FindFirst("sid")?.Value;
@@ -32,6 +37,7 @@ public class SessionsController : ControllerBase
     public async Task<IActionResult> Revoke(Guid id)
     {
         if (!await _sessions.Revoke(UserId, id)) return NotFound();
+        await _events.Add(UserId, "session-revoked", HttpContext);
         return NoContent();
     }
 
@@ -39,6 +45,7 @@ public class SessionsController : ControllerBase
     public async Task<IActionResult> RevokeOthers()
     {
         await _sessions.RevokeAll(UserId, Guid.TryParse(CurrentId, out var sid) ? sid : null);
+        await _events.Add(UserId, "other-sessions-revoked", HttpContext);
         return NoContent();
     }
 }

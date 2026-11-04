@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Rating> Ratings => Set<Rating>();
     public DbSet<WatchListEntry> WatchList => Set<WatchListEntry>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -29,5 +30,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         b.Entity<WatchListEntry>().HasIndex(w => new { w.UserId, w.TitleId }).IsUnique();
         b.Entity<WatchListEntry>().Property(w => w.Status).HasConversion<string>();
         b.Entity<Session>().HasIndex(s => s.UserId);
+        b.Entity<SecurityEvent>().HasIndex(e => new { e.UserId, e.At });
     }
 }

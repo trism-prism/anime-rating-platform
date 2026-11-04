@@ -2,15 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
+import { device } from '../device'
+import Activity from '../components/Activity'
+import EmailForm from '../components/EmailForm'
+import PasswordForm from '../components/PasswordForm'
+import TwoFactor from '../components/TwoFactor'
 
 type SessionRow = { id: string; createdAt: string; lastUsedAt: string; userAgent: string; ip: string; current: boolean }
-
-// rough "Chrome on Windows" from the user agent; the order matters (Edge and Chrome also say Safari, Android says Linux)
-function device(ua: string) {
-  const browser = ['Edg/', 'Firefox', 'Chrome', 'Safari'].find((b) => ua.includes(b))
-  const os = ['Windows', 'Android', 'iPhone', 'Mac', 'Linux'].find((o) => ua.includes(o))
-  return `${browser === 'Edg/' ? 'Edge' : (browser ?? 'Browser')} on ${os ?? 'unknown system'}`
-}
 
 export default function Settings() {
   const { user, emailVerified, loading, refresh, logout } = useAuth()
@@ -27,6 +25,13 @@ export default function Settings() {
     api<SessionRow[]>('/me/sessions').then(setSessions).catch((e: Error) => setDevicesError(e.message))
   }, [])
   useEffect(() => { if (user) loadSessions() }, [user, loadSessions])
+
+  // after something that signs devices out or writes an event: reload both lists (a new key remounts Activity)
+  const [changes, setChanges] = useState(0)
+  function changed() {
+    loadSessions()
+    setChanges((n) => n + 1)
+  }
 
   if (!user) return <Navigate to="/login" replace />
 
@@ -54,7 +59,7 @@ export default function Settings() {
     } catch (err) {
       setDevicesError((err as Error).message)
     }
-    loadSessions()
+    changed()
   }
 
   async function signOutOthers() {
@@ -64,7 +69,7 @@ export default function Settings() {
     } catch (err) {
       setDevicesError((err as Error).message)
     }
-    loadSessions()
+    changed()
   }
 
   return (
@@ -86,6 +91,15 @@ export default function Settings() {
       {msg && <p className="muted">{msg}</p>}
       {error && <p className="error">{error}</p>}
 
+      <h2>Password</h2>
+      <PasswordForm onChanged={changed} />
+
+      <h2>Email</h2>
+      <EmailForm onChanged={changed} />
+
+      <h2>Two-factor authentication</h2>
+      <TwoFactor onChanged={changed} />
+
       <h2>Signed-in devices</h2>
       {devicesError && <p className="error">{devicesError}</p>}
       {sessions === null && !devicesError && <p className="muted">Loading...</p>}
@@ -100,6 +114,9 @@ export default function Settings() {
         </div>
       ))}
       {sessions && sessions.length > 1 && <button onClick={signOutOthers}>Sign out all other devices</button>}
+
+      <h2>Recent activity</h2>
+      <Activity key={changes} />
     </div>
   )
 }

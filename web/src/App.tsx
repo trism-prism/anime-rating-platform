@@ -12,6 +12,7 @@ import ResetPassword from './pages/ResetPassword'
 import Settings from './pages/Settings'
 import Admin from './pages/Admin'
 import ConfirmEmail from './pages/ConfirmEmail'
+import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Privacy from './pages/Privacy'
 import { AuthProvider } from './auth'
 
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />
+          <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="*"element={<h1>Page not found</h1>} />
         </Route>

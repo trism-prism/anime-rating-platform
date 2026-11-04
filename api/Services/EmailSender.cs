@@ -40,6 +40,15 @@ public class EmailSender
         await Send(user.Email!, "Reset your password", $"Reset your password: {link}");
     }
 
+    // the link goes to the new address; the token only fits that address
+    public async Task SendEmailChange(UserManager<AppUser> users, AppUser user, string newEmail)
+    {
+        var token = await users.GenerateChangeEmailTokenAsync(user, newEmail);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var link = $"{_config["App:FrontendUrl"]}/confirm-email-change?userId={user.Id}&newEmail={Uri.EscapeDataString(newEmail)}&token={encoded}";
+        await Send(newEmail, "Confirm your new email", $"Confirm your new email address: {link}");
+    }
+
     public async Task Send(string to, string subject, string body)
     {
         if (!string.IsNullOrEmpty(_config["Gmail:RefreshToken"]))

@@ -5,6 +5,7 @@ using api.Controllers;
 using api.Data;
 using api.Models;
 using api.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -65,9 +66,12 @@ public class AuthFlowTests
         var config = new ConfigurationBuilder().Build();
         var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = env };
         var users = p.GetRequiredService<UserManager<AppUser>>();
-        return new AuthController(users, p.GetRequiredService<SignInManager<AppUser>>(),
+        var db = p.GetRequiredService<AppDbContext>();
+        var events = new SecurityLog(db);
+        return new AuthController(users,
             new EmailSender(config, NullLogger<EmailSender>.Instance, host, new HttpClient()),
-            new SessionService(p.GetRequiredService<AppDbContext>(), users, config, host), config, NullLogger<AuthController>.Instance);
+            new SessionService(db, users, config, host), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // the lockout event reads the request
     }
 
     static async Task<AppUser> AddUser(ServiceProvider p)
