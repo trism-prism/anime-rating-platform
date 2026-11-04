@@ -33,3 +33,5 @@ More setup notes are added as features land.
 - `PUT /titles/{id}/rating` create or update your rating (log in first)
 - `DELETE /titles/{id}/rating` remove your rating
 - `GET /me/ratings` your ratings
+- `GET /trending?type=Anime|Manga` what is trending on AniList right now, limited to titles we have
+- `GET /rankings?category=overall|story|art|characters|enjoyment&type=&take=20` best rated titles (at least 3 ratings)
