@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
 import ScoreBar from '../components/ScoreBar'
+import RateForm from '../components/RateForm'
+import ListForm from '../components/ListForm'
 import type { TitleDetail as Detail } from '../types'
 
 // AniList synopses contain html (<br>, <i>); show as plain text instead of injecting html
@@ -13,6 +15,7 @@ export default function TitleDetail() {
   const { id } = useParams()
   const [title, setTitle] = useState<Detail | null>(null)
   const [error, setError] = useState('')
+  const [tick, setTick] = useState(0) // bump to refetch after rating
 
   useEffect(() => {
     let stale = false
@@ -22,7 +25,8 @@ export default function TitleDetail() {
     return () => {
       stale = true
     }
-  }, [id])
+  }, [id, tick])
+  const load = () => setTick((t) => t + 1)
 
   if (error && !title) return <p className="error">{error}</p>
   if (!title || title.id !== Number(id)) return <p className="muted">Loading...</p>
@@ -57,7 +61,12 @@ export default function TitleDetail() {
         <p className="muted">No ratings yet.</p>
       )}
 
-      {/* TODO (later PR): rate form goes here */}
+      <h2>Your rating</h2>
+      <RateForm key={title.id} titleId={title.id} onChanged={load} />
+
+      <h2>Your list</h2>
+      <ListForm key={title.id} titleId={title.id} />
+
 
       <h2>Characters</h2>
       {title.characters.length === 0 && <p className="muted">No characters listed.</p>}

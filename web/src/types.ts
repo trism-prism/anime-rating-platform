@@ -65,3 +65,45 @@ export interface TitleDetail {
   ratingCount: number
   reviews: Review[]
 }
+
+export interface MyRating {
+  titleId: number
+  titleName: string
+  coverUrl: string | null
+  story: number
+  art: number
+  characters: number
+  enjoyment: number
+  overall: number
+  reviewText: string | null
+  createdAt: string
+}
+
+export type WatchStatus = 'Planning' | 'Watching' | 'Completed' | 'Dropped'
+export const STATUSES: WatchStatus[] = ['Planning', 'Watching', 'Completed', 'Dropped']
+
+export interface WatchEntry {
+  titleId: number
+  name: string
+  coverUrl: string | null
+  type: TitleType
+  status: WatchStatus
+  progress: number
+}
+
+export interface TrendingItem {
+  id: number
+  name: string
+  coverUrl: string | null
+  type: TitleType
+  averageOverall: number | null
+}
+
+export interface RankingRow {
+  id: number
+  name: string
+  coverUrl: string | null
+  type: TitleType
+  average: number
+  ratingCount: number
+}

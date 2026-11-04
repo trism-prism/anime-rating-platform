@@ -18,7 +18,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     // the API sends either {message} or {errors:[...]}
-    const msg = data?.message ?? (Array.isArray(data?.errors) ? data.errors.join(' ') : null)
+    const msg = (typeof data === 'string' ? data : null) ?? data?.message ?? (Array.isArray(data?.errors) ? data.errors.join(' ') : null)
     throw new ApiError(msg ?? `Request failed (${res.status})`, res.status)
   }
   return data as T
