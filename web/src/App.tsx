@@ -9,7 +9,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
-import Account from './pages/Account'
+import Settings from './pages/Settings'
 import Admin from './pages/Admin'
 import ConfirmEmail from './pages/ConfirmEmail'
 import Privacy from './pages/Privacy'
@@ -30,7 +30,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/account" element={<Account />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="/privacy" element={<Privacy />} />

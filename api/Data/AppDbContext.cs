@@ -14,6 +14,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<TitleCharacter> TitleCharacters => Set<TitleCharacter>();
     public DbSet<Rating> Ratings => Set<Rating>();
     public DbSet<WatchListEntry> WatchList => Set<WatchListEntry>();
+    public DbSet<Session> Sessions => Set<Session>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -27,5 +28,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
         b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId }).IsUnique();
         b.Entity<WatchListEntry>().HasIndex(w => new { w.UserId, w.TitleId }).IsUnique();
         b.Entity<WatchListEntry>().Property(w => w.Status).HasConversion<string>();
+        b.Entity<Session>().HasIndex(s => s.UserId);
     }
 }

@@ -18,9 +18,9 @@ export default function ConfirmEmail() {
     if (!valid || called.current) return
     called.current = true
     api<{ message: string }>(`/auth/confirm-email?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(token)}`)
-      .then((r) => { setStatus('ok'); setMessage(r.message); if (localStorage.getItem('token')) refresh() })
+      .then((r) => { setStatus('ok'); setMessage(r.message); if (user) refresh() })
       .catch((err) => { setStatus('error'); setMessage(err.message) })
-  }, [valid, userId, token, refresh])
+  }, [valid, userId, token, refresh, user])
 
   return (
     <div className="auth-form">
@@ -29,7 +29,7 @@ export default function ConfirmEmail() {
       {status === 'ok' && <p>{message}</p>}
       {status === 'error' && <p className="error">{message}</p>}
       {status !== 'loading' && (user
-        ? <Link to="/account" className="link">Go to account</Link>
+        ? <Link to="/settings" className="link">Go to settings</Link>
         : <Link to="/login" className="link">Go to login</Link>)}
     </div>
   )

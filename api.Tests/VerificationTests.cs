@@ -49,8 +49,11 @@ public class VerificationTests
     {
         var config = p.GetRequiredService<IConfiguration>();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
-        return new AuthController(p.GetRequiredService<UserManager<AppUser>>(), p.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), config, NullLogger<AuthController>.Instance);
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        return new AuthController(users, p.GetRequiredService<SignInManager<AppUser>>(),
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(p.GetRequiredService<AppDbContext>(), users, config, env), config, NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // login sets a cookie
     }
 
     static ClaimsPrincipal Principal(string id) => new(new ClaimsIdentity(new[] { new Claim("sub", id) }, "test"));

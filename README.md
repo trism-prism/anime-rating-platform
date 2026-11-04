@@ -22,7 +22,7 @@ Set as environment variables (`__` for nesting) in production, or with `dotnet u
 - `Gmail__ClientId`, `Gmail__ClientSecret`, `Gmail__RefreshToken`, `Gmail__From` (Gmail API sender, used first when the refresh token is set; see DEPLOY.md)
 - `Resend__ApiKey`, `Resend__From` (fallback sender; with neither sender set, Development logs the confirmation link to the console and other environments fail to send)
 - `App__FrontendUrl` base URL used in email links
-- `Cors__Origins` comma separated allowed origins
+- `Cors__Origins` comma separated allowed origins (only for local development; in production the site reaches the API through its own `/api` path, see DEPLOY.md)
 - `Admin__Email` bootstraps the first admin: that user gets the Admin role at login once their email is verified and no admin exists. Other admins are managed on the site
 - `ConnectionStrings__Default`
 
@@ -31,7 +31,10 @@ More setup notes are added as features land.
 ## API
 - `GET /titles?search=&type=&genre=&page=&pageSize=` paged list, most popular first
 - `GET /titles/{id}` title with characters, average scores and reviews
-- `POST /auth/login` log in; works before the email is verified and returns `emailVerified`
+- `POST /auth/login` log in; works before the email is verified and returns a 15 minute `accessToken` and `emailVerified`. A 30 day refresh token is set as an HttpOnly cookie `rt_<userId>`
+- `POST /auth/refresh` `{userId}` swap the refresh cookie for a new one and a new access token; reusing an old refresh token ends the session
+- `POST /auth/logout` `{userId}` end that session and delete its cookie
+- `GET /me/sessions` your signed-in devices; `POST /me/sessions/{id}/revoke` and `POST /me/sessions/revoke-others` sign devices out
 - `GET /me` your email, user name, `emailVerified` and `isAdmin`
 - `POST /me/verify-email` send (or resend) the verification email, once a minute
 - `GET /admin/users?search=&page=&pageSize=` list users (admin)

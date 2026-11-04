@@ -64,8 +64,10 @@ public class AuthFlowTests
     {
         var config = new ConfigurationBuilder().Build();
         var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = env };
-        return new AuthController(p.GetRequiredService<UserManager<AppUser>>(), p.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, host, new HttpClient()), config, NullLogger<AuthController>.Instance);
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        return new AuthController(users, p.GetRequiredService<SignInManager<AppUser>>(),
+            new EmailSender(config, NullLogger<EmailSender>.Instance, host, new HttpClient()),
+            new SessionService(p.GetRequiredService<AppDbContext>(), users, config, host), config, NullLogger<AuthController>.Instance);
     }
 
     static async Task<AppUser> AddUser(ServiceProvider p)

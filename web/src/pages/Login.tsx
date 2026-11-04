@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { api } from '../api'
+import { api, type SignedIn } from '../api'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
 
@@ -19,11 +19,11 @@ export default function Login() {
     setError('')
     setBusy(true)
     try {
-      const u = await api<{ token: string; email: string; userName: string; emailVerified: boolean }>('/auth/login', {
+      const s = await api<SignedIn>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
-      login(u)
+      await login(s)
       navigate('/')
     } catch (err) {
       setError((err as Error).message)

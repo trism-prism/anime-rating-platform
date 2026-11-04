@@ -27,14 +27,15 @@ public class LockoutTests
         using var provider = services.BuildServiceProvider();
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
         var config = new ConfigurationBuilder().Build();
-        var controller = new AuthController(provider.GetRequiredService<UserManager<AppUser>>(),
+        var users = provider.GetRequiredService<UserManager<AppUser>>();
+        var controller = new AuthController(users,
             provider.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), config, NullLogger<AuthController>.Instance);
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(provider.GetRequiredService<AppDbContext>(), users, config, env), config, NullLogger<AuthController>.Instance);
 
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@b.com", "Passw0rd1!", null)));
 
-        var users = provider.GetRequiredService<UserManager<AppUser>>();
         Assert.Equal("kai", (await users.FindByEmailAsync("kai@a.com"))!.UserName);
         var second = (await users.FindByEmailAsync("kai@b.com"))!.UserName!;
         Assert.Matches(@"^kai\d{4}$", second);
@@ -53,9 +54,11 @@ public class LockoutTests
         // Production without Resend:ApiKey makes EmailSender throw
         var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Production };
         var config = new ConfigurationBuilder().Build();
-        var controller = new AuthController(provider.GetRequiredService<UserManager<AppUser>>(),
+        var users = provider.GetRequiredService<UserManager<AppUser>>();
+        var controller = new AuthController(users,
             provider.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()), config, NullLogger<AuthController>.Instance);
+            new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(provider.GetRequiredService<AppDbContext>(), users, config, env), config, NullLogger<AuthController>.Instance);
 
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
         var resend = Assert.IsType<ObjectResult>(await controller.Resend(new EmailRequest("kai@a.com")));
