@@ -51,3 +51,4 @@ Either:
 - CORS error in the browser console: `Cors__Origins` does not exactly match the Vercel URL.
 - No email: check `Smtp__*` and that the app password has no spaces.
 - Database errors: migrations run on every start; check the Railway deploy logs.
+- No email on Railway and logs say 'Network is unreachable': add variable DOTNET_SYSTEM_NET_DISABLEIPV6=1 (the container has no IPv6 route).
