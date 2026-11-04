@@ -16,7 +16,7 @@ API on Railway (with Postgres), website on Vercel. Both deploy from `main` on Gi
    - `Admin__Email` = the email you will register with on the site (that account becomes Admin)
    - `App__FrontendUrl` and `Cors__Origins`: put `http://localhost:5173` for now, you fix them in step 3
 4. API service > **Settings**: turn on **Wait for CI** so a deploy only runs after the GitHub checks pass.
-5. API service > **Settings > Networking > Generate Domain**. Open `https://<that-domain>/health`; it should say `ok`.
+5. API service > **Settings > Networking > Generate Domain**. When it asks for the port, enter the port shown in the deploy log line `Now listening on` (Railway sets `PORT`, usually 8080). Open `https://<that-domain>/health`; it should say `ok`.
 
 ## 2. Vercel (website)
 
