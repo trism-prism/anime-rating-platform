@@ -127,7 +127,7 @@ using (var scope = app.Services.CreateScope())
 {
     try
     {
-        await UserNames.FixEmailNames(scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>());
+        await UserNames.FixEmailNames(scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>(), app.Logger);
     }
     catch (Exception ex)
     {

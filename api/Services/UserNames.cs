@@ -5,19 +5,25 @@ namespace api.Services;
 
 public static class UserNames
 {
-    // the email's local part, plus 4 random digits if that name is taken
+    // the email's local part (only characters Identity allows), plus 4 random digits while that name is taken
     public static async Task<string> FromEmail(UserManager<AppUser> users, string email)
     {
-        var name = email.Split('@')[0];
-        if (await users.FindByNameAsync(name) != null) name += Random.Shared.Next(1000, 10000);
+        var local = new string(email.Split('@')[0].Where(c => char.IsAsciiLetterOrDigit(c) || "-._+".Contains(c)).ToArray());
+        var name = local.Length > 0 ? local : "user";
+        for (var i = 0; i < 10 && await users.FindByNameAsync(name) != null; i++)
+            name = (local.Length > 0 ? local : "user") + Random.Shared.Next(1000, 10000);
         return name;
     }
 
     // accounts made before usernames were generated have the email as their username
-    public static async Task FixEmailNames(UserManager<AppUser> users)
+    public static async Task FixEmailNames(UserManager<AppUser> users, ILogger log)
     {
         var bad = users.Users.Where(u => u.UserName != null && u.UserName.Contains("@")).ToList();
         foreach (var user in bad)
-            await users.SetUserNameAsync(user, await FromEmail(users, user.UserName!));
+        {
+            var result = await users.SetUserNameAsync(user, await FromEmail(users, user.UserName!));
+            if (!result.Succeeded)
+                log.LogWarning("Username fix failed for {Id}: {Errors}", user.Id, string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
     }
 }
