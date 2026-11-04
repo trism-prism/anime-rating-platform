@@ -30,6 +30,9 @@ export default function Layout() {
       <main className="page">
         <Outlet />
       </main>
+      <footer className="page muted">
+        <NavLink to="/privacy">Privacy</NavLink>
+      </footer>
     </>
   )
 }
