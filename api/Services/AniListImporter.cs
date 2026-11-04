@@ -48,8 +48,7 @@ public class AniListImporter
                     title.Type = type;
                     title.Name = m.Title.English ?? m.Title.Romaji ?? "";
                     title.CoverUrl = m.CoverImage?.Large;
-                    title.Synopsis = m.Description == null ? null : Regex.Replace(Regex.Replace(m.Description, "<br\s*/?>", "
-"), "<.*?>", "").Trim();
+                    title.Synopsis = m.Description == null ? null : Regex.Replace(Regex.Replace(m.Description, @"<br\s*/?>", "\n"), "<.*?>", "").Trim();
                     title.Episodes = m.Episodes;
                     title.Chapters = m.Chapters;
                     title.Genres = string.Join(",", m.Genres ?? new());
