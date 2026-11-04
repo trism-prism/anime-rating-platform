@@ -10,7 +10,7 @@ type Field = (typeof FIELDS)[number]
 const blank: Record<Field, number> = { story: 5, art: 5, characters: 5, enjoyment: 5 }
 
 export default function RateForm({ titleId, onChanged }: { titleId: number; onChanged: () => void }) {
-  const { user } = useAuth()
+  const { user, emailVerified } = useAuth()
   const [scores, setScores] = useState(blank)
   const [review, setReview] = useState('')
   const [hasRating, setHasRating] = useState(false)
@@ -90,7 +90,16 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
           <span className="score-value">{scores[f]}</span>
         </label>
       ))}
-      <textarea placeholder="Review (optional)" rows={4} value={review} onChange={(e) => setReview(e.target.value)} />
+      <textarea
+        placeholder="Review (optional)"
+        rows={4}
+        value={review}
+        disabled={!emailVerified}
+        onChange={(e) => setReview(e.target.value)}
+      />
+      {!emailVerified && (
+        <p className="muted hint"><Link to="/account" className="link">Verify your email in Account settings</Link> to write a review</p>
+      )}
       <div className="row">
         <button type="submit" disabled={busy}>{hasRating ? 'Update rating' : 'Save rating'}</button>
         {hasRating && <button type="button" disabled={busy} onClick={remove}>Delete</button>}

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import { useAuth } from '../auth'
 
 export default function ConfirmEmail() {
   const [params] = useSearchParams()
+  const { user, refresh } = useAuth()
   const userId = params.get('userId')
   const token = params.get('token')
   const valid = !!userId && !!token
@@ -16,9 +18,9 @@ export default function ConfirmEmail() {
     if (!valid || called.current) return
     called.current = true
     api<{ message: string }>(`/auth/confirm-email?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(token)}`)
-      .then((r) => { setStatus('ok'); setMessage(r.message) })
+      .then((r) => { setStatus('ok'); setMessage(r.message); if (localStorage.getItem('token')) refresh() })
       .catch((err) => { setStatus('error'); setMessage(err.message) })
-  }, [valid, userId, token])
+  }, [valid, userId, token, refresh])
 
   return (
     <div className="auth-form">
@@ -26,7 +28,9 @@ export default function ConfirmEmail() {
       {status === 'loading' && <p className="muted">Confirming...</p>}
       {status === 'ok' && <p>{message}</p>}
       {status === 'error' && <p className="error">{message}</p>}
-      {status !== 'loading' && <Link to="/login" className="link">Go to login</Link>}
+      {status !== 'loading' && (user
+        ? <Link to="/account" className="link">Go to account</Link>
+        : <Link to="/login" className="link">Go to login</Link>)}
     </div>
   )
 }
