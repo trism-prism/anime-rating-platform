@@ -17,6 +17,7 @@ public record Refreshed(Session Session, AppUser User, string RefreshToken);
 public class SessionService
 {
     static readonly TimeSpan Lifetime = TimeSpan.FromDays(30);
+    static readonly TimeSpan MaxAge = TimeSpan.FromDays(90); // a session is never older than this, however often it refreshes
     // the browser sees the API under /api (Vercel rewrite, Vite proxy), so the cookie path needs the prefix
     const string CookiePath = "/api/auth";
 
@@ -82,8 +83,23 @@ public class SessionService
         s.PreviousTokenHash = s.CurrentTokenHash;
         s.CurrentTokenHash = Hash(next);
         s.LastUsedAt = DateTime.UtcNow;
-        s.ExpiresAt = s.LastUsedAt + Lifetime;
-        await _db.SaveChangesAsync();
+        // sliding, but never past 90 days from sign-in
+        var slid = s.LastUsedAt + Lifetime;
+        var cap = s.CreatedAt + MaxAge;
+        s.ExpiresAt = slid < cap ? slid : cap;
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // another request rotated the same token first (CurrentTokenHash is the concurrency token), so
+            // this one holds a used token: same as reuse. Take the row as the winner left it and end it.
+            await ex.Entries.Single().ReloadAsync();
+            s.RevokedAt ??= DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return null;
+        }
         return new Refreshed(s, user, next);
     }
 

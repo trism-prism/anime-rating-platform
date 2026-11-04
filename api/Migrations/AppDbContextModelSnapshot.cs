@@ -334,6 +334,7 @@ namespace api.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CurrentTokenHash")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasColumnType("text");
 

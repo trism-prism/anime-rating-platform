@@ -30,6 +30,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
         b.Entity<WatchListEntry>().HasIndex(w => new { w.UserId, w.TitleId }).IsUnique();
         b.Entity<WatchListEntry>().Property(w => w.Status).HasConversion<string>();
         b.Entity<Session>().HasIndex(s => s.UserId);
+        // two refreshes with the same token: only the first update finds this hash still in place
+        b.Entity<Session>().Property(s => s.CurrentTokenHash).IsConcurrencyToken();
         b.Entity<SecurityEvent>().HasIndex(e => new { e.UserId, e.At });
     }
 }

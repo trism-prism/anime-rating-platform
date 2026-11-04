@@ -133,6 +133,7 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(UserIdRequest req)
     {
+        if (!Guid.TryParse(req.UserId, out _)) return BadRequest(new { message = "Invalid user id." }); // it names a cookie
         var token = Request.Cookies[SessionService.CookieName(req.UserId)];
         var r = token == null ? null : await _sessions.Refresh(req.UserId, token);
         if (r == null)
@@ -148,6 +149,7 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(UserIdRequest req)
     {
+        if (!Guid.TryParse(req.UserId, out _)) return BadRequest(new { message = "Invalid user id." });
         var token = Request.Cookies[SessionService.CookieName(req.UserId)];
         // only a real session's cookie writes an event, so nobody can fill another user's log
         if (token != null && await _sessions.RevokeByToken(req.UserId, token)) await _events.Add(req.UserId, "logout", HttpContext);

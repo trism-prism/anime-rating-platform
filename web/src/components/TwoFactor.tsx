@@ -5,7 +5,7 @@ import PasswordInput from './PasswordInput'
 
 type Status = { enabled: boolean; recoveryCodesLeft: number }
 type Setup = { key: string; uri: string }
-type Form = 'none' | 'codes' | 'disable'
+type Form = 'none' | 'setup' | 'codes' | 'disable'
 
 // authenticator-app two-factor: turn on, turn off, new recovery codes
 export default function TwoFactor({ onChanged }: { onChanged: () => void }) {
@@ -46,12 +46,18 @@ export default function TwoFactor({ onChanged }: { onChanged: () => void }) {
 
   const post = (path: string, body: object) => api<{ recoveryCodes: string[] }>(path, { method: 'POST', body: JSON.stringify(body) })
 
-  const startSetup = () => run(async () => setSetup(await api<Setup>('/me/2fa/setup')))
+  // the password is asked first (the key is a secret) and sent again with the code
+  const startSetup = (e: FormEvent) => {
+    e.preventDefault()
+    return run(async () => {
+      setSetup(await api<Setup>('/me/2fa/setup', { method: 'POST', body: JSON.stringify({ currentPassword: password }) }))
+    })
+  }
 
   const enable = (e: FormEvent) => {
     e.preventDefault()
     return run(async () => {
-      const r = await post('/me/2fa/enable', { code })
+      const r = await post('/me/2fa/enable', { currentPassword: password, code })
       setCodes(r.recoveryCodes)
       setStatus({ enabled: true, recoveryCodesLeft: r.recoveryCodes.length })
       close()
@@ -125,8 +131,18 @@ export default function TwoFactor({ onChanged }: { onChanged: () => void }) {
     return (
       <div className="settings-form">
         <p className="muted">Off. Ask for a code from an authenticator app each time you log in.</p>
-        {error && <p className="error" role="alert">{error}</p>}
-        <button type="button" onClick={startSetup} disabled={busy}>Set up authenticator app</button>
+        {form === 'setup' ? (
+          <form className="settings-form" onSubmit={startSetup}>
+            <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
+            {error && <p className="error" role="alert">{error}</p>}
+            <div className="row">
+              <button type="submit" disabled={busy}>Continue</button>
+              <button type="button" onClick={close} disabled={busy}>Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setForm('setup')}>Set up authenticator app</button>
+        )}
       </div>
     )
 

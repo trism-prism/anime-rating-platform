@@ -31,7 +31,8 @@ public class SessionTests
         services.AddLogging();
         services.AddHttpContextAccessor();
         services.AddAuthentication();
-        services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        var dbName = Guid.NewGuid().ToString(); // one name, so scopes (one DbContext each) share the data
+        services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddIdentityCore<AppUser>().AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
         return services.BuildServiceProvider();
@@ -175,6 +176,49 @@ public class SessionTests
 
         Assert.Null(await sessions.Refresh(user.Id, token));
         Assert.False(await sessions.IsActive(session.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task Two_refreshes_racing_with_one_token_end_the_session()
+    {
+        using var p = Build();
+        var user = await AddUser(p, "kai");
+        var (session, token) = await Sessions(p).Create(user, "test", "1.2.3.4");
+        using var a = p.CreateScope(); // each request has its own DbContext
+        using var b = p.CreateScope();
+        SessionService In(IServiceScope s) => new(s.ServiceProvider.GetRequiredService<AppDbContext>(),
+            s.ServiceProvider.GetRequiredService<UserManager<AppUser>>(), Config,
+            new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
+        // b has read the session before a rotates it, as when two requests arrive together
+        await b.ServiceProvider.GetRequiredService<AppDbContext>().Sessions.ToListAsync();
+
+        Assert.NotNull(await In(a).Refresh(user.Id, token));
+        Assert.Null(await In(b).Refresh(user.Id, token)); // the loser holds a used token
+        Assert.False(await Sessions(p).IsActive(session.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task Sliding_expiry_stops_90_days_after_sign_in()
+    {
+        using var p = Build();
+        var user = await AddUser(p, "kai");
+        var sessions = Sessions(p);
+        var (session, token) = await sessions.Create(user, "test", "1.2.3.4");
+        session.CreatedAt = DateTime.UtcNow.AddDays(-80);
+        await p.GetRequiredService<AppDbContext>().SaveChangesAsync();
+
+        var r = await sessions.Refresh(user.Id, token);
+
+        Assert.InRange(r!.Session.ExpiresAt, DateTime.UtcNow.AddDays(9.9), DateTime.UtcNow.AddDays(10.1)); // not 30
+    }
+
+    [Fact]
+    public async Task Refresh_and_logout_reject_an_id_that_is_not_a_guid()
+    {
+        using var p = Build();
+        var auth = Auth(p, new DefaultHttpContext());
+        Assert.IsType<BadRequestObjectResult>(await auth.Refresh(new UserIdRequest("../x")));
+        Assert.IsType<BadRequestObjectResult>(await auth.Logout(new UserIdRequest("a;b")));
     }
 
     [Fact]

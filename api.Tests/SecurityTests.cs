@@ -24,8 +24,8 @@ namespace api.Tests;
 // re-authentication, authenticator-app two-factor, email change and the activity log
 public class SecurityTests
 {
-    const string Pass = "Passw0rd1!";
-    const string NewPass = "An0ther!pass";
+    const string Pass = "correct horse battery"; // the real policy (12+ characters) applies
+    const string NewPass = "a brand new passphrase";
 
     // records the mail EmailSender posts to Resend
     class Outbox : HttpMessageHandler
@@ -59,7 +59,7 @@ public class SecurityTests
             services.AddHttpContextAccessor();
             services.AddAuthentication();
             services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
-            services.AddIdentityCore<AppUser>().AddRoles<IdentityRole>()
+            services.AddIdentityCore<AppUser>(IdentitySetup.Configure).AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
             P = services.BuildServiceProvider();
 
@@ -131,8 +131,8 @@ public class SecurityTests
     static async Task<(string Key, string[] Codes)> EnableTwoFactor(Rig r, AppUser user, Guid sid)
     {
         var tf = r.TwoFactor(user, sid);
-        var key = Body(Ok<OkObjectResult>(await tf.Setup())).GetProperty("key").GetString()!;
-        var res = Body(Ok<OkObjectResult>(await tf.Enable(new CodeRequest(Totp(key)))));
+        var key = Body(Ok<OkObjectResult>(await tf.Setup(new PasswordRequest(Pass)))).GetProperty("key").GetString()!;
+        var res = Body(Ok<OkObjectResult>(await tf.Enable(new EnableTwoFactorRequest(Pass, Totp(key)))));
         return (key, res.GetProperty("recoveryCodes").EnumerateArray().Select(c => c.GetString()!).ToArray());
     }
 
@@ -174,8 +174,8 @@ public class SecurityTests
         var account = r.Account(user, session.Id);
         var bad = new ChangePasswordRequest("nope", NewPass);
 
-        for (var i = 1; i <= 4; i++) Assert.Equal(403, Status(await account.ChangePassword(bad)));
-        Assert.Equal(423, Status(await account.ChangePassword(bad))); // the 5th miss locks
+        for (var i = 1; i <= 9; i++) Assert.Equal(403, Status(await account.ChangePassword(bad)));
+        Assert.Equal(423, Status(await account.ChangePassword(bad))); // the 10th miss locks
         Assert.Equal(423, Status(await account.ChangePassword(new ChangePasswordRequest(Pass, NewPass)))); // even the right one
         Assert.Single((await r.Events.Latest(user.Id)).Where(e => e.Type == "locked-out"));
     }
@@ -189,21 +189,26 @@ public class SecurityTests
         await r.Sessions.Create(user, "laptop", "2.2.2.2");
         var tf = r.TwoFactor(user, phone.Id);
 
-        var setup = Body(Ok<OkObjectResult>(await tf.Setup()));
+        Assert.Equal(403, Status(await tf.Setup(new PasswordRequest("nope")))); // the key is a secret
+        var setup = Body(Ok<OkObjectResult>(await tf.Setup(new PasswordRequest(Pass))));
         var key = setup.GetProperty("key").GetString()!;
         Assert.Equal($"otpauth://totp/Anime%20Rating%20Platform:kai%40example.com?secret={key}&issuer=Anime%20Rating%20Platform&digits=6",
             setup.GetProperty("uri").GetString());
         Assert.False(Body(Ok<OkObjectResult>(await tf.Status())).GetProperty("enabled").GetBoolean());
 
-        Assert.IsType<BadRequestObjectResult>(await tf.Enable(new CodeRequest("000000")));
+        Assert.Equal(403, Status(await tf.Enable(new EnableTwoFactorRequest("nope", Totp(key))))); // right code, wrong password
+        var badCode = Assert.IsType<ObjectResult>(await tf.Enable(new EnableTwoFactorRequest(Pass, "000000")));
+        Assert.Equal(403, badCode.StatusCode);
+        Assert.Equal("Invalid code.", Message(badCode));
+        Assert.Equal(3, user.AccessFailedCount); // all three misses counted (setup password, enable password, code)
         Assert.False(user.TwoFactorEnabled);
 
-        var codes = Body(Ok<OkObjectResult>(await tf.Enable(new CodeRequest(Totp(key))))).GetProperty("recoveryCodes");
+        var codes = Body(Ok<OkObjectResult>(await tf.Enable(new EnableTwoFactorRequest(Pass, Totp(key))))).GetProperty("recoveryCodes");
         Assert.Equal(10, codes.GetArrayLength());
         var status = Body(Ok<OkObjectResult>(await tf.Status()));
         Assert.True(status.GetProperty("enabled").GetBoolean());
         Assert.Equal(10, status.GetProperty("recoveryCodesLeft").GetInt32());
-        Assert.IsType<BadRequestObjectResult>(await tf.Setup()); // already on
+        Assert.IsType<BadRequestObjectResult>(await tf.Setup(new PasswordRequest(Pass))); // already on
         // other devices end (the stamp changed), this one stays
         Assert.Equal(new[] { phone.Id }, (await r.Sessions.Active(user.Id)).Select(s => s.Id).ToArray());
         Assert.NotNull(await r.Sessions.Refresh(user.Id, phoneToken));
@@ -249,8 +254,8 @@ public class SecurityTests
             Assert.Equal("Invalid code.", Message(Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(bad))));
         var again = await Challenge(r, "kai@example.com"); // logging in again must not wipe the misses
         bad = new TwoFactorLoginRequest(again, "000000");
-        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(bad));
-        Assert.Equal(423, Status(await r.Auth().TwoFactor(bad))); // the 5th miss
+        for (var i = 4; i <= 9; i++) Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(bad));
+        Assert.Equal(423, Status(await r.Auth().TwoFactor(bad))); // the 10th miss
 
         Assert.Equal(423, Status(await r.Auth().TwoFactor(new TwoFactorLoginRequest(again, Totp(key))))); // even the right code
         Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "locked-out");
@@ -328,6 +333,11 @@ public class SecurityTests
         var login = Body(Ok<OkObjectResult>(await r.Auth().Login(new LoginRequest("kai@example.com", Pass))));
         Assert.False(string.IsNullOrEmpty(login.GetProperty("accessToken").GetString()));
         Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "2fa-disabled");
+
+        // a recovery code left from this setup must not turn it back on
+        Ok<OkObjectResult>(await tf.Setup(new PasswordRequest(Pass)));
+        Assert.Equal(403, Status(await tf.Enable(new EnableTwoFactorRequest(Pass, codes[1]))));
+        Assert.False(user.TwoFactorEnabled);
     }
 
     [Fact]

@@ -40,7 +40,7 @@ More setup notes are added as features land.
 - `POST /me/verify-email` send (or resend) the verification email, once a minute
 - `POST /me/password` `{currentPassword, newPassword}` change the password; other devices are signed out. Wrong current password answers 403 and counts toward the lockout
 - `POST /me/email` `{newEmail, currentPassword}` mail a confirm link to the new address (and a notice to the old one); `POST /auth/confirm-email-change` `{userId, newEmail, token}` applies it and signs every device out
-- `GET /me/2fa` status; `GET /me/2fa/setup` key and `otpauth://` link; `POST /me/2fa/enable` `{code}` returns 10 recovery codes once; `POST /me/2fa/disable` `{currentPassword, code}`; `POST /me/2fa/recovery-codes` `{currentPassword}` makes new ones
+- `GET /me/2fa` status; `POST /me/2fa/setup` `{currentPassword}` key and `otpauth://` link; `POST /me/2fa/enable` `{currentPassword, code}` returns 10 recovery codes once; `POST /me/2fa/disable` `{currentPassword, code}`; `POST /me/2fa/recovery-codes` `{currentPassword}` makes new ones
 - `GET /me/activity` the latest 50 security events (sign-ins, password and email changes, two-factor, signed-out devices)
 - `GET /admin/users?search=&page=&pageSize=` list users (admin)
 - `POST /admin/users/{id}/admin` make a user admin, `DELETE` removes it; the last admin cannot be removed (admin)

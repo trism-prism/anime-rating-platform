@@ -25,14 +25,14 @@ public class CredentialCheck
         return await Failed(user, http);
     }
 
-    // an authenticator app code or an unused recovery code
-    public async Task<Check> Code(AppUser user, string code, HttpContext http)
+    // an authenticator app code or (unless turned off) an unused recovery code
+    public async Task<Check> Code(AppUser user, string code, HttpContext http, bool allowRecovery = true)
     {
         if (await _users.IsLockedOutAsync(user)) return Check.Locked;
         var c = (code ?? "").Replace(" ", "").ToUpperInvariant(); // recovery codes look like ABCDE-12345
         // an empty code would match the empty recovery list once every code is used
         if (c.Length > 0 && (await _users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultAuthenticatorProvider, c)
-            || (await _users.RedeemTwoFactorRecoveryCodeAsync(user, c)).Succeeded)) return Check.Ok;
+            || (allowRecovery && (await _users.RedeemTwoFactorRecoveryCodeAsync(user, c)).Succeeded))) return Check.Ok;
         return await Failed(user, http);
     }
 
