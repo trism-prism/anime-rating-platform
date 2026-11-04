@@ -50,7 +50,7 @@ builder.Services.AddScoped<EmailSender>();
 
 builder.Services.AddIdentityCore<AppUser>(o =>
 {
-    o.SignIn.RequireConfirmedEmail = true;
+    o.SignIn.RequireConfirmedEmail = false;
     o.User.RequireUniqueEmail = true;
     o.Lockout.MaxFailedAccessAttempts = 5;
     o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
@@ -108,17 +108,13 @@ if (args.Contains("import"))
 using (var scope = app.Services.CreateScope())
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 
-// create the Admin role and give it to Admin:Email once that user has registered
+// create the Admin role; the first admin is promoted at login (see AdminBootstrap)
 using (var scope = app.Services.CreateScope())
 {
     var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     try
     {
         if (!await roles.RoleExistsAsync("Admin")) await roles.CreateAsync(new IdentityRole("Admin"));
-        var adminEmail = app.Configuration["Admin:Email"];
-        var admin = string.IsNullOrEmpty(adminEmail) ? null : await users.FindByEmailAsync(adminEmail);
-        if (admin != null && !await users.IsInRoleAsync(admin, "Admin")) await users.AddToRoleAsync(admin, "Admin");
     }
     catch (Exception ex) // database not up or not migrated yet
     {
