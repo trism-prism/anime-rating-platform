@@ -14,6 +14,7 @@ import Admin from './pages/Admin'
 import ConfirmEmail from './pages/ConfirmEmail'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Privacy from './pages/Privacy'
+import GoogleCallback from './pages/GoogleCallback'
 import { AuthProvider } from './auth'
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/auth/callback" element={<GoogleCallback />} />
           <Route path="*"element={<h1>Page not found</h1>} />
         </Route>
       </Routes>

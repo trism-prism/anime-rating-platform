@@ -103,7 +103,7 @@ public class AccountController : ControllerBase
         if (user == null) return Unauthorized();
         return Ok(new
         {
-            user.Email, user.UserName, emailVerified = user.EmailConfirmed,
+            user.Email, user.UserName, emailVerified = user.EmailConfirmed, hasPassword = await _users.HasPasswordAsync(user),
             isAdmin = await _users.IsInRoleAsync(user, "Admin")
         });
     }

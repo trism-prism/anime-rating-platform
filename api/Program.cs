@@ -51,6 +51,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
 
 builder.Services.AddHttpClient<EmailSender>();
+builder.Services.AddHttpClient<GoogleClient>(c => c.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3));
 
 builder.Services.AddIdentityCore<AppUser>(IdentitySetup.Configure)

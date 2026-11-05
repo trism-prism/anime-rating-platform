@@ -7,6 +7,7 @@ type Auth = {
   user: Account | null // the active account
   accounts: Account[] // everyone signed in on this browser
   emailVerified: boolean
+  hasPassword: boolean // false for accounts made through Google
   isAdmin: boolean
   loading: boolean // true until the first /me has answered for a remembered account
   login: (s: SignedIn) => Promise<void>
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return id
   })
   const [emailVerified, setEmailVerified] = useState(false)
+  const [hasPassword, setHasPassword] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(() => !!activeId)
 
@@ -62,8 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // reload verified/admin flags; a dead session is handled inside api()
   const refresh = useCallback(async () => {
     try {
-      const me = await api<{ emailVerified: boolean; isAdmin: boolean }>('/me')
+      const me = await api<{ emailVerified: boolean; hasPassword: boolean; isAdmin: boolean }>('/me')
       setEmailVerified(me.emailVerified)
+      setHasPassword(me.hasPassword)
       setIsAdmin(me.isAdmin)
     } catch {
       // keep the old flags
@@ -123,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const user = accounts.find((a) => a.userId === activeId) ?? null
 
   return (
-    <AuthContext.Provider value={{ user, accounts, emailVerified, isAdmin, loading, login, logout, switchTo, refresh }}>
+    <AuthContext.Provider value={{ user, accounts, emailVerified, hasPassword, isAdmin, loading, login, logout, switchTo, refresh }}>
       {children}
     </AuthContext.Provider>
   )

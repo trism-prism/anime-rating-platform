@@ -6,6 +6,8 @@ type Row = { type: string; ip: string; userAgent: string; at: string }
 
 const LABELS: Record<string, string> = {
   login: 'Signed in',
+  'login-google': 'Signed in with Google',
+  'google-linked': 'Google account linked',
   'locked-out': 'Account locked after too many failed attempts',
   logout: 'Signed out',
   'password-changed': 'Password changed',

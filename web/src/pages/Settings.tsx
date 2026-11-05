@@ -11,7 +11,7 @@ import TwoFactor from '../components/TwoFactor'
 type SessionRow = { id: string; createdAt: string; lastUsedAt: string; userAgent: string; ip: string; current: boolean }
 
 export default function Settings() {
-  const { user, emailVerified, loading, refresh, logout } = useAuth()
+  const { user, emailVerified, hasPassword, loading, refresh, logout } = useAuth()
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
   const [cooldown, setCooldown] = useState(false)
@@ -91,14 +91,23 @@ export default function Settings() {
       {msg && <p className="muted">{msg}</p>}
       {error && <p className="error">{error}</p>}
 
-      <h2>Password</h2>
-      <PasswordForm onChanged={changed} />
+      {loading ? null : !hasPassword ? (
+        <>
+          <h2>Sign-in</h2>
+          <p className="muted">This account signs in with Google. To add a password, use Forgot password on the login page.</p>
+        </>
+      ) : (
+        <>
+          <h2>Password</h2>
+          <PasswordForm onChanged={changed} />
 
-      <h2>Email</h2>
-      <EmailForm onChanged={changed} />
+          <h2>Email</h2>
+          <EmailForm onChanged={changed} />
 
-      <h2>Two-factor authentication</h2>
-      <TwoFactor onChanged={changed} />
+          <h2>Two-factor authentication</h2>
+          <TwoFactor onChanged={changed} />
+        </>
+      )}
 
       <h2>Signed-in devices</h2>
       {devicesError && <p className="error">{devicesError}</p>}

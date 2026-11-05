@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api, type SignedIn, type TwoFactorStep } from '../api'
 import { useAuth } from '../auth'
+import GoogleLink from '../components/GoogleLink'
 import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
@@ -9,6 +10,8 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const note: string | undefined = location.state?.note // set by Register
+  const googleError = new URLSearchParams(location.search).get('error') === 'google'
+    ? 'Google sign-in failed. Try again or use your password.' : ''
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [challenge, setChallenge] = useState<string | null>(null) // set once the password was right and a code is needed
@@ -76,8 +79,9 @@ export default function Login() {
         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
       <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
-      {error && <p className="error">{error}</p>}
+      {(error || googleError) && <p className="error">{error || googleError}</p>}
       <button type="submit" disabled={busy}>Login</button>
+      <GoogleLink />
       <p className="muted"><Link to="/forgot-password" className="link">Forgot password?</Link></p>
       <p className="muted">No account? <Link to="/register" className="link">Register</Link></p>
     </form>

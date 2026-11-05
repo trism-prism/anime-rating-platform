@@ -64,6 +64,17 @@ Sends from your own Gmail to any recipient, over HTTPS (Railway blocks SMTP). Wh
 
 Gmail allows only a few hundred sends a day for a normal account. `Gmail__*` wins over `Resend__*` when both are set.
 
+## Sign in with Google
+
+Adds a "Continue with Google" link to the login and register pages. It uses its own OAuth client, separate from the Gmail sender's. The consent screen from the Gmail section is already published, and the scopes `openid`, `email` and `profile` need no Google verification.
+
+1. In the same Google Cloud project: **APIs & Services > Credentials > Create Credentials > OAuth client ID**, application type **Web application**.
+2. Under **Authorized redirect URIs** add `https://<your vercel domain>/api/auth/google/callback` and `http://localhost:5173/api/auth/google/callback` > Create.
+3. In Railway > API service > Variables add `Google__ClientId` and `Google__ClientSecret` (you type the secret in Railway yourself, never in chat or the repo). `App__FrontendUrl` must be the Vercel domain, since it builds the redirect URI.
+4. Without both variables the link is hidden and `/auth/google/start` answers 404.
+
+Accounts made this way have no password; "Forgot password" on the login page gives them one. Google counts as the strong factor, so the local two-factor code is not asked after a Google sign-in.
+
 ## If something breaks
 
 - API crashes at start with `Jwt:Key`: the variable is missing or under 32 characters.
@@ -73,4 +84,5 @@ Gmail allows only a few hundred sends a day for a normal account. `Gmail__*` win
 - Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
 - Gmail "token request failed: 400" (`invalid_grant`): the refresh token was revoked or expired, usually because the consent screen is still in Testing. Publish the app and create a new token.
 - Gmail "rejected the email: 403": the Gmail API is not enabled for the project (APIs & Services > Library).
+- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. The API log shows the status code Google answered with.
 - Database errors: migrations run on every start; check the Railway deploy logs.

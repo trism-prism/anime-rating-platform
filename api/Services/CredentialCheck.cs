@@ -21,6 +21,7 @@ public class CredentialCheck
     public async Task<Check> Password(AppUser user, string password, HttpContext http)
     {
         if (await _users.IsLockedOutAsync(user)) return Check.Locked;
+        if (!await _users.HasPasswordAsync(user)) return Check.Wrong; // signs in with Google only; nothing to guess, so no lockout count
         if (await _users.CheckPasswordAsync(user, password)) return Check.Ok;
         return await Failed(user, http);
     }
