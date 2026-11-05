@@ -18,6 +18,9 @@ namespace api.Migrations
             // two-step verification now uses emailed codes: forget the old authenticator keys and recovery codes
             migrationBuilder.Sql(
                 "DELETE FROM \"AspNetUserTokens\" WHERE \"LoginProvider\" = '[AspNetUserStore]' AND \"Name\" IN ('AuthenticatorKey', 'RecoveryCodes');");
+
+            // an unconfirmed address cannot be trusted to receive the codes
+            migrationBuilder.Sql("UPDATE \"AspNetUsers\" SET \"TwoFactorEnabled\" = false WHERE \"EmailConfirmed\" = false;");
         }
 
         /// <inheritdoc />

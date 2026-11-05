@@ -79,8 +79,15 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Resend(EmailRequest req)
     {
         var user = await _users.FindByEmailAsync(req.Email);
-        if (user != null && !user.EmailConfirmed && !await TrySendConfirmation(user))
-            return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
+        // one mail per address per minute; a blocked request gets the same answer as any other
+        if (user != null && !user.EmailConfirmed && !CoolingDown("resend-confirmation", req.Email))
+        {
+            if (!await TrySendConfirmation(user))
+            {
+                _cache.Remove(CooldownKey("resend-confirmation", req.Email));
+                return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
+            }
+        }
         // same answer either way
         return Ok(new { message = "If the account exists, a new confirmation email was sent." });
     }
@@ -199,7 +206,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword(EmailRequest req)
     {
         var user = await _users.FindByEmailAsync(req.Email);
-        if (user != null) await TrySendPasswordReset(user);
+        if (user != null && !CoolingDown("forgot-password", req.Email)) await TrySendPasswordReset(user);
         // same answer whether or not the email exists, or the send failed
         return Ok(new { message = "If that email exists, a reset link was sent." });
     }
@@ -253,6 +260,17 @@ public class AuthController : ControllerBase
         // the new address changes the security stamp anyway, so every device signs in again
         await _sessions.RevokeAll(user.Id);
         return Ok(new { message = "Email changed. Log in again with the new address." });
+    }
+
+    // 60 s per action and address (lowercase); true when one was already sent, else starts the cooldown
+    static string CooldownKey(string action, string? email) => $"{action}:{(email ?? "").Trim().ToLowerInvariant()}";
+
+    bool CoolingDown(string action, string? email)
+    {
+        var key = CooldownKey(action, email);
+        if (_cache.TryGetValue(key, out _)) return true;
+        _cache.Set(key, true, TimeSpan.FromSeconds(60));
+        return false;
     }
 
     async Task TrySendPasswordReset(AppUser user)

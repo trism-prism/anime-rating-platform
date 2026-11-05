@@ -414,6 +414,44 @@ public class SecurityTests
     }
 
     [Fact]
+    public async Task Forgot_password_and_resend_confirmation_mail_once_a_minute_per_address_with_the_same_answer()
+    {
+        using var r = new Rig();
+        await r.AddUser("kai", confirmed: false);
+
+        var first = Ok<OkObjectResult>(await r.Auth().ForgotPassword(new EmailRequest("kai@example.com")));
+        var again = Ok<OkObjectResult>(await r.Auth().ForgotPassword(new EmailRequest("KAI@example.com"))); // same address, any case
+        Assert.Single(r.Mail.Sent);
+        Assert.Equal(JsonSerializer.Serialize(first.Value), JsonSerializer.Serialize(again.Value));
+        Assert.Equal(JsonSerializer.Serialize(first.Value), JsonSerializer.Serialize(Ok<OkObjectResult>(await r.Auth().ForgotPassword(new EmailRequest("nobody@example.com"))).Value));
+
+        Ok<OkObjectResult>(await r.Auth().Resend(new EmailRequest("kai@example.com")));
+        Ok<OkObjectResult>(await r.Auth().Resend(new EmailRequest("kai@example.com")));
+        Assert.Equal(2, r.Mail.Sent.Count); // one reset, one confirmation
+
+        r.Cache.Remove("forgot-password:kai@example.com"); // a minute later
+        Ok<OkObjectResult>(await r.Auth().ForgotPassword(new EmailRequest("kai@example.com")));
+        Assert.Equal(3, r.Mail.Sent.Count);
+    }
+
+    [Fact]
+    public async Task Email_change_mails_one_target_address_once_a_minute_even_from_different_accounts()
+    {
+        using var r = new Rig();
+        var kai = await r.AddUser("kai");
+        var ann = await r.AddUser("ann");
+        var (kaiSession, _) = await r.Sessions.Create(kai, "phone", "1.1.1.1");
+        var (annSession, _) = await r.Sessions.Create(ann, "phone", "2.2.2.2");
+
+        var first = Ok<OkObjectResult>(await r.Account(kai, kaiSession.Id).ChangeEmail(new ChangeEmailRequest("target@example.com", Pass)));
+        Assert.Equal(2, r.Mail.Sent.Count); // the link and the notice to the old address
+        var second = Ok<OkObjectResult>(await r.Account(ann, annSession.Id).ChangeEmail(new ChangeEmailRequest("target@example.com", Pass)));
+
+        Assert.Equal(2, r.Mail.Sent.Count);
+        Assert.Equal(JsonSerializer.Serialize(first.Value), JsonSerializer.Serialize(second.Value));
+    }
+
+    [Fact]
     public async Task Display_name_change_checks_the_format_and_uniqueness_and_keeps_other_devices_signed_in()
     {
         using var r = new Rig();

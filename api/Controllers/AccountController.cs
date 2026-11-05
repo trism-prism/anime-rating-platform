@@ -68,17 +68,25 @@ public class AccountController : ControllerBase
         if (string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase)) return BadRequest(new { message = "That is already your email." });
         if (await _users.FindByEmailAsync(newEmail) != null) return BadRequest(new { message = "That email is already in use." });
 
+        // one mail per target address per minute, whoever asks, so accounts cannot take turns mailing one stranger;
+        // a blocked request gets the normal answer
+        var addressKey = "change-email-to:" + newEmail.ToLowerInvariant();
+        if (_cache.TryGetValue(addressKey, out _))
+            return Ok(new { message = $"Check {newEmail} for a confirmation link. Your email changes when you open it." });
+
         // the cooldown keeps this from being used to mail strangers
         var key = "change-email:" + user.Id;
         if (_cache.TryGetValue(key, out _))
             return StatusCode(429, new { message = "A confirmation email was just sent. Wait a minute before asking again." });
         _cache.Set(key, true, TimeSpan.FromSeconds(60));
+        _cache.Set(addressKey, true, TimeSpan.FromSeconds(60));
 
         try { await _email.SendEmailChange(_users, user, newEmail); }
         catch (Exception ex) // the exception can hold the link, so log only the user id
         {
             _log.LogError(ex.GetType().Name + " sending email-change mail for user {UserId}", user.Id);
             _cache.Remove(key);
+            _cache.Remove(addressKey);
             return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
         }
         try { await _email.Send(user.Email!, "Email change requested", $"Someone requested to change your email to {newEmail}. If it was not you, change your password now."); }
