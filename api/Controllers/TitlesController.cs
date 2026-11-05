@@ -34,8 +34,8 @@ public class TitlesController : ControllerBase
             .Select(t => new
             {
                 t.Id, t.Name, t.CoverUrl, t.Type, t.Genres, t.Popularity,
-                AverageOverall = t.Ratings.Average(r => (double?)r.Overall),
-                RatingCount = t.Ratings.Count()
+                AverageOverall = t.Ratings.Where(r => r.Volume == null).Average(r => (double?)r.Overall),
+                RatingCount = t.Ratings.Count(r => r.Volume == null)
             }).ToListAsync();
 
         var items = rows.Select(t => new
@@ -70,7 +70,8 @@ public class TitlesController : ControllerBase
             }).ToListAsync();
 
         var ratings = _db.Ratings.Where(r => r.TitleId == id);
-        var avg = await ratings.GroupBy(r => 1).Select(g => new
+        // title averages use whole-title ratings only; volumes are averaged separately below
+        var avg = await ratings.Where(r => r.Volume == null).GroupBy(r => 1).Select(g => new
         {
             Story = g.Average(r => r.Story),
             Art = g.Average(r => r.Art),

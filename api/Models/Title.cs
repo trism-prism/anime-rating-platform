@@ -29,7 +29,7 @@ public class Title
     public int? Volumes { get; set; }
     // an admin placed it; the importer never moves it
     public bool SeriesLocked { get; set; }
-    // stored totals of every rating (whole title and volumes); concurrency tokens, see RatingsController
+    // stored totals of whole-title ratings only (Volume == null); concurrency tokens, see RatingsController
     public int RatingCount { get; set; }
     public double RatingSum { get; set; }
 

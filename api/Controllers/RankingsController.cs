@@ -24,7 +24,8 @@ public class RankingsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get(string category = "overall", TitleType? type = null, int take = 20)
     {
-        var ratings = _db.Ratings.AsQueryable();
+        // whole-title ratings only: one account rating three volumes must not meet MinVotes
+        var ratings = _db.Ratings.Where(r => r.Volume == null);
         IQueryable<Score>? scores = category.ToLower() switch
         {
             "overall" => ratings.Select(r => new Score { TitleId = r.TitleId, Value = r.Overall }),

@@ -54,10 +54,14 @@ public class RatingsController : ControllerBase
             {
                 r = new Rating { UserId = userId, TitleId = id, Volume = volume };
                 _db.Ratings.Add(r);
-                title.RatingCount++;
-                title.RatingSum += overall;
+                // only whole-title ratings feed the title's totals; volume ratings are shown per volume
+                if (volume == null)
+                {
+                    title.RatingCount++;
+                    title.RatingSum += overall;
+                }
             }
-            else title.RatingSum += overall - r.Overall;
+            else if (volume == null) title.RatingSum += overall - r.Overall;
             r.Story = body.Story;
             r.Art = body.Art;
             r.Characters = body.Characters;
@@ -85,9 +89,12 @@ public class RatingsController : ControllerBase
         {
             var r = await _db.Ratings.FirstOrDefaultAsync(x => x.UserId == userId && x.TitleId == id && x.Volume == volume);
             if (r == null) return NotFound();
-            var title = await _db.Titles.FirstAsync(t => t.Id == id);
-            title.RatingCount--;
-            title.RatingSum = title.RatingCount == 0 ? 0 : title.RatingSum - r.Overall;
+            if (volume == null)
+            {
+                var title = await _db.Titles.FirstAsync(t => t.Id == id);
+                title.RatingCount--;
+                title.RatingSum = title.RatingCount == 0 ? 0 : title.RatingSum - r.Overall;
+            }
             _db.Ratings.Remove(r);
 
             try
