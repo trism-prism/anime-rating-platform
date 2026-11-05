@@ -91,7 +91,7 @@ export default function MyList() {
           <tbody>
             {ratings.map((r) => (
               <tr key={`${r.titleId}-${r.volume ?? 0}`}>
-                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}</td>
+                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
                 <td>{r.story}</td><td>{r.art}</td><td>{r.characters}</td><td>{r.enjoyment}</td>
                 <td><strong>{r.overall}</strong></td>
               </tr>
