@@ -17,8 +17,11 @@ public class ModelTests
     [Fact]
     public void Rating_is_unique_per_user_and_title()
     {
-        var index = Assert.Single(UniqueIndexes<Rating>());
-        Assert.Equal(new[] { "UserId", "TitleId" }, index.Properties.Select(p => p.Name));
+        // whole-title ratings (Volume null) and per-volume ratings each have their own filtered unique index
+        var indexes = UniqueIndexes<Rating>();
+        Assert.Equal(2, indexes.Count);
+        Assert.Contains(indexes, i => i.Properties.Select(p => p.Name).SequenceEqual(new[] { "UserId", "TitleId" }) && i.GetFilter() == "\"Volume\" IS NULL");
+        Assert.Contains(indexes, i => i.Properties.Select(p => p.Name).SequenceEqual(new[] { "UserId", "TitleId", "Volume" }) && i.GetFilter() == "\"Volume\" IS NOT NULL");
     }
 
     [Fact]
