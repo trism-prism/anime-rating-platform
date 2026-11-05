@@ -153,6 +153,21 @@ namespace api.Migrations
                 table: "TitleRelations",
                 column: "ToAniListId");
 
+            // existing titles get a series of their own (same id) so the foreign key holds; the next import regroups them
+            migrationBuilder.Sql("""
+                INSERT INTO "Series" ("Id", "Name", "Kind", "CoverUrl", "Popularity") OVERRIDING SYSTEM VALUE
+                SELECT "Id", "Name", "Type", "CoverUrl", "Popularity" FROM "Titles";
+                UPDATE "Titles" SET "SeriesId" = "Id";
+                SELECT setval(pg_get_serial_sequence('"Series"', 'Id'), COALESCE(MAX("Id"), 1), COUNT(*) > 0) FROM "Series";
+                """);
+
+            // every rating that exists so far is a whole-title rating; carry it into the stored totals
+            migrationBuilder.Sql("""
+                UPDATE "Titles" t SET "RatingCount" = r.n, "RatingSum" = r.total
+                FROM (SELECT "TitleId", COUNT(*)::int AS n, SUM("Overall") AS total FROM "Ratings" GROUP BY "TitleId") r
+                WHERE r."TitleId" = t."Id";
+                """);
+
             migrationBuilder.AddForeignKey(
                 name: "FK_Titles_Series_SeriesId",
                 table: "Titles",
@@ -165,6 +180,9 @@ namespace api.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // volume ratings cannot exist without the Volume column, and would break the unique index below
+            migrationBuilder.Sql("DELETE FROM \"Ratings\" WHERE \"Volume\" IS NOT NULL;");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_Titles_Series_SeriesId",
                 table: "Titles");
