@@ -28,6 +28,7 @@ public class UserBlock
 // add new types at the end; they show up in the preferences list by themselves
 public enum NotificationType { FriendRequest, FriendAccepted }
 
+// nothing deletes old notifications yet; the retention job (compliance stage) owns that
 public class Notification
 {
     public int Id { get; set; }

@@ -229,9 +229,11 @@ public class SocialTests
         await Friends(db, "c").Block("alice"); // carol blocked alice; alice must not be able to tell
 
         Assert.Equal(Reply(await Send(db, "a", "nobody")), Reply(await Send(db, "a", "carol")));
-        // nothing to undo is still 204 for a real username, 404 only for a name that does not exist
-        Assert.Equal(404, Status(await Friends(db, "a").Unfriend("nobody")));
-        Assert.Equal(204, Status(await Friends(db, "a").Unfriend("carol")));
+        // unfriend follows the visibility rule too: carol blocked alice, so she looks exactly like an unknown name; Block and Unblock
+        // stay 204 for anyone who exists, so they reveal nothing
+        Assert.Equal(Reply(await Friends(db, "a").Unfriend("nobody")), Reply(await Friends(db, "a").Unfriend("carol")));
+        Assert.Equal(404, Status(await Friends(db, "a").Unfriend("carol")));
+        Assert.Equal(204, Status(await Friends(db, "a").Unfriend("bob"))); // visible but not a friend: nothing to undo
         Assert.Equal(204, Status(await Friends(db, "a").Unblock("carol")));
         Assert.Equal(Reply(await Profiles(db, "a").Get("nobody")), Reply(await Profiles(db, "a").Get("carol")));
         Assert.Equal(404, Status(await Profiles(db, "a").Get("carol")));

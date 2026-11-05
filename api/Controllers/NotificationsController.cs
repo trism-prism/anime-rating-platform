@@ -76,10 +76,15 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> MarkAllRead()
     {
         var me = UserId;
-        // loaded and saved rather than ExecuteUpdate, which InMemory (the tests) can't run
-        foreach (var n in await _db.Notifications.Where(n => n.UserId == me && n.ReadAt == null).ToListAsync())
-            n.ReadAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        // one UPDATE on Postgres; InMemory (the tests) can't run ExecuteUpdate, so it loads the rows there
+        var unread = _db.Notifications.Where(n => n.UserId == me && n.ReadAt == null);
+        var now = DateTime.UtcNow;
+        if (_db.Database.IsNpgsql()) await unread.ExecuteUpdateAsync(s => s.SetProperty(n => n.ReadAt, now));
+        else
+        {
+            foreach (var n in await unread.ToListAsync()) n.ReadAt = now;
+            await _db.SaveChangesAsync();
+        }
         return NoContent();
     }
 

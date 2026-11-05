@@ -3,6 +3,7 @@ using api.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers;
@@ -17,6 +18,7 @@ public class ProfilesController : ControllerBase
 
     // Public part for everyone; signed-in viewers also get their relationship to this user.
     // No email, no user ids, and nothing the user has rated or listed (that arrives with audiences).
+    [EnableRateLimiting("profile")]
     [HttpGet("users/{username}")]
     public async Task<IActionResult> Get(string username)
     {

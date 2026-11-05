@@ -10,7 +10,7 @@ namespace api.Services;
 public static class SocialRules
 {
     // lookups are exact and Identity may hold older names (generated from emails), so this only rejects junk, not the 3-30 rename rule
-    static readonly Regex NamePattern = new("^[A-Za-z0-9._+@-]{1,256}$");
+    static readonly Regex NamePattern = new(@"^[A-Za-z0-9._+@-]{1,256}\z"); // \z, not $: $ also matches before a trailing newline
     public static bool ValidUserName(string? name) => name != null && NamePattern.IsMatch(name);
 
     // usernames are case-insensitive: compare on Identity's normalized (upper-case) form
@@ -47,6 +47,22 @@ public static class SocialRules
     {
         var off = await db.NotificationPreferences.AnyAsync(p => p.UserId == recipientId && p.Type == type && !p.Enabled);
         if (!off) db.Notifications.Add(new Notification { UserId = recipientId, Type = type, ActorId = actorId, SubjectId = subjectId });
+    }
+
+    // saves; false when a row changed or vanished under it (a concurrency token or a delete matched nothing), in which case
+    // nothing was written and the context is reset so the caller can look again
+    public static async Task<bool> TrySave(AppDbContext db)
+    {
+        try
+        {
+            await db.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return false;
+        }
     }
 
     // removes the row and every notification that points at it, so the bell never shows a dead request

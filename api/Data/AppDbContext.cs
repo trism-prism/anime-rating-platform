@@ -61,6 +61,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             e.HasOne<AppUser>().WithMany().HasForeignKey(f => f.UserHighId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<AppUser>().WithMany().HasForeignKey(f => f.RequesterId).OnDelete(DeleteBehavior.Cascade);
             e.Property(f => f.Status).HasConversion<string>();
+            e.Property(f => f.Status).IsConcurrencyToken(); // accept, decline and cancel only act on the status they read
             e.HasIndex(f => new { f.UserLowId, f.UserHighId }).IsUnique();
             e.HasIndex(f => f.UserHighId); // the low side is covered by the pair index
             // COLLATE "C" so the database orders ids byte-wise like the code does, whatever the database collation is
@@ -81,6 +82,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
             e.HasOne(n => n.Actor).WithMany().HasForeignKey(n => n.ActorId).OnDelete(DeleteBehavior.Cascade);
             e.Property(n => n.Type).HasConversion<string>();
             e.HasIndex(n => new { n.UserId, n.ReadAt, n.CreatedAt }).IsDescending(false, false, true);
+            e.HasIndex(n => new { n.UserId, n.Id }); // the paged list
+            e.HasIndex(n => n.SubjectId); // cleanup when a friendship goes
         });
         b.Entity<NotificationPreference>(e =>
         {

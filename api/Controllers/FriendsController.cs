@@ -14,6 +14,10 @@ public record SendFriendRequest(string? Username);
 [Authorize]
 public class FriendsController : ControllerBase
 {
+    public const int MaxPendingIncoming = 100; // per recipient, so nobody's inbox can be flooded
+    const int MaxFriendsListed = 500, MaxRequestsListed = 100;
+    const string NoUser = "No user with that username.";
+
     readonly AppDbContext _db;
 
     public FriendsController(AppDbContext db) => _db = db;
@@ -21,23 +25,24 @@ public class FriendsController : ControllerBase
     // MapInboundClaims is off, so the id is the plain "sub" claim; ids never come from the body or the route
     string UserId => User.FindFirst("sub")!.Value;
 
-    // accepted friends plus pending requests in both directions
+    // accepted friends plus pending requests in both directions (each list is capped)
     [HttpGet("me/friends")]
     public async Task<IActionResult> List()
     {
         var me = UserId;
-        var rows = await _db.Friendships.Where(f => f.UserLowId == me || f.UserHighId == me).OrderByDescending(f => f.Id).ToListAsync();
-        var ids = rows.Select(f => f.OtherId(me)).ToList();
+        var mine = _db.Friendships.Where(f => f.UserLowId == me || f.UserHighId == me);
+        var friends = await mine.Where(f => f.Status == FriendStatus.Accepted).OrderByDescending(f => f.Id).Take(MaxFriendsListed).ToListAsync();
+        var incoming = await mine.Where(f => f.Status == FriendStatus.Pending && f.RequesterId != me).OrderByDescending(f => f.Id).Take(MaxRequestsListed).ToListAsync();
+        var outgoing = await mine.Where(f => f.Status == FriendStatus.Pending && f.RequesterId == me).OrderByDescending(f => f.Id).Take(MaxRequestsListed).ToListAsync();
+
+        var ids = friends.Concat(incoming).Concat(outgoing).Select(f => f.OtherId(me)).Distinct().ToList();
         var names = await _db.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.UserName!);
 
         return Ok(new
         {
-            friends = rows.Where(f => f.Status == FriendStatus.Accepted)
-                .Select(f => new { userName = names[f.OtherId(me)], since = f.RespondedAt ?? f.CreatedAt }),
-            incoming = rows.Where(f => f.Status == FriendStatus.Pending && f.RequesterId != me)
-                .Select(f => new { requestId = f.Id, userName = names[f.RequesterId], sentAt = f.CreatedAt }),
-            outgoing = rows.Where(f => f.Status == FriendStatus.Pending && f.RequesterId == me)
-                .Select(f => new { requestId = f.Id, userName = names[f.OtherId(me)], sentAt = f.CreatedAt })
+            friends = friends.Select(f => new { userName = names[f.OtherId(me)], since = f.RespondedAt ?? f.CreatedAt }),
+            incoming = incoming.Select(f => new { requestId = f.Id, userName = names[f.RequesterId], sentAt = f.CreatedAt }),
+            outgoing = outgoing.Select(f => new { requestId = f.Id, userName = names[f.OtherId(me)], sentAt = f.CreatedAt })
         });
     }
 
@@ -48,32 +53,51 @@ public class FriendsController : ControllerBase
     {
         var me = UserId;
         var target = await SocialRules.FindVisible(_db, me, req.Username);
-        if (target == null)
-            return NotFound(new { message = "No user with that username." });
-        if (target.Id == me) return BadRequest(new { message = "You can't add yourself." });
-        if (await SocialRules.HasBlocked(_db, me, target.Id)) return Conflict(new { message = "You blocked this user. Unblock them first." });
+        if (target == null) return NotFound(new { message = NoUser });
+        var targetId = target.Id;
+        if (targetId == me) return BadRequest(new { message = "You can't add yourself." });
+        if (await SocialRules.HasBlocked(_db, me, targetId)) return Conflict(new { message = "You blocked this user. Unblock them first." });
 
-        var f = await SocialRules.FindFriendship(_db, me, target.Id);
-        if (f != null)
+        var f = await SocialRules.FindFriendship(_db, me, targetId);
+        var created = false;
+        if (f == null)
+        {
+            if (await PendingFor(targetId) >= MaxPendingIncoming)
+                return Conflict(new { message = "This user has too many pending requests. Try again later." });
+
+            var (low, high) = Friendship.Order(me, targetId);
+            try
+            {
+                f = await CreateRequest(new Friendship { UserLowId = low, UserHighId = high, RequesterId = me, Status = FriendStatus.Pending }, targetId, me);
+                created = true;
+            }
+            catch (DbUpdateException)
+            {
+                // Either the other user asked me at the same moment (the unique pair index let only one row in), or
+                // something else failed (a user was deleted). Look again instead of guessing from the exception.
+                _db.ChangeTracker.Clear();
+                f = await SocialRules.FindFriendship(_db, me, targetId);
+                if (f == null) return NotFound(new { message = NoUser });
+            }
+        }
+
+        if (!created)
         {
             if (f.Status == FriendStatus.Accepted) return Conflict(new { message = "You are already friends." });
             if (f.RequesterId == me) return Conflict(new { message = "You already sent this user a request." });
-            await AcceptRow(f, me);
+            if (!await AcceptAndSave(f, me)) return Conflict(new { message = "That request just changed. Try again." });
         }
         else
         {
-            var (low, high) = Friendship.Order(me, target.Id);
-            f = new Friendship { UserLowId = low, UserHighId = high, RequesterId = me, Status = FriendStatus.Pending };
-            _db.Friendships.Add(f);
-            try { await _db.SaveChangesAsync(); } // first, so the notification can point at the new id
-            catch (DbUpdateException) // both of us sent at once: the unique pair index let only one row in
+            // a block may have landed between the checks above and the insert (Block deletes after it inserts, so one side always sees the other)
+            var theyBlocked = await SocialRules.HasBlocked(_db, targetId, me);
+            if (theyBlocked || await SocialRules.HasBlocked(_db, me, targetId))
             {
-                return Conflict(new { message = "A request between you two already exists." });
+                await SocialRules.Remove(_db, f);
+                await SocialRules.TrySave(_db);
+                return theyBlocked ? NotFound(new { message = NoUser }) : Conflict(new { message = "You blocked this user. Unblock them first." });
             }
-            await SocialRules.Notify(_db, NotificationType.FriendRequest, target.Id, me, f.Id);
         }
-
-        await _db.SaveChangesAsync();
         return Ok(new { state = f.Status == FriendStatus.Accepted ? "Friends" : "OutgoingPending", requestId = f.Id });
     }
 
@@ -83,10 +107,8 @@ public class FriendsController : ControllerBase
     {
         var me = UserId;
         var f = await Incoming(id, me);
-        if (f == null) return NotFound();
-        await AcceptRow(f, me);
-        await _db.SaveChangesAsync();
-        return NoContent();
+        // 404 also when someone answered or removed it a moment ago
+        return f != null && await AcceptAndSave(f, me) ? NoContent() : NotFound();
     }
 
     // declining is silent: the row and its notification go, nobody is told
@@ -97,8 +119,8 @@ public class FriendsController : ControllerBase
         var f = await Incoming(id, UserId);
         if (f == null) return NotFound();
         await SocialRules.Remove(_db, f);
-        await _db.SaveChangesAsync();
-        return NoContent();
+        // Status is a concurrency token: if the request was accepted meanwhile the delete matches nothing and the friendship stays
+        return await SocialRules.TrySave(_db) ? NoContent() : NotFound();
     }
 
     // the sender takes a request back
@@ -110,40 +132,57 @@ public class FriendsController : ControllerBase
         var f = await _db.Friendships.FirstOrDefaultAsync(x => x.Id == id && x.RequesterId == me && x.Status == FriendStatus.Pending);
         if (f == null) return NotFound();
         await SocialRules.Remove(_db, f);
-        await _db.SaveChangesAsync();
-        return NoContent();
+        return await SocialRules.TrySave(_db) ? NoContent() : NotFound();
     }
 
+    // Same 404 as an unknown name when that user blocked me. Nothing to undo (or already undone) is a 204.
     [HttpDelete("friends/{username}")]
     [EnableRateLimiting("notify")]
     public async Task<IActionResult> Unfriend(string username)
     {
         var me = UserId;
-        var other = await SocialRules.FindByName(_db, username);
-        if (other == null) return NotFound(new { message = "No user with that username." });
+        var other = await SocialRules.FindVisible(_db, me, username);
+        if (other == null) return NotFound(new { message = NoUser });
         var f = await SocialRules.FindFriendship(_db, me, other.Id);
-        if (f == null || f.Status != FriendStatus.Accepted) return NoContent(); // nothing to undo, same answer
-        await SocialRules.Remove(_db, f);
-        await _db.SaveChangesAsync();
+        if (f != null && f.Status == FriendStatus.Accepted)
+        {
+            await SocialRules.Remove(_db, f);
+            await SocialRules.TrySave(_db); // false: someone removed it first, which is what was asked
+        }
         return NoContent();
     }
 
-    // silent: the blocked user is told nothing; their requests and my profile just 404 for them. Idempotent.
+    // Silent and idempotent: the blocked user is told nothing; their requests and my profile just 404 for them.
+    // Works on anyone who exists, even someone who blocked me, and answers the same either way.
     [HttpPut("blocks/{username}")]
     [EnableRateLimiting("block")]
     public async Task<IActionResult> Block(string username)
     {
         var me = UserId;
-        // FindByName, not FindVisible: anyone can block anyone, even someone who blocked them, and the answer is the same
         var other = await SocialRules.FindByName(_db, username);
-        if (other == null) return NotFound(new { message = "No user with that username." });
+        if (other == null) return NotFound(new { message = NoUser });
         if (other.Id == me) return BadRequest(new { message = "You can't block yourself." });
 
-        var f = await SocialRules.FindFriendship(_db, me, other.Id);
-        if (f != null) await SocialRules.Remove(_db, f);
-        if (!await SocialRules.HasBlocked(_db, me, other.Id)) _db.UserBlocks.Add(new UserBlock { BlockerId = me, BlockedId = other.Id });
-        try { await _db.SaveChangesAsync(); }
-        catch (DbUpdateException) { } // a second tab blocked at the same moment: already done
+        // the block goes in first and alone, so no failure further down can lose it
+        if (!await SocialRules.HasBlocked(_db, me, other.Id))
+        {
+            _db.UserBlocks.Add(new UserBlock { BlockerId = me, BlockedId = other.Id });
+            try { await _db.SaveChangesAsync(); }
+            catch (DbUpdateException)
+            {
+                _db.ChangeTracker.Clear();
+                if (!await SocialRules.HasBlocked(_db, me, other.Id)) return NotFound(new { message = NoUser }); // the user is gone
+            }
+        }
+
+        // then end any friendship or request; a concurrent accept or unfriend can change the row under the delete, so look again
+        for (var i = 0; i < 3; i++)
+        {
+            var f = await SocialRules.FindFriendship(_db, me, other.Id);
+            if (f == null) break;
+            await SocialRules.Remove(_db, f);
+            if (await SocialRules.TrySave(_db)) break;
+        }
         return NoContent();
     }
 
@@ -153,7 +192,7 @@ public class FriendsController : ControllerBase
     {
         var me = UserId;
         var other = await SocialRules.FindByName(_db, username);
-        if (other == null) return NotFound(new { message = "No user with that username." });
+        if (other == null) return NotFound(new { message = NoUser });
         var block = await _db.UserBlocks.FirstOrDefaultAsync(b => b.BlockerId == me && b.BlockedId == other.Id);
         if (block != null)
         {
@@ -163,18 +202,39 @@ public class FriendsController : ControllerBase
         return NoContent(); // same answer whether or not there was a block
     }
 
-    // a pending request that is addressed to me (not one I sent); anything else is a 404 so ids can't be probed
+    Task<int> PendingFor(string userId) =>
+        _db.Friendships.CountAsync(f => f.Status == FriendStatus.Pending && f.RequesterId != userId && (f.UserLowId == userId || f.UserHighId == userId));
+
+    // a pending request that is addressed to me (not one I sent) and has no block either way; anything else is a 404 so ids can't be probed
     Task<Friendship?> Incoming(int id, string me) =>
         _db.Friendships.FirstOrDefaultAsync(f => f.Id == id && f.Status == FriendStatus.Pending && f.RequesterId != me
-            && (f.UserLowId == me || f.UserHighId == me));
+            && (f.UserLowId == me || f.UserHighId == me)
+            && !_db.UserBlocks.Any(b => (b.BlockerId == me && b.BlockedId == f.RequesterId) || (b.BlockerId == f.RequesterId && b.BlockedId == me)));
 
-    // marks the row accepted, reads my copy of the request and tells the sender (unless they turned that off); the caller saves
-    async Task AcceptRow(Friendship f, string me)
+    // the pending row and the recipient's notification are saved together or not at all
+    async Task<Friendship> CreateRequest(Friendship f, string recipientId, string me)
+    {
+        var tx = _db.Database.IsRelational() ? await _db.Database.BeginTransactionAsync() : null; // InMemory (tests) has none
+        await using (tx)
+        {
+            _db.Friendships.Add(f);
+            await _db.SaveChangesAsync(); // first, so the notification can point at the new id
+            await SocialRules.Notify(_db, NotificationType.FriendRequest, recipientId, me, f.Id);
+            await _db.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+        }
+        return f;
+    }
+
+    // Accepts and saves; false when the row changed first (answered, cancelled, unfriended or blocked elsewhere), in which case
+    // nothing is saved and nobody is notified. Status is a concurrency token, so two accepts can't both win.
+    async Task<bool> AcceptAndSave(Friendship f, string me)
     {
         f.Status = FriendStatus.Accepted;
         f.RespondedAt = DateTime.UtcNow;
         foreach (var n in await _db.Notifications.Where(n => n.UserId == me && n.SubjectId == f.Id && n.Type == NotificationType.FriendRequest && n.ReadAt == null).ToListAsync())
             n.ReadAt = DateTime.UtcNow;
         await SocialRules.Notify(_db, NotificationType.FriendAccepted, f.RequesterId, me, f.Id);
+        return await SocialRules.TrySave(_db);
     }
 }

@@ -156,6 +156,16 @@ namespace api.Migrations
                 column: "ActorId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Notifications_SubjectId",
+                table: "Notifications",
+                column: "SubjectId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_UserId_Id",
+                table: "Notifications",
+                columns: new[] { "UserId", "Id" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Notifications_UserId_ReadAt_CreatedAt",
                 table: "Notifications",
                 columns: new[] { "UserId", "ReadAt", "CreatedAt" },

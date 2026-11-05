@@ -12,7 +12,7 @@ using api.Data;
 namespace api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261105175246_AddSocial")]
+    [Migration("20261105181420_AddSocial")]
     partial class AddSocial
     {
         /// <inheritdoc />
@@ -270,6 +270,7 @@ namespace api.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -330,6 +331,10 @@ namespace api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ActorId");
+
+                    b.HasIndex("SubjectId");
+
+                    b.HasIndex("UserId", "Id");
 
                     b.HasIndex("UserId", "ReadAt", "CreatedAt")
                         .IsDescending(false, false, true);
