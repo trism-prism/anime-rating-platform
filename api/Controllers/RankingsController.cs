@@ -14,7 +14,7 @@ class Score { public int TitleId { get; set; } public double Value { get; set; }
 [Route("rankings")]
 public class RankingsController : ControllerBase
 {
-    // a title with one or two ratings would top the list, so ignore those
+    // a series with one or two ratings would top the list, so ignore those
     public const int MinVotes = 3;
 
     readonly AppDbContext _db;
@@ -39,16 +39,25 @@ public class RankingsController : ControllerBase
         var q = _db.Titles.AsQueryable();
         if (type != null) q = q.Where(t => t.Type == type);
 
-        var rows = await scores.GroupBy(s => s.TitleId)
-            .Where(g => g.Count() >= MinVotes)
-            .Select(g => new { TitleId = g.Key, Average = g.Average(s => s.Value), RatingCount = g.Count() })
-            .Join(q, g => g.TitleId, t => t.Id, (g, t) => new { t.Id, t.Name, t.CoverUrl, t.Type, g.Average, g.RatingCount })
-            .OrderByDescending(t => t.Average).ThenBy(t => t.Id)
-            .Take(Math.Clamp(take, 1, 100)).ToListAsync();
+        // average per title in the database, then a series is the average of its titles' averages
+        var perTitle = await scores.GroupBy(s => s.TitleId)
+            .Select(g => new { TitleId = g.Key, Average = g.Average(s => s.Value), Count = g.Count() })
+            .Join(q, g => g.TitleId, t => t.Id, (g, t) => new { t.SeriesId, g.Average, g.Count })
+            .ToListAsync();
 
-        return Ok(rows.Select(t => new
+        var top = perTitle.GroupBy(x => x.SeriesId)
+            .Select(g => new { SeriesId = g.Key, Average = g.Average(x => x.Average), RatingCount = g.Sum(x => x.Count) })
+            .Where(x => x.RatingCount >= MinVotes)
+            .OrderByDescending(x => x.Average).ThenBy(x => x.SeriesId)
+            .Take(Math.Clamp(take, 1, 100)).ToList();
+
+        var ids = top.Select(x => x.SeriesId).ToList();
+        var series = await _db.Series.Where(s => ids.Contains(s.Id)).ToDictionaryAsync(s => s.Id);
+
+        return Ok(top.Select(x => new
         {
-            t.Id, t.Name, t.CoverUrl, type = t.Type.ToString(), average = Math.Round(t.Average, 2), t.RatingCount
+            Id = x.SeriesId, series[x.SeriesId].Name, series[x.SeriesId].CoverUrl, type = series[x.SeriesId].Kind.ToString(),
+            average = Math.Round(x.Average, 2), x.RatingCount
         }));
     }
 }

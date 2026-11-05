@@ -15,6 +15,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Rating> Ratings => Set<Rating>();
     public DbSet<WatchListEntry> WatchList => Set<WatchListEntry>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<Series> Series => Set<Series>();
+    public DbSet<TitleRelation> TitleRelations => Set<TitleRelation>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -25,7 +27,17 @@ public class AppDbContext : IdentityDbContext<AppUser>
         b.Entity<Character>().HasIndex(c => c.AniListId).IsUnique();
         b.Entity<VoiceActor>().HasIndex(v => v.AniListId).IsUnique();
         b.Entity<TitleCharacter>().HasIndex(tc => new { tc.TitleId, tc.CharacterId }).IsUnique();
-        b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId }).IsUnique();
+        // Volume is nullable and Postgres treats NULLs as distinct, so two filtered unique indexes
+        b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId }).IsUnique().HasFilter("\"Volume\" IS NULL");
+        b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId, r.Volume }).IsUnique().HasFilter("\"Volume\" IS NOT NULL");
+        b.Entity<Title>().HasOne(t => t.Series).WithMany(s => s.Titles).HasForeignKey(t => t.SeriesId);
+        b.Entity<Title>().HasIndex(t => new { t.SeriesId, t.Position });
+        b.Entity<Title>().Property(t => t.RatingCount).IsConcurrencyToken();
+        b.Entity<Title>().Property(t => t.RatingSum).IsConcurrencyToken();
+        b.Entity<Series>().Property(s => s.Kind).HasConversion<string>();
+        b.Entity<Series>().HasIndex(s => new { s.Popularity, s.Id });
+        b.Entity<TitleRelation>().HasIndex(r => new { r.FromAniListId, r.ToAniListId, r.Type }).IsUnique();
+        b.Entity<TitleRelation>().HasIndex(r => r.ToAniListId);
         b.Entity<WatchListEntry>().HasIndex(w => new { w.UserId, w.TitleId }).IsUnique();
         b.Entity<WatchListEntry>().Property(w => w.Status).HasConversion<string>();
         b.Entity<Session>().HasIndex(s => s.UserId);

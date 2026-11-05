@@ -43,6 +43,7 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
+builder.Services.AddSingleton<ImportJob>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<CredentialCheck>();
 

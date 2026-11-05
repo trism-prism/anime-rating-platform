@@ -51,7 +51,11 @@ public class TitlesController : ControllerBase
     public async Task<IActionResult> Get(int id)
     {
         var t = await _db.Titles.Where(x => x.Id == id)
-            .Select(x => new { x.Id, x.AniListId, x.Type, x.Name, x.CoverUrl, x.Synopsis, x.Episodes, x.Chapters, x.Genres, x.Popularity })
+            .Select(x => new
+            {
+                x.Id, x.AniListId, x.Type, x.Name, x.CoverUrl, x.Synopsis, x.Episodes, x.Chapters, x.Genres, x.Popularity,
+                x.SeriesId, SeriesName = x.Series.Name, x.Position, x.Format, x.Year, x.Volumes
+            })
             .FirstOrDefaultAsync();
         if (t == null) return NotFound();
 
@@ -80,13 +84,22 @@ public class TitlesController : ControllerBase
             .OrderByDescending(r => r.CreatedAt).Take(50)
             .Select(r => new
             {
-                userName = r.User.UserName, r.Overall, r.Story, r.Art, r.Characters, r.Enjoyment, r.ReviewText, r.CreatedAt
+                userName = r.User.UserName, r.Volume, r.Overall, r.Story, r.Art, r.Characters, r.Enjoyment, r.ReviewText, r.CreatedAt
             }).ToListAsync();
+
+        // manga with a known volume count: one average per rated volume
+        var volumeAverages = t.Volumes == null ? null : (await ratings.Where(r => r.Volume != null)
+            .GroupBy(r => r.Volume)
+            .Select(g => new { Volume = g.Key, Average = g.Average(r => r.Overall), Count = g.Count() })
+            .ToListAsync())
+            .OrderBy(v => v.Volume)
+            .Select(v => new { volume = v.Volume, average = Math.Round(v.Average, 2), count = v.Count });
 
         return Ok(new
         {
             t.Id, t.AniListId, type = t.Type.ToString(), t.Name, t.CoverUrl, t.Synopsis, t.Episodes, t.Chapters,
             genres = SplitGenres(t.Genres), t.Popularity,
+            t.SeriesId, t.SeriesName, t.Position, t.Format, t.Year, t.Volumes, volumeAverages,
             characters,
             averages = avg == null ? null : new
             {
