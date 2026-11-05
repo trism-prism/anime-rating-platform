@@ -1,80 +1,105 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import TitleCard from '../components/TitleCard'
-import type { TitleList } from '../types'
+import SearchBox from '../components/SearchBox'
+import SeriesCard from '../components/SeriesCard'
+import type { SeriesPage, SeriesSummary } from '../types'
 
-const PAGE_SIZE = 24
+const TAKE = 24
 const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller']
 
+function seriesUrl(query: string, type: string, genre: string, cursor: string | null) {
+  const params = new URLSearchParams({ take: String(TAKE) })
+  if (query) params.set('search', query)
+  if (type) params.set('type', type)
+  if (genre) params.set('genre', genre)
+  if (cursor) params.set('cursor', cursor)
+  return `/series?${params}`
+}
+
 export default function Browse() {
-  const [search, setSearch] = useState('')
   const [query, setQuery] = useState('') // search text actually sent, updated on submit
   const [type, setType] = useState('')
   const [genre, setGenre] = useState('')
-  const [page, setPage] = useState(1)
-  const [data, setData] = useState<TitleList | null>(null)
+  const [data, setData] = useState<{ key: string; items: SeriesSummary[]; next: string | null } | null>(null)
   const [error, setError] = useState('')
+  const [tick, setTick] = useState(0) // bump to retry
+  const [more, setMore] = useState<{ busy: boolean; error: string }>({ busy: false, error: '' })
+
+  const key = `${query}|${type}|${genre}`
 
   useEffect(() => {
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
-    if (query) params.set('search', query)
-    if (type) params.set('type', type)
-    if (genre) params.set('genre', genre)
-
     let stale = false
-    api<TitleList>(`/titles?${params}`)
+    api<SeriesPage>(seriesUrl(query, type, genre, null))
       .then((d) => {
         if (stale) return
-        setData(d)
+        setData({ key, items: d.items, next: d.nextCursor })
         setError('')
+        setMore({ busy: false, error: '' })
       })
       .catch((e: Error) => !stale && setError(e.message))
     return () => {
       stale = true
     }
-  }, [query, type, genre, page])
+  }, [query, type, genre, key, tick])
 
-  const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
+  async function loadMore() {
+    if (!data?.next) return
+    const k = key
+    setMore({ busy: true, error: '' })
+    try {
+      const d = await api<SeriesPage>(seriesUrl(query, type, genre, data.next))
+      // the filters may have changed while this was in flight
+      setData((cur) => (cur && cur.key === k ? { ...cur, items: [...cur.items, ...d.items], next: d.nextCursor } : cur))
+      setMore({ busy: false, error: '' })
+    } catch (e) {
+      setMore({ busy: false, error: (e as Error).message })
+    }
+  }
+
+  const loading = !data || data.key !== key
 
   return (
     <div>
       <h1>Browse</h1>
-      <form
-        className="filters"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setQuery(search.trim())
-        }}
-      >
-        <input placeholder="Search titles" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={type} onChange={(e) => { setType(e.target.value); setPage(1) }}>
+      <div className="filters">
+        <SearchBox onSubmit={setQuery} />
+        <select aria-label="Type" value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">All types</option>
           <option value="Anime">Anime</option>
           <option value="Manga">Manga</option>
         </select>
-        <select value={genre} onChange={(e) => { setGenre(e.target.value); setPage(1) }}>
+        <select aria-label="Genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
           <option value="">All genres</option>
           {GENRES.map((g) => <option key={g}>{g}</option>)}
         </select>
-        <button type="submit">Search</button>
-      </form>
+      </div>
 
-      {error && <p className="error">{error}</p>}
-      {!data && !error && <p className="muted">Loading...</p>}
-      {data && data.items.length === 0 && <p className="muted">No titles found.</p>}
-      {data && (
-        <>
-          <div className="grid">
-            {data.items.map((t) => <TitleCard key={t.id} title={t} />)}
-          </div>
-          <div className="pager">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Prev</button>
-            <span className="muted">Page {page} of {pages} ({data.total} titles)</span>
-            <button disabled={page >= pages} onClick={() => setPage(page + 1)}>Next</button>
-          </div>
-        </>
-      )}
+      <div className="results">
+        {error && (
+          <p className="error">
+            {error} <button onClick={() => { setError(''); setTick((t) => t + 1) }}>Retry</button>
+          </p>
+        )}
+        {loading && !error && <p className="muted">Loading...</p>}
+        {!loading && data.items.length === 0 && <p className="muted">No series found.</p>}
+        {!loading && (
+          <>
+            <div className="grid">
+              {data.items.map((s) => (
+                <SeriesCard key={s.id} id={s.id} name={s.name} coverUrl={s.coverUrl} type={s.type} average={s.average} ratingCount={s.ratingCount} />
+              ))}
+            </div>
+            <div className="pager">
+              {data.next ? (
+                <button disabled={more.busy} onClick={loadMore}>{more.busy ? 'Loading...' : 'Load more'}</button>
+              ) : (
+                data.items.length > 0 && <span className="muted">That's everything.</span>
+              )}
+              {more.error && <span className="error">{more.error}</span>}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

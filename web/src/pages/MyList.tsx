@@ -55,6 +55,7 @@ export default function MyList() {
       {shown.map((e) => (
         <div key={e.titleId} className="list-row">
           <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
+          <Link to={`/series/${e.seriesId}`} className="muted link-quiet">{e.seriesName}</Link>
           <span className="muted">{e.type}</span>
           <select value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus, e.progress)}>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
@@ -84,8 +85,8 @@ export default function MyList() {
           </thead>
           <tbody>
             {ratings.map((r) => (
-              <tr key={r.titleId}>
-                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link></td>
+              <tr key={`${r.titleId}-${r.volume ?? 0}`}>
+                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}</td>
                 <td>{r.story}</td><td>{r.art}</td><td>{r.characters}</td><td>{r.enjoyment}</td>
                 <td><strong>{r.overall}</strong></td>
               </tr>
