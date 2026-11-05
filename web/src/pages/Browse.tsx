@@ -29,17 +29,17 @@ export default function Browse() {
   const key = `${query}|${type}|${genre}`
 
   useEffect(() => {
-    let stale = false
+    const run = { stale: false }
     generation.current++
     api<SeriesPage>(seriesUrl(query, type, genre, null))
       .then((d) => {
-        if (stale) return
+        if (run.stale) return
         setData({ key, items: d.items, next: d.nextCursor, moreBusy: false, moreError: '' })
         setError('')
       })
-      .catch((e: Error) => !stale && setError(e.message))
+      .catch((e: Error) => !run.stale && setError(e.message))
     return () => {
-      stale = true
+      run.stale = true
     }
   }, [query, type, genre, key, tick])
 
