@@ -102,22 +102,22 @@ public class PostgresTests
         Assert.All(defs, d => Assert.Contains("gin_trgm_ops", d));
     }
 
-    // locks title 2 on another connection right before the assigner's guarded UPDATE of Titles runs
-    class LockMidRun : DbCommandInterceptor
+    // runs a statement on another connection (an admin acting concurrently) right before the first command containing `when`
+    class OtherSessionFirst : DbCommandInterceptor
     {
-        readonly string _cs;
+        readonly string _cs, _when, _sql;
         bool _done;
-        public LockMidRun(string cs) => _cs = cs;
+        public OtherSessionFirst(string cs, string when, string sql) { _cs = cs; _when = when; _sql = sql; }
 
         public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
             DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken ct = default)
         {
-            if (!_done && command.CommandText.Contains("UPDATE \"Titles\""))
+            if (!_done && command.CommandText.Contains(_when))
             {
                 _done = true;
                 await using var c = new NpgsqlConnection(_cs);
                 await c.OpenAsync(ct);
-                await using var cmd = new NpgsqlCommand("UPDATE \"Titles\" SET \"SeriesLocked\" = true WHERE \"AniListId\" = 2", c);
+                await using var cmd = new NpgsqlCommand(_sql, c);
                 await cmd.ExecuteNonQueryAsync(ct);
             }
             return result;
@@ -141,13 +141,89 @@ public class PostgresTests
         int before;
         using (var read = pg.Db()) before = (await read.Titles.SingleAsync(t => t.AniListId == 2)).SeriesId;
 
-        using (var db = pg.Db(new LockMidRun(pg.ConnectionString)))
+        using (var db = pg.Db(new OtherSessionFirst(pg.ConnectionString, "UPDATE \"Titles\"", "UPDATE \"Titles\" SET \"SeriesLocked\" = true WHERE \"AniListId\" = 2")))
             await new SeriesAssigner(db).Assign();
 
         using var check = pg.Db();
         var two = await check.Titles.SingleAsync(t => t.AniListId == 2);
         Assert.True(two.SeriesLocked);
         Assert.Equal(before, two.SeriesId);
+    }
+
+    [Fact]
+    public async Task Refresh_does_not_write_a_position_onto_a_title_moved_out_meanwhile()
+    {
+        if (Admin == null) return;
+        await using var pg = await Throwaway.Create();
+        using (var seed = pg.Db())
+        {
+            await seed.Database.MigrateAsync();
+            var other = new Series { Name = "Other" };
+            seed.Titles.AddRange(
+                new Title { AniListId = 1, Name = "Show", Year = 2020, Series = new Series { Name = "Show" } },
+                new Title { AniListId = 2, Name = "Show 2", Year = 2021, Series = new Series { Name = "Show" } });
+            seed.Series.Add(other);
+            await seed.SaveChangesAsync();
+            // both titles share the first series
+            var first = (await seed.Titles.SingleAsync(t => t.AniListId == 1)).SeriesId;
+            await seed.Database.ExecuteSqlRawAsync("UPDATE \"Titles\" SET \"SeriesId\" = {0}, \"Position\" = 0", first);
+        }
+        int otherId;
+        using (var read = pg.Db()) otherId = (await read.Series.SingleAsync(s => s.Name == "Other")).Id;
+
+        // when Refresh writes the first position, an admin moves title 2 to the other series
+        using (var db = pg.Db(new OtherSessionFirst(pg.ConnectionString, "SET \"Position\"",
+            $"UPDATE \"Titles\" SET \"SeriesId\" = {otherId} WHERE \"AniListId\" = 2")))
+            await new SeriesAssigner(db).Refresh();
+
+        using var check = pg.Db();
+        var two = await check.Titles.SingleAsync(t => t.AniListId == 2);
+        Assert.Equal(otherId, two.SeriesId);
+        Assert.Equal(0, two.Position); // left alone
+        Assert.Equal(1, (await check.Titles.SingleAsync(t => t.AniListId == 1)).Position);
+    }
+
+    [Fact]
+    public async Task Deleting_a_series_that_still_has_titles_is_refused()
+    {
+        if (Admin == null) return;
+        await using var pg = await Throwaway.Create();
+        using var db = pg.Db();
+        await db.Database.MigrateAsync();
+        db.Titles.Add(new Title { AniListId = 1, Name = "Show", Series = new Series { Name = "Show" } });
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync("DELETE FROM \"Series\""));
+        Assert.Equal(1, await db.Titles.CountAsync());
+    }
+
+    [Fact]
+    public async Task Admin_move_waits_while_the_series_lock_is_held()
+    {
+        if (Admin == null) return;
+        await using var pg = await Throwaway.Create();
+        using var db = pg.Db();
+        await db.Database.MigrateAsync();
+        db.Titles.Add(new Title { AniListId = 1, Name = "Show", Series = new Series { Name = "Show" } });
+        await db.SaveChangesAsync();
+        var id = (await db.Titles.SingleAsync()).Id;
+
+        Task<Microsoft.AspNetCore.Mvc.IActionResult> move;
+        await using (var other = new NpgsqlConnection(pg.ConnectionString))
+        {
+            await other.OpenAsync();
+            await using (var take = new NpgsqlCommand($"SELECT pg_advisory_lock({AdvisoryLock.SeriesKey})", other))
+                await take.ExecuteNonQueryAsync();
+
+            move = new api.Controllers.AdminSeriesController(db).Move(id, new api.Controllers.MoveRequest(null));
+            await Task.Delay(700);
+            Assert.False(move.IsCompleted); // Refresh and admin edits take turns
+
+            await using var release = new NpgsqlCommand($"SELECT pg_advisory_unlock({AdvisoryLock.SeriesKey})", other);
+            await release.ExecuteNonQueryAsync();
+        }
+        await move.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True((await db.Titles.AsNoTracking().SingleAsync()).SeriesLocked);
     }
 
     sealed class EmptyAniList : HttpMessageHandler
@@ -171,10 +247,10 @@ public class PostgresTests
         await using (var other = new NpgsqlConnection(pg.ConnectionString))
         {
             await other.OpenAsync();
-            await using (var take = new NpgsqlCommand($"SELECT pg_advisory_lock({AniListImporter.LockKey})", other))
+            await using (var take = new NpgsqlCommand($"SELECT pg_advisory_lock({AdvisoryLock.ImportKey})", other))
                 await take.ExecuteNonQueryAsync();
             await Assert.ThrowsAsync<InvalidOperationException>(() => new AniListImporter(db, client).Import(1));
-            await using var release = new NpgsqlCommand($"SELECT pg_advisory_unlock({AniListImporter.LockKey})", other);
+            await using var release = new NpgsqlCommand($"SELECT pg_advisory_unlock({AdvisoryLock.ImportKey})", other);
             await release.ExecuteNonQueryAsync(); // a pooled connection would keep the lock after Close
         }
 

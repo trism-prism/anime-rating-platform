@@ -36,6 +36,8 @@ public class AdminSeriesController : ControllerBase
     public async Task<IActionResult> Merge(MergeRequest req)
     {
         if (req.FromId == req.IntoId) return BadRequest(new { message = "Pick two different series." });
+        // held until the end: Refresh must not delete a series while we are filling it
+        await using var _ = await AdvisoryLock.Wait(_db, AdvisoryLock.SeriesKey);
         var source = await _db.Series.Include(s => s.Titles).FirstOrDefaultAsync(s => s.Id == req.FromId);
         var into = await _db.Series.FirstOrDefaultAsync(s => s.Id == req.IntoId);
         if (source == null || into == null) return NotFound();
@@ -46,7 +48,7 @@ public class AdminSeriesController : ControllerBase
             t.Series = into;
             t.SeriesLocked = true;
         }
-        await _db.SaveChangesAsync();
+        await _db.SaveRetryingAsync(); // a rating may land on a title meanwhile
         await new SeriesAssigner(_db).Refresh(); // drops the empty series, re-positions and renames
         return NoContent();
     }
@@ -55,6 +57,7 @@ public class AdminSeriesController : ControllerBase
     [HttpPost("titles/{id:int}/move")]
     public async Task<IActionResult> Move(int id, MoveRequest req)
     {
+        await using var _ = await AdvisoryLock.Wait(_db, AdvisoryLock.SeriesKey);
         var title = await _db.Titles.FirstOrDefaultAsync(t => t.Id == id);
         if (title == null) return NotFound();
 
@@ -71,7 +74,7 @@ public class AdminSeriesController : ControllerBase
 
         title.Series = target;
         title.SeriesLocked = true;
-        await _db.SaveChangesAsync();
+        await _db.SaveRetryingAsync();
         await new SeriesAssigner(_db).Refresh();
         return Ok(new { seriesId = target.Id });
     }

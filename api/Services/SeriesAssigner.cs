@@ -64,6 +64,7 @@ public class SeriesAssigner
     // group unlocked titles into series by the joining relations, then fix names and order
     public async Task Assign()
     {
+        await using var _ = await AdvisoryLock.Wait(_db, AdvisoryLock.SeriesKey);
         var titles = await _db.Titles.ToListAsync();
         var series = await _db.Series.ToDictionaryAsync(s => s.Id);
         var relations = await _db.TitleRelations.Where(r => Joining.Contains(r.Type)).ToListAsync();
@@ -109,19 +110,29 @@ public class SeriesAssigner
     // positions, name, cover and popularity of every series; drops series with no titles
     public async Task Refresh()
     {
+        await using var _ = await AdvisoryLock.Wait(_db, AdvisoryLock.SeriesKey);
+        var sql = _db.Database.IsNpgsql();
         foreach (var s in await _db.Series.Include(s => s.Titles).ToListAsync())
         {
             // a title an admin moved in since the list was read must not be cascade-deleted with its series
             if (s.Titles.Count == 0)
             {
-                if (_db.Database.IsNpgsql()) await _db.Series.Where(x => x.Id == s.Id && !x.Titles.Any()).ExecuteDeleteAsync();
+                if (sql) await _db.Series.Where(x => x.Id == s.Id && !x.Titles.Any()).ExecuteDeleteAsync();
                 else _db.Series.Remove(s);
                 continue;
             }
 
             var ordered = s.Titles.OrderBy(t => t.Year ?? int.MaxValue).ThenBy(t => t.StartMonth ?? 0)
                 .ThenBy(t => t.StartDay ?? 0).ThenBy(t => t.Id).ToList();
-            for (var i = 0; i < ordered.Count; i++) ordered[i].Position = i + 1;
+            for (var i = 0; i < ordered.Count; i++)
+            {
+                if (ordered[i].Position == i + 1) continue;
+                if (!sql) { ordered[i].Position = i + 1; continue; }
+                // guarded in the database: a title an admin moved out of this series since we read it is not touched
+                var (id, position, seriesId) = (ordered[i].Id, i + 1, s.Id);
+                await _db.Titles.Where(t => t.Id == id && t.SeriesId == seriesId)
+                    .ExecuteUpdateAsync(x => x.SetProperty(t => t.Position, position));
+            }
 
             s.Name = SeriesNames.Strip(ordered[0].Name);
             s.Kind = ordered[0].Type;

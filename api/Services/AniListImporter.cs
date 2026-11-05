@@ -25,23 +25,11 @@ public class AniListImporter
         _client = client;
     }
 
-    // Postgres advisory lock key: one import at a time across every process (web admin job and CLI)
-    public const long LockKey = 0x616E696D6549;
-
     public async Task<ImportCounts> Import(int pagesPerType = 6)
     {
-        if (!_db.Database.IsNpgsql()) return await Run(pagesPerType);
-
-        // session-level lock, so the connection must stay open for the whole run
-        await _db.Database.OpenConnectionAsync();
-        try
-        {
-            var got = await _db.Database.SqlQuery<bool>($"SELECT pg_try_advisory_lock({LockKey}) AS \"Value\"").SingleAsync();
-            if (!got) throw new InvalidOperationException("Another import is already running.");
-            try { return await Run(pagesPerType); }
-            finally { await _db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({LockKey})"); }
-        }
-        finally { await _db.Database.CloseConnectionAsync(); }
+        await using var import = await AdvisoryLock.TryTake(_db, AdvisoryLock.ImportKey)
+            ?? throw new InvalidOperationException("Another import is already running.");
+        return await Run(pagesPerType);
     }
 
     async Task<ImportCounts> Run(int pagesPerType)
