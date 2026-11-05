@@ -32,6 +32,17 @@ public class AdminSeriesController : ControllerBase
         return Ok(items);
     }
 
+    // titles of one series with their lock state, for the move tool
+    [HttpGet("series/{id:int}")]
+    public async Task<IActionResult> Detail(int id)
+    {
+        var s = await _db.Series.Where(x => x.Id == id).Select(x => new { x.Id, x.Name, Kind = x.Kind.ToString() }).FirstOrDefaultAsync();
+        if (s == null) return NotFound(new { message = "That series no longer exists." });
+        var entries = await _db.Titles.Where(t => t.SeriesId == id).OrderBy(t => t.Position)
+            .Select(t => new { t.Id, t.Name, t.Position, t.Format, t.SeriesLocked }).ToListAsync();
+        return Ok(new { s.Id, s.Name, s.Kind, entries });
+    }
+
     [HttpPost("series/merge")]
     public async Task<IActionResult> Merge(MergeRequest req)
     {
@@ -40,7 +51,7 @@ public class AdminSeriesController : ControllerBase
         await using var _ = await AdvisoryLock.Wait(_db, AdvisoryLock.SeriesKey);
         var source = await _db.Series.Include(s => s.Titles).FirstOrDefaultAsync(s => s.Id == req.FromId);
         var into = await _db.Series.FirstOrDefaultAsync(s => s.Id == req.IntoId);
-        if (source == null || into == null) return NotFound();
+        if (source == null || into == null) return NotFound(new { message = "One of those series no longer exists. Search again." });
         if (source.Kind != into.Kind) return BadRequest(new { message = "Anime and manga never share a series." });
 
         foreach (var t in source.Titles.ToList())
@@ -59,7 +70,7 @@ public class AdminSeriesController : ControllerBase
     {
         await using var _ = await AdvisoryLock.Wait(_db, AdvisoryLock.SeriesKey);
         var title = await _db.Titles.FirstOrDefaultAsync(t => t.Id == id);
-        if (title == null) return NotFound();
+        if (title == null) return NotFound(new { message = "That title no longer exists." });
 
         Series target;
         if (req.SeriesId == null)
@@ -67,7 +78,7 @@ public class AdminSeriesController : ControllerBase
         else
         {
             var found = await _db.Series.FirstOrDefaultAsync(s => s.Id == req.SeriesId);
-            if (found == null) return NotFound();
+            if (found == null) return NotFound(new { message = "The destination series no longer exists. Search again." });
             if (found.Kind != title.Type) return BadRequest(new { message = "Anime and manga never share a series." });
             target = found;
         }

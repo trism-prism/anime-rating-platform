@@ -226,6 +226,30 @@ public class PostgresTests
         Assert.True((await db.Titles.AsNoTracking().SingleAsync()).SeriesLocked);
     }
 
+    [Fact]
+    public async Task Admin_series_detail_reports_locks_and_missing_targets_carry_a_message()
+    {
+        if (Admin == null) return;
+        await using var pg = await Throwaway.Create();
+        using var db = pg.Db();
+        await db.Database.MigrateAsync();
+        db.Titles.Add(new Title { AniListId = 1, Name = "Show", SeriesLocked = true, Series = new Series { Name = "Show" } });
+        db.Titles.Add(new Title { AniListId = 2, Name = "Other", Series = new Series { Name = "Other" } });
+        await db.SaveChangesAsync();
+        var ctl = new api.Controllers.AdminSeriesController(db);
+
+        var seriesId = (await db.Titles.SingleAsync(t => t.AniListId == 1)).SeriesId;
+        var ok = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(await ctl.Detail(seriesId));
+        var entries = ((System.Collections.IEnumerable)ok.Value!.GetType().GetProperty("entries")!.GetValue(ok.Value)!).Cast<object>().Single();
+        Assert.Equal(true, entries.GetType().GetProperty("SeriesLocked")!.GetValue(entries));
+
+        foreach (var res in new[] { await ctl.Detail(9999), await ctl.Move(9999, new api.Controllers.MoveRequest(null)), await ctl.Merge(new api.Controllers.MergeRequest(9998, 9999)) })
+        {
+            var nf = Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundObjectResult>(res);
+            Assert.NotNull(nf.Value!.GetType().GetProperty("message")!.GetValue(nf.Value));
+        }
+    }
+
     sealed class EmptyAniList : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct) =>
