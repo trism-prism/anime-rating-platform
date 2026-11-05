@@ -220,7 +220,7 @@ public class SocialTests
         Assert.Equal(1, await db.UserBlocks.CountAsync(b => b.BlockerId == "b"));
     }
 
-    static string Reply(IActionResult r) => $"{Status(r)} {(r is ObjectResult o ? Json(r).ToString() : "")}";
+    internal static string Reply(IActionResult r) => $"{Status(r)} {(r is ObjectResult o ? Json(r).ToString() : "")}";
 
     [Fact]
     public async Task Someone_who_blocked_you_answers_exactly_like_an_unknown_name_on_every_route()
@@ -417,6 +417,125 @@ public class SocialTests
         var c = Profiles(db, null);
         c.Request.Headers.Authorization = "Bearer expired";
         Assert.Equal(401, Status(await c.Get("bob")));
+    }
+
+    // pending requests to carol ("c" is always the low side against "x..."), sent `daysAgo` days ago, each with her notification
+    static async Task Flood(AppDbContext db, int count, int daysAgo, string prefix = "x")
+    {
+        var rows = Enumerable.Range(0, count).Select(i => new Friendship
+            { UserLowId = "c", UserHighId = prefix + i, RequesterId = prefix + i, Status = FriendStatus.Pending, CreatedAt = DateTime.UtcNow.AddDays(-daysAgo) }).ToList();
+        db.Friendships.AddRange(rows);
+        await db.SaveChangesAsync(); // ids first, for the notifications
+        db.Notifications.AddRange(rows.Select(f => new Notification { UserId = "c", Type = NotificationType.FriendRequest, ActorId = "a", SubjectId = f.Id }));
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task A_full_inbox_refuses_with_a_generic_answer_and_the_owner_can_still_ask_others()
+    {
+        using var db = await Db();
+        await Flood(db, FriendsController.MaxPendingIncoming, daysAgo: 1);
+
+        var r = await Send(db, "a", "carol");
+
+        Assert.Equal(409, Status(r));
+        Assert.DoesNotContain("pending", Json(r).GetProperty("message").GetString()!); // doesn't say why
+        Assert.Equal(FriendsController.MaxPendingIncoming, await db.Friendships.CountAsync()); // nothing was added
+        Assert.Equal(200, Status(await Send(db, "c", "alice")));
+    }
+
+    [Fact]
+    public async Task Expired_requests_are_pruned_before_a_full_inbox_refuses_anyone()
+    {
+        using var db = await Db();
+        await Flood(db, FriendsController.MaxPendingIncoming, daysAgo: SocialRules.RequestExpiryDays + 1);
+
+        Assert.Equal(200, Status(await Send(db, "a", "carol")));
+
+        Assert.Equal(1, await db.Friendships.CountAsync()); // the stale ones went, with their notifications
+        Assert.Equal(1, await db.Notifications.CountAsync());
+    }
+
+    [Fact]
+    public async Task One_sender_can_only_have_so_many_requests_out_and_expired_ones_do_not_count()
+    {
+        using var db = await Db();
+        for (var i = 0; i < FriendsController.MaxOutgoing; i++)
+            db.Friendships.Add(new Friendship { UserLowId = "a", UserHighId = "y" + i, RequesterId = "a", Status = FriendStatus.Pending });
+        await db.SaveChangesAsync();
+
+        var r = await Send(db, "a", "carol");
+        Assert.Equal(409, Status(r));
+        Assert.Contains("Cancel some", Json(r).GetProperty("message").GetString());
+        Assert.Equal(200, Status(await Send(db, "b", "carol"))); // other senders are unaffected
+
+        foreach (var f in db.Friendships.Where(f => f.RequesterId == "a").ToList()) f.CreatedAt = DateTime.UtcNow.AddDays(-31);
+        await db.SaveChangesAsync();
+        Assert.Equal(200, Status(await Send(db, "a", "carol"))); // pruned first, then allowed
+        Assert.Equal(2, await db.Friendships.CountAsync());
+    }
+
+    [Fact]
+    public async Task Reading_the_lists_prunes_expired_pending_requests_but_not_friends()
+    {
+        using var db = await Db();
+        await Flood(db, 3, daysAgo: 40);
+        db.Friendships.Add(new Friendship { UserLowId = "a", UserHighId = "c", RequesterId = "a", Status = FriendStatus.Accepted, CreatedAt = DateTime.UtcNow.AddDays(-400) });
+        db.Users.Add(User("z0", "zed"));
+        await Flood(db, 1, daysAgo: 2, prefix: "z");
+        await db.SaveChangesAsync();
+
+        var list = Json(await Friends(db, "c").List());
+
+        Assert.Equal(1, list.GetProperty("incoming").GetArrayLength());
+        Assert.Equal(1, list.GetProperty("friends").GetArrayLength()); // old, but accepted: kept
+        Assert.Equal(1 + 1, await db.Friendships.CountAsync());
+        Assert.Equal(1, await db.Notifications.CountAsync());
+    }
+
+    [Fact]
+    public async Task Decline_all_clears_every_pending_request_to_me_and_nothing_else()
+    {
+        using var db = await Db();
+        await Flood(db, 5, daysAgo: 1);
+        db.Friendships.Add(new Friendship { UserLowId = "a", UserHighId = "c", RequesterId = "a", Status = FriendStatus.Accepted }); // a friend: stays
+        db.Friendships.Add(new Friendship { UserLowId = "c", UserHighId = "d", RequesterId = "c", Status = FriendStatus.Pending }); // sent by carol: stays
+        db.Friendships.Add(new Friendship { UserLowId = "a", UserHighId = "b", RequesterId = "a", Status = FriendStatus.Pending }); // someone else's inbox: stays
+        await db.SaveChangesAsync();
+
+        Assert.Equal(204, Status(await Friends(db, "c").DeclineAll()));
+
+        var left = await db.Friendships.ToListAsync();
+        Assert.Equal(3, left.Count);
+        Assert.DoesNotContain(left, f => f.Status == FriendStatus.Pending && f.RequesterId != "c" && f.RequesterId != "a");
+        Assert.Empty(db.Notifications); // their notifications went with them
+        Assert.Equal(204, Status(await Friends(db, "c").DeclineAll())); // nothing left: still fine
+        // and nobody was told: no notification exists for any requester
+        Assert.DoesNotContain(await db.Notifications.ToListAsync(), n => n.UserId != "c");
+    }
+
+    [Fact]
+    public async Task A_request_cannot_be_accepted_while_a_block_exists_either_way()
+    {
+        using var db = await Db();
+        await Send(db, "a", "bob");
+        db.UserBlocks.Add(new UserBlock { BlockerId = "b", BlockedId = "a" }); // as if it landed after the request was read
+        await db.SaveChangesAsync();
+        var id = (await db.Friendships.SingleAsync()).Id;
+
+        Assert.Equal(404, Status(await Friends(db, "b").Accept(id)));
+        db.UserBlocks.RemoveRange(db.UserBlocks);
+        db.UserBlocks.Add(new UserBlock { BlockerId = "a", BlockedId = "b" });
+        await db.SaveChangesAsync();
+        Assert.Equal(404, Status(await Friends(db, "b").Accept(id)));
+        Assert.Equal(FriendStatus.Pending, (await db.Friendships.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public void A_trailing_newline_is_not_a_valid_username()
+    {
+        Assert.False(SocialRules.ValidUserName("bob\n"));
+        Assert.True(SocialRules.ValidUserName("bob"));
     }
 
     [Fact]

@@ -14,7 +14,8 @@ public record SendFriendRequest(string? Username);
 [Authorize]
 public class FriendsController : ControllerBase
 {
-    public const int MaxPendingIncoming = 100; // per recipient, so nobody's inbox can be flooded
+    public const int MaxPendingIncoming = 200; // per recipient; high, because one actor filling it must spend many accounts (see MaxOutgoing)
+    public const int MaxOutgoing = 50; // pending requests one user can have out at once
     const int MaxFriendsListed = 500, MaxRequestsListed = 100;
     const string NoUser = "No user with that username.";
 
@@ -30,6 +31,7 @@ public class FriendsController : ControllerBase
     public async Task<IActionResult> List()
     {
         var me = UserId;
+        await SocialRules.PruneExpired(_db, me); // 30-day-old pending requests go before the lists are built
         var mine = _db.Friendships.Where(f => f.UserLowId == me || f.UserHighId == me);
         var friends = await mine.Where(f => f.Status == FriendStatus.Accepted).OrderByDescending(f => f.Id).Take(MaxFriendsListed).ToListAsync();
         var incoming = await mine.Where(f => f.Status == FriendStatus.Pending && f.RequesterId != me).OrderByDescending(f => f.Id).Take(MaxRequestsListed).ToListAsync();
@@ -62,8 +64,20 @@ public class FriendsController : ControllerBase
         var created = false;
         if (f == null)
         {
+            // expired requests are pruned before anything is refused. A full inbox gets a generic answer, so a sender can't tell
+            // it from other refusals; the recipient can clear a flood with "decline all".
+            if (await Outgoing(me) >= MaxOutgoing)
+            {
+                await SocialRules.PruneExpired(_db, me);
+                if (await Outgoing(me) >= MaxOutgoing)
+                    return Conflict(new { message = $"You have {MaxOutgoing} requests waiting. Cancel some before sending more." });
+            }
             if (await PendingFor(targetId) >= MaxPendingIncoming)
-                return Conflict(new { message = "This user has too many pending requests. Try again later." });
+            {
+                await SocialRules.PruneExpired(_db, targetId);
+                if (await PendingFor(targetId) >= MaxPendingIncoming)
+                    return Conflict(new { message = "You can't send this user a request right now." });
+            }
 
             var (low, high) = Friendship.Order(me, targetId);
             try
@@ -121,6 +135,24 @@ public class FriendsController : ControllerBase
         await SocialRules.Remove(_db, f);
         // Status is a concurrency token: if the request was accepted meanwhile the delete matches nothing and the friendship stays
         return await SocialRules.TrySave(_db) ? NoContent() : NotFound();
+    }
+
+    // clears a flood: every pending request sent to me, silently. An accept racing it keeps its friendship (Status is a token).
+    [HttpPost("friends/requests/decline-all")]
+    [EnableRateLimiting("notify")]
+    public async Task<IActionResult> DeclineAll()
+    {
+        var me = UserId;
+        for (var i = 0; i < 5; i++)
+        {
+            var rows = await _db.Friendships
+                .Where(f => f.Status == FriendStatus.Pending && f.RequesterId != me && (f.UserLowId == me || f.UserHighId == me))
+                .Take(500).ToListAsync();
+            if (rows.Count == 0) break;
+            await SocialRules.RemoveMany(_db, rows);
+            await SocialRules.TrySave(_db); // false: one was accepted meanwhile; the next pass skips it
+        }
+        return NoContent();
     }
 
     // the sender takes a request back
@@ -201,6 +233,8 @@ public class FriendsController : ControllerBase
         }
         return NoContent(); // same answer whether or not there was a block
     }
+
+    Task<int> Outgoing(string me) => _db.Friendships.CountAsync(f => f.Status == FriendStatus.Pending && f.RequesterId == me);
 
     Task<int> PendingFor(string userId) =>
         _db.Friendships.CountAsync(f => f.Status == FriendStatus.Pending && f.RequesterId != userId && (f.UserLowId == userId || f.UserHighId == userId));

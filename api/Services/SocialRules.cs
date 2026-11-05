@@ -65,14 +65,32 @@ public static class SocialRules
         }
     }
 
-    // removes the row and every notification that points at it, so the bell never shows a dead request
-    public static async Task Remove(AppDbContext db, Friendship f)
+    // removes the rows and every notification that points at them, so the bell never shows a dead request; the caller saves
+    public static async Task RemoveMany(AppDbContext db, IReadOnlyList<Friendship> rows)
     {
+        var ids = rows.Select(f => (int?)f.Id).ToList();
         var dead = await db.Notifications
-            .Where(n => n.SubjectId == f.Id && (n.Type == NotificationType.FriendRequest || n.Type == NotificationType.FriendAccepted))
+            .Where(n => ids.Contains(n.SubjectId) && (n.Type == NotificationType.FriendRequest || n.Type == NotificationType.FriendAccepted))
             .ToListAsync();
         db.Notifications.RemoveRange(dead);
-        db.Friendships.Remove(f);
+        db.Friendships.RemoveRange(rows);
+    }
+
+    public static Task Remove(AppDbContext db, Friendship f) => RemoveMany(db, new[] { f });
+
+    public const int RequestExpiryDays = 30;
+
+    // Lazy expiry (no background job): pending requests older than 30 days, either direction, go with their notifications.
+    // Run when a list is read or a limit is about to refuse someone, so stale requests never block a new one.
+    public static async Task PruneExpired(AppDbContext db, string userId)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-RequestExpiryDays);
+        var old = await db.Friendships
+            .Where(f => f.Status == FriendStatus.Pending && f.CreatedAt < cutoff && (f.UserLowId == userId || f.UserHighId == userId))
+            .Take(500).ToListAsync();
+        if (old.Count == 0) return;
+        await RemoveMany(db, old);
+        await TrySave(db); // false: one was answered meanwhile; the next read prunes what is left
     }
 
     // one bucket per signed-in user (per IP when there is no token); the limiter must run after authentication
