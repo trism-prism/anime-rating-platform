@@ -10,6 +10,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import Settings from './pages/Settings'
+import Profile from './pages/Profile'
+import NotificationPreferences from './pages/NotificationPreferences'
 import Verify from './pages/Verify'
 import Admin from './pages/Admin'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
@@ -33,6 +35,8 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/notifications" element={<NotificationPreferences />} />
+          <Route path="/u/:username" element={<Profile />} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
