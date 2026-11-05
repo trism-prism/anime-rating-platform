@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import SearchBox from '../components/SearchBox'
 import SeriesCard from '../components/SeriesCard'
@@ -20,21 +20,22 @@ export default function Browse() {
   const [query, setQuery] = useState('') // search text actually sent, updated on submit
   const [type, setType] = useState('')
   const [genre, setGenre] = useState('')
-  const [data, setData] = useState<{ key: string; items: SeriesSummary[]; next: string | null } | null>(null)
+  // moreBusy and moreError live in data so they belong to this filter key and reset with every first-page load
+  const [data, setData] = useState<{ key: string; items: SeriesSummary[]; next: string | null; moreBusy: boolean; moreError: string } | null>(null)
   const [error, setError] = useState('')
   const [tick, setTick] = useState(0) // bump to retry
-  const [more, setMore] = useState<{ busy: boolean; error: string }>({ busy: false, error: '' })
+  const generation = useRef(0) // bumped by every first-page load; a load-more from an older one is dropped
 
   const key = `${query}|${type}|${genre}`
 
   useEffect(() => {
     let stale = false
+    generation.current++
     api<SeriesPage>(seriesUrl(query, type, genre, null))
       .then((d) => {
         if (stale) return
-        setData({ key, items: d.items, next: d.nextCursor })
+        setData({ key, items: d.items, next: d.nextCursor, moreBusy: false, moreError: '' })
         setError('')
-        setMore({ busy: false, error: '' })
       })
       .catch((e: Error) => !stale && setError(e.message))
     return () => {
@@ -43,16 +44,22 @@ export default function Browse() {
   }, [query, type, genre, key, tick])
 
   async function loadMore() {
-    if (!data?.next) return
-    const k = key
-    setMore({ busy: true, error: '' })
+    if (!data?.next || data.key !== key) return
+    const gen = generation.current
+    const cursor = data.next
+    // still the same page of the same list? (a filter switch and back reloads page one with the same cursor)
+    const current = (cur: typeof data | null) => (cur && gen === generation.current && cur.next === cursor ? cur : null)
+    setData((cur) => { const c = current(cur); return c ? { ...c, moreBusy: true, moreError: '' } : cur })
     try {
-      const d = await api<SeriesPage>(seriesUrl(query, type, genre, data.next))
-      // the filters may have changed while this was in flight
-      setData((cur) => (cur && cur.key === k ? { ...cur, items: [...cur.items, ...d.items], next: d.nextCursor } : cur))
-      setMore({ busy: false, error: '' })
+      const d = await api<SeriesPage>(seriesUrl(query, type, genre, cursor))
+      setData((cur) => {
+        const c = current(cur)
+        if (!c) return cur
+        const have = new Set(c.items.map((i) => i.id)) // popularity can shift between pages and repeat a series
+        return { ...c, items: [...c.items, ...d.items.filter((i) => !have.has(i.id))], next: d.nextCursor, moreBusy: false, moreError: '' }
+      })
     } catch (e) {
-      setMore({ busy: false, error: (e as Error).message })
+      setData((cur) => { const c = current(cur); return c ? { ...c, moreBusy: false, moreError: (e as Error).message } : cur })
     }
   }
 
@@ -91,11 +98,11 @@ export default function Browse() {
             </div>
             <div className="pager">
               {data.next ? (
-                <button disabled={more.busy} onClick={loadMore}>{more.busy ? 'Loading...' : 'Load more'}</button>
+                <button disabled={data.moreBusy} onClick={loadMore}>{data.moreBusy ? 'Loading...' : 'Load more'}</button>
               ) : (
                 data.items.length > 0 && <span className="muted">That's everything.</span>
               )}
-              {more.error && <span className="error">{more.error}</span>}
+              {data.moreError && <span className="error">{data.moreError}</span>}
             </div>
           </>
         )}
