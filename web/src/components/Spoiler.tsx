@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 
-// hides a whole text behind a button; the text is in the page already, this only keeps it from being read by accident
+// hides a whole text behind a button; the text is in the API response but is not rendered in the DOM until revealed
 export default function Spoiler({ children, what }: { children: ReactNode; what: string }) {
   const [shown, setShown] = useState(false)
   if (shown) {

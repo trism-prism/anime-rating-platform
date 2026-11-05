@@ -113,7 +113,7 @@ function Profile({ username }: { username: string }) {
 
       {state === 'Self' && <FriendsSection onChange={load} />}
 
-      <ProfileRatings key={p.userName} username={p.userName} />
+      <ProfileRatings key={`${p.userName}:${p.viewerState}`}username={p.userName} />
 
       <ConfirmDialog open={confirmBlock} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}
         onConfirm={() => run(call(`/blocks/${name}`, 'PUT'))} onCancel={() => setConfirmBlock(false)}>

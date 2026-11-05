@@ -27,7 +27,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
   useEffect(() => { loadFirst() }, [loadFirst, refresh])
 
   const retry = () => { setError(''); setItems(null); loadFirst() }
-  const pick = (s: Sort) => { setSort(s); setItems(null); setError(''); setMoreError('') }
+  const pick = (s: Sort) => { setSort(s); setItems(null); setNext(null); setError(''); setMoreError('') }
 
   async function loadMore() {
     if (!next || loadingMore) return
@@ -49,9 +49,9 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
     }
   }
 
-  // a card reports its new state (or null when it is gone); applying by id makes a late answer harmless
-  const update = useCallback((id: number, r: ReviewItem | null) => {
-    setItems((l) => l && (r ? l.map((x) => (x.id === id ? r : x)) : l.filter((x) => x.id !== id)))
+  // a card reports its new state, a patch to apply to the current one, or null when it is gone; applying by id makes a late answer harmless
+  const update = useCallback((id: number, r: ReviewItem | ((x: ReviewItem) => ReviewItem) | null) => {
+    setItems((l) => l && (r ? l.map((x) => (x.id === id ? (typeof r === 'function' ? r(x) : r) : x)) : l.filter((x) => x.id !== id)))
   }, [])
 
   return (
@@ -73,7 +73,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
         {items?.map((r) => <ReviewCard key={r.id} review={r} showTitle={showTitle} onChange={update} />)}
       </div>
       {moreError && <p className="error" role="alert">{moreError} <button onClick={loadMore}>Retry</button></p>}
-      {next && !moreError && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more'}</button>}
+      {items && next && !moreError && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more'}</button>}
     </section>
   )
 }

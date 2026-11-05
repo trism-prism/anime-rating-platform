@@ -46,7 +46,7 @@ function Review({ id }: { id: string }) {
   return (
     <div className="review-page">
       <p className="muted crumb"><Link to={`/titles/${review.titleId}`} className="link">All reviews of {review.titleName}</Link></p>
-      <ReviewCard review={review} showTitle defaultOpen onChange={(_, r) => (r ? setReview(r) : setMissing(true))} />
+      <ReviewCard review={review} showTitle defaultOpen onChange={(_, r) => (r ? setReview((x) => (typeof r === 'function' ? x && r(x) : r)) : setMissing(true))} />
     </div>
   )
 }

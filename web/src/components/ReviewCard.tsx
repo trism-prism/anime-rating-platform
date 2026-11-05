@@ -10,12 +10,12 @@ import Spoiler from './Spoiler'
 
 const countOf = (r: ReviewItem, k: ReactionKind) => (k === 'Helpful' ? r.helpful : k === 'Unhelpful' ? r.unhelpful : r.funny)
 
-// one review with reactions and a collapsible reply thread. onChange gets the updated review, or null once it is gone.
+// one review with reactions and a collapsible reply thread. onChange gets the updated review, a patch for the parent's current copy, or null once it is gone.
 export default function ReviewCard({ review, showTitle, defaultOpen = false, onChange }: {
   review: ReviewItem
   showTitle: boolean
   defaultOpen?: boolean
-  onChange: (id: number, next: ReviewItem | null) => void
+  onChange: (id: number, next: ReviewItem | ((r: ReviewItem) => ReviewItem) | null) => void
 }) {
   const { user, isAdmin } = useAuth()
   const [open, setOpen] = useState(defaultOpen)
@@ -41,7 +41,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
       // clicking your active reaction takes it back
       const clear = review.myReaction === kind
       const r = await api<ReactionState>(`/reviews/${id}/reaction`, clear ? { method: 'DELETE' } : { method: 'PUT', body: JSON.stringify({ kind }) })
-      onChange(id, { ...review, ...r })
+      onChange(id, (x) => ({ ...x, ...r }))
     } catch (e) {
       setError((e as Error).message)
       await resync()
@@ -107,7 +107,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
         <ReplyThread
           reviewId={id}
           reviewMine={review.mine}
-          onCount={(d) => onChange(id, { ...review, replyCount: Math.max(0, review.replyCount + d) })}
+          onCount={(d) => onChange(id, (x) => ({ ...x, replyCount: Math.max(0, x.replyCount + d) }))}
           onResync={resync}
         />
       )}
