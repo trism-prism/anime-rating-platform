@@ -24,11 +24,10 @@ public class ProfilesController : ControllerBase
         // instead of showing a signed-in user the anonymous view
         if (Request.Headers.ContainsKey("Authorization") && User.Identity?.IsAuthenticated != true) return Unauthorized();
 
-        var user = await SocialRules.FindByName(_db, username);
         var viewer = User.FindFirst("sub")?.Value;
-        // someone who blocked the viewer looks like a missing account
-        if (user == null || (viewer != null && viewer != user.Id && await SocialRules.HasBlocked(_db, user.Id, viewer)))
-            return NotFound();
+        // someone who blocked the viewer looks like a missing account (one query either way)
+        var user = await SocialRules.FindVisible(_db, viewer, username);
+        if (user == null) return NotFound();
 
         var friendCount = await _db.Friendships.CountAsync(f => f.Status == FriendStatus.Accepted && (f.UserLowId == user.Id || f.UserHighId == user.Id));
 

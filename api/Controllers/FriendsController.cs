@@ -47,8 +47,8 @@ public class FriendsController : ControllerBase
     public async Task<IActionResult> Send(SendFriendRequest req)
     {
         var me = UserId;
-        var target = await SocialRules.FindByName(_db, req.Username);
-        if (target == null || await SocialRules.HasBlocked(_db, target.Id, me))
+        var target = await SocialRules.FindVisible(_db, me, req.Username);
+        if (target == null)
             return NotFound(new { message = "No user with that username." });
         if (target.Id == me) return BadRequest(new { message = "You can't add yourself." });
         if (await SocialRules.HasBlocked(_db, me, target.Id)) return Conflict(new { message = "You blocked this user. Unblock them first." });
@@ -119,7 +119,7 @@ public class FriendsController : ControllerBase
     public async Task<IActionResult> Unfriend(string username)
     {
         var me = UserId;
-        var other = await SocialRules.FindByName(_db, username);
+        var other = await SocialRules.FindVisible(_db, me, username);
         var f = other == null ? null : await SocialRules.FindFriendship(_db, me, other.Id);
         if (f == null || f.Status != FriendStatus.Accepted) return NotFound();
         await SocialRules.Remove(_db, f);
@@ -133,7 +133,7 @@ public class FriendsController : ControllerBase
     public async Task<IActionResult> Block(string username)
     {
         var me = UserId;
-        var other = await SocialRules.FindByName(_db, username);
+        var other = await SocialRules.FindVisible(_db, me, username);
         if (other == null) return NotFound(new { message = "No user with that username." });
         if (other.Id == me) return BadRequest(new { message = "You can't block yourself." });
 

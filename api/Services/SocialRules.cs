@@ -22,6 +22,17 @@ public static class SocialRules
         return db.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalized);
     }
 
+    // The account a viewer may see: null when the name is unknown OR that user blocked the viewer, so callers can't tell the
+    // two apart. Both cases run this one query. Anonymous viewers (null) have no identity to block.
+    public static Task<AppUser?> FindVisible(AppDbContext db, string? viewerId, string? name)
+    {
+        name = name?.Trim();
+        if (!ValidUserName(name)) return Task.FromResult<AppUser?>(null);
+        var normalized = name!.ToUpperInvariant();
+        return db.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalized
+            && !db.UserBlocks.Any(b => b.BlockerId == u.Id && b.BlockedId == viewerId));
+    }
+
     public static Task<bool> HasBlocked(AppDbContext db, string blockerId, string blockedId) =>
         db.UserBlocks.AnyAsync(b => b.BlockerId == blockerId && b.BlockedId == blockedId);
 
