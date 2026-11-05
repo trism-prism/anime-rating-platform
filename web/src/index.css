@@ -248,5 +248,5 @@ dialog h3 { margin: 0 0 8px; }
 .prefs li { margin: 10px 0; }
 
 @media (max-width: 600px) {
-  .bell-panel { position: fixed; left: 12px; right: 12px; top: 60px; width: auto; }
+  .bell-panel { position: fixed; left: 12px; right: 12px; top: 108px; width: auto; }
 }

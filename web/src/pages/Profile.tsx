@@ -97,7 +97,7 @@ function Profile({ username }: { username: string }) {
           )}
           {state === 'Friends' && <button disabled={busy} onClick={() => run(call(`/friends/${name}`, 'DELETE'))}>Unfriend</button>}
           {state === 'BlockedByViewer' && <span className="muted">You blocked this user</span>}
-          <details className="more">
+          <details className="more" key={state}>
             <summary>More</summary>
             <div className="more-menu">
               {state === 'BlockedByViewer'
