@@ -14,7 +14,8 @@ API on Railway (with Postgres), website on Vercel. Both deploy from `main` on Gi
    - `Resend__From` = `onboarding@resend.dev` until you have a domain (see below)
    - Resend limit: without a verified domain, Resend only delivers to the email of your own Resend account, and the sender must be `onboarding@resend.dev`. To email other users, resend.com > Domains > add and verify a domain (DNS records), then set `Resend__From` to an address on it, for example `noreply@yourdomain.com`.
    - `Admin__Email` = the email you will register with on the site. It only bootstraps the first admin: once that account has verified its email and logs in, it becomes Admin (only while no admin exists). Add or remove other admins on the site's Admin page, so no Railway change is needed later. Emergency recovery: if every admin is locked out, set `Admin__Email` to another verified account; it only works while no admin exists
-   - `App__FrontendUrl` and `Cors__Origins`: put `http://localhost:5173` for now, you fix them in step 3
+   - `App__FrontendUrl`: put `http://localhost:5173` for now, you fix it in step 3
+   - `Cors__Origins` = `http://localhost:5173`. The site calls the API through its own `/api` path (see step 2), so CORS only matters when running locally.
 4. API service > **Settings**: turn on **Wait for CI** so a deploy only runs after the GitHub checks pass.
 5. API service > **Settings > Networking > Generate Domain**. When it asks for the port, enter the port shown in the deploy log line `Now listening on` (Railway sets `PORT`, usually 8080). Open `https://<that-domain>/health`; it should say `ok`.
 
@@ -22,18 +23,18 @@ API on Railway (with Postgres), website on Vercel. Both deploy from `main` on Gi
 
 1. Go to vercel.com, sign in with GitHub, **Add New > Project**, import this repo.
 2. Set **Root Directory** to `web`. The Vite settings are detected on their own.
-3. Under **Environment Variables** add `VITE_API_URL` = the Railway URL (`https://...up.railway.app`, no trailing slash). Deploy.
+3. No environment variables are needed. The site calls `/api/...` on its own address and `web/vercel.json` forwards that to the Railway API (so the login cookie belongs to the site, not to Railway). If your Railway domain differs from the one in `web/vercel.json`, change the rewrite there. Deploy.
 4. Copy the Vercel URL (for example `https://anime-rating-platform.vercel.app`).
 
 ## 3. Point the API at the website
 
-Back in Railway > Variables set `Cors__Origins` and `App__FrontendUrl` to the Vercel URL (no trailing slash, no path). Railway redeploys by itself.
+Back in Railway > Variables set `App__FrontendUrl` to the Vercel URL (no trailing slash, no path). `Cors__Origins` is not needed in production. Railway redeploys by itself.
 
 ## 4. Load the anime data (once)
 
 Either:
 - Railway CLI: `railway link`, then `railway run dotnet out/api.dll import` (runs on your PC against the Railway database, so use the database's public URL if it complains), or
-- register on the site with `Admin__Email`, confirm the email (link or `POST /me/verify-email`), log in again so you get the Admin role, then call `POST /admin/import` with your token.
+- register on the site with `Admin__Email`, confirm the email (link or `POST /me/verify-email`), log in again so you get the Admin role, then use the import button on the site's Admin page.
 
 ## 5. Smoke test
 
@@ -44,7 +45,7 @@ Either:
 - [ ] Log in works even before the email is confirmed; posting review text needs a confirmed email
 - [ ] Log in, rate a title, it appears in My List
 - [ ] Trending and Rankings pages load
-- [ ] Wrong password 5 times locks the account for 15 minutes
+- [ ] Wrong password 10 times locks the account for 5 minutes
 
 ## Free email with the Gmail API
 
@@ -63,12 +64,25 @@ Sends from your own Gmail to any recipient, over HTTPS (Railway blocks SMTP). Wh
 
 Gmail allows only a few hundred sends a day for a normal account. `Gmail__*` wins over `Resend__*` when both are set.
 
+## Sign in with Google
+
+Adds a "Continue with Google" link to the login and register pages. It uses its own OAuth client, separate from the Gmail sender's. The consent screen from the Gmail section is already published, and the scopes `openid`, `email` and `profile` need no Google verification.
+
+1. In the same Google Cloud project: **APIs & Services > Credentials > Create Credentials > OAuth client ID**, application type **Web application**.
+2. Under **Authorized redirect URIs** add `https://<your vercel domain>/api/auth/google/callback` and `http://localhost:5173/api/auth/google/callback` > Create.
+3. In Railway > API service > Variables add `Google__ClientId` and `Google__ClientSecret` (you type the secret in Railway yourself, never in chat or the repo). `App__FrontendUrl` must be the Vercel domain, since it builds the redirect URI.
+4. Without both variables the link is hidden and `/auth/google/start` answers 404.
+
+Accounts made this way have no password; "Forgot password" on the login page gives them one. Google counts as the strong factor, so the local two-factor code is not asked after a Google sign-in.
+
 ## If something breaks
 
 - API crashes at start with `Jwt:Key`: the variable is missing or under 32 characters.
-- CORS error in the browser console: `Cors__Origins` does not exactly match the Vercel URL.
+- Requests to `/api/...` fail or return the site's HTML: the rewrite in `web/vercel.json` points at the wrong Railway domain.
+- Everyone is asked to log in again after a few minutes: the browser is not sending the refresh cookie; check that calls go to `/api/auth/refresh` on the Vercel domain, not straight to Railway.
 - No email: check that `Resend__ApiKey` is set and `Resend__From` is correct.
 - Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
 - Gmail "token request failed: 400" (`invalid_grant`): the refresh token was revoked or expired, usually because the consent screen is still in Testing. Publish the app and create a new token.
 - Gmail "rejected the email: 403": the Gmail API is not enabled for the project (APIs & Services > Library).
+- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. The API log shows the status code Google answered with.
 - Database errors: migrations run on every start; check the Railway deploy logs.

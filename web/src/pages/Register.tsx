@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import GoogleLink from '../components/GoogleLink'
 import PasswordInput from '../components/PasswordInput'
 
 export default function Register() {
@@ -20,7 +21,7 @@ export default function Register() {
         method: 'POST',
         body: JSON.stringify({ email, password, userName: userName || null }),
       })
-      navigate('/login', { state: { note: 'Account created. Verify your email in Account settings to post reviews.' } })
+      navigate('/login', { state: { note: 'Account created. Verify your email in Settings to post reviews.' } })
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -41,6 +42,7 @@ export default function Register() {
       <p className="muted hint">At least 12 characters. A passphrase works well. Passwords found in data breaches are refused.</p>
       {error && <p className="error">{error}</p>}
       <button type="submit" disabled={busy}>Create account</button>
+      <GoogleLink />
       <p className="muted">Have an account? <Link to="/login" className="link">Login</Link></p>
     </form>
   )

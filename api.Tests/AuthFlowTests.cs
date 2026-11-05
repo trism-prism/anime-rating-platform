@@ -5,6 +5,7 @@ using api.Controllers;
 using api.Data;
 using api.Models;
 using api.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -43,17 +44,7 @@ public class AuthFlowTests
         services.AddHttpClient<PwnedPasswordValidator>(c => c.Timeout = TimeSpan.FromSeconds(3))
             .ConfigurePrimaryHttpMessageHandler(() => hibp);
         services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
-        services.AddIdentityCore<AppUser>(o =>
-        {
-            o.Lockout.MaxFailedAccessAttempts = 10;
-            o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-            o.Lockout.AllowedForNewUsers = true;
-            o.Password.RequiredLength = 12;
-            o.Password.RequireDigit = false;
-            o.Password.RequireLowercase = false;
-            o.Password.RequireUppercase = false;
-            o.Password.RequireNonAlphanumeric = false;
-        }).AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
+        services.AddIdentityCore<AppUser>(IdentitySetup.Configure).AddEntityFrameworkStores<AppDbContext>().AddSignInManager().AddDefaultTokenProviders();
         // after AddIdentityCore, as in Program.cs, so the built-in length rule stays
         services.AddScoped<IPasswordValidator<AppUser>>(sp => sp.GetRequiredService<PwnedPasswordValidator>());
         return services.BuildServiceProvider();
@@ -64,8 +55,13 @@ public class AuthFlowTests
     {
         var config = new ConfigurationBuilder().Build();
         var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = env };
-        return new AuthController(p.GetRequiredService<UserManager<AppUser>>(), p.GetRequiredService<SignInManager<AppUser>>(),
-            new EmailSender(config, NullLogger<EmailSender>.Instance, host, new HttpClient()), config, NullLogger<AuthController>.Instance);
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        var db = p.GetRequiredService<AppDbContext>();
+        var events = new SecurityLog(db);
+        return new AuthController(users,
+            new EmailSender(config, NullLogger<EmailSender>.Instance, host, new HttpClient()),
+            new SessionService(db, users, config, host), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // the lockout event reads the request
     }
 
     static async Task<AppUser> AddUser(ServiceProvider p)
@@ -107,6 +103,17 @@ public class AuthFlowTests
         Assert.Equal("Too many failed attempts. Try again in 5 minutes.", Message(locked));
         // even the right password is refused while locked
         Assert.Equal(423, Assert.IsType<ObjectResult>(await auth.Login(new LoginRequest("kai@example.com", Pass))).StatusCode);
+    }
+
+    // Program.cs and the tests share IdentitySetup, so this pins what DEPLOY.md promises
+    [Fact]
+    public void Lockout_options_are_10_attempts_for_5_minutes()
+    {
+        var o = new IdentityOptions();
+        IdentitySetup.Configure(o);
+        Assert.Equal(10, o.Lockout.MaxFailedAccessAttempts);
+        Assert.Equal(TimeSpan.FromMinutes(5), o.Lockout.DefaultLockoutTimeSpan);
+        Assert.True(o.Lockout.AllowedForNewUsers);
     }
 
     [Fact]

@@ -1,5 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
 using api.Models;
 using api.Services;
@@ -8,14 +6,16 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.IdentityModel.Tokens;
 
 namespace api.Controllers;
 
 public record RegisterRequest(string Email, string Password, string? UserName);
 public record EmailRequest(string Email);
 public record LoginRequest(string Email, string Password);
+public record UserIdRequest(string UserId);
 public record ResetPasswordRequest(string UserId, string Token, string NewPassword);
+public record TwoFactorLoginRequest(string ChallengeToken, string Code);
+public record ConfirmEmailChangeRequest(string UserId, string NewEmail, string Token);
 
 [ApiController]
 [AllowAnonymous]
@@ -24,17 +24,21 @@ public record ResetPasswordRequest(string UserId, string Token, string NewPasswo
 public class AuthController : ControllerBase
 {
     readonly UserManager<AppUser> _users;
-    readonly SignInManager<AppUser> _signIn;
     readonly EmailSender _email;
+    readonly SessionService _sessions;
+    readonly CredentialCheck _check;
+    readonly SecurityLog _events;
     readonly IConfiguration _config;
     readonly ILogger<AuthController> _log;
 
-    public AuthController(UserManager<AppUser> users, SignInManager<AppUser> signIn, EmailSender email, IConfiguration config, ILogger<AuthController> log)
+    public AuthController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, SecurityLog events, IConfiguration config, ILogger<AuthController> log)
     {
         _log = log;
         _users = users;
-        _signIn = signIn;
         _email = email;
+        _sessions = sessions;
+        _check = check;
+        _events = events;
         _config = config;
     }
 
@@ -49,7 +53,7 @@ public class AuthController : ControllerBase
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
         if (!await TrySendConfirmation(user))
-            return Ok(new { message = "Account created, but the confirmation email could not be sent. Verify your email in Account settings later." });
+            return Ok(new { message = "Account created, but the confirmation email could not be sent. Verify your email in Settings later." });
         return Ok(new { message = "Check your email to confirm your account." });
     }
 
@@ -85,9 +89,11 @@ public class AuthController : ControllerBase
         var user = await _users.FindByEmailAsync(req.Email);
         if (user == null) return Unauthorized(new { message = "Invalid email or password." });
 
-        var result = await _signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
-        if (result.IsLockedOut) return StatusCode(423, new { message = "Too many failed attempts. Try again in 5 minutes." });
-        if (!result.Succeeded)
+        var check = await _check.Password(user, req.Password, HttpContext);
+        if (check == Check.Locked) return CredentialCheck.Locked();
+        // same answer as a wrong password, so the login form does not reveal which accounts use Google
+        if (check == Check.NoPassword) return Unauthorized(new { message = "Invalid email or password." });
+        if (check == Check.Wrong)
         {
             // warn only when the lockout is close
             var left = _users.Options.Lockout.MaxFailedAccessAttempts - user.AccessFailedCount;
@@ -95,8 +101,62 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
+        // no session yet: the code step comes first (the failed count is kept until it passes)
+        if (user.TwoFactorEnabled) return Ok(new { twoFactorRequired = true, challengeToken = _sessions.ChallengeToken(user) });
+        return await OpenSession(user);
+    }
+
+    [HttpPost("2fa")]
+    public async Task<IActionResult> TwoFactor(TwoFactorLoginRequest req)
+    {
+        var id = _sessions.ReadChallenge(req.ChallengeToken);
+        var user = id == null ? null : await _users.FindByIdAsync(id);
+        if (user == null || !user.TwoFactorEnabled) return Unauthorized(new { message = "Sign-in expired. Log in again." });
+
+        var check = await _check.Code(user, req.Code, HttpContext);
+        if (check == Check.Locked) return CredentialCheck.Locked();
+        if (check == Check.Wrong) return Unauthorized(new { message = "Invalid code." });
+        return await OpenSession(user);
+    }
+
+    // password (and code) are right: start the session and set the cookie
+    async Task<IActionResult> OpenSession(AppUser user)
+    {
+        await _users.ResetAccessFailedCountAsync(user);
         await AdminBootstrap.TryPromote(_users, _config, user);
-        return Ok(new { token = await CreateToken(user), email = user.Email, userName = user.UserName, emailVerified = user.EmailConfirmed });
+        var (session, refreshToken) = await _sessions.Create(user, Request.Headers.UserAgent.ToString(), HttpContext.Connection.RemoteIpAddress?.ToString());
+        _sessions.SetCookie(Response, user.Id, refreshToken);
+        await _events.Add(user.Id, "login", HttpContext);
+        return Ok(await SignedIn(user, session.Id));
+    }
+
+    // the browser picks the account by sending its id; the matching cookie holds that account's refresh token
+    [DisableRateLimiting] // a page load refreshes once per account; the token is 256 random bits, nothing to guess
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(UserIdRequest req)
+    {
+        if (!Guid.TryParse(req.UserId, out _)) return BadRequest(new { message = "Invalid user id." }); // it names a cookie
+        var token = Request.Cookies[SessionService.CookieName(req.UserId)];
+        var r = token == null ? null : await _sessions.Refresh(req.UserId, token);
+        if (r == null)
+        {
+            _sessions.DeleteCookie(Response, req.UserId);
+            return Unauthorized(new { message = "Session ended. Log in again." });
+        }
+        _sessions.SetCookie(Response, req.UserId, r.RefreshToken);
+        return Ok(await SignedIn(r.User, r.Session.Id));
+    }
+
+    [DisableRateLimiting]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(UserIdRequest req)
+    {
+        if (!Guid.TryParse(req.UserId, out _)) return BadRequest(new { message = "Invalid user id." });
+        var token = Request.Cookies[SessionService.CookieName(req.UserId)];
+        // only a real session's cookie writes an event, so nobody can fill another user's log
+        if (token != null && await _sessions.RevokeByToken(req.UserId, token)) await _events.Add(req.UserId, "logout", HttpContext);
+        _sessions.DeleteCookie(Response, req.UserId);
+        return NoContent();
     }
 
     [HttpPost("forgot-password")]
@@ -127,10 +187,38 @@ public class AuthController : ControllerBase
             return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
         }
 
-        // ResetPasswordAsync already changed the security stamp, but JWTs are NOT revoked by it yet; stage 3 (sessions) will do that
+        // the new password signs every device out: no refresh tokens left, and access tokens die with their session
+        await _sessions.RevokeAll(user.Id);
         await _users.SetLockoutEndDateAsync(user, null);
         await _users.ResetAccessFailedCountAsync(user);
+        await _events.Add(user.Id, "password-reset", HttpContext);
         return Ok(new { message = "Password changed. You can log in now." });
+    }
+
+    // the link from the email sent to the new address (see AccountController.ChangeEmail)
+    [HttpPost("confirm-email-change")]
+    public async Task<IActionResult> ConfirmEmailChange(ConfirmEmailChangeRequest req)
+    {
+        var invalid = BadRequest(new { message = "Invalid or expired link." });
+        var user = await _users.FindByIdAsync(req.UserId);
+        if (user == null) return invalid;
+
+        string raw;
+        try { raw = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Token)); }
+        catch (FormatException) { return invalid; }
+
+        var result = await _users.ChangeEmailAsync(user, req.NewEmail, raw);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(e => e.Code is nameof(IdentityErrorDescriber.DuplicateEmail) or nameof(IdentityErrorDescriber.InvalidEmail)))
+                return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+            return invalid;
+        }
+
+        // the new address changes the security stamp anyway, so every device signs in again
+        await _sessions.RevokeAll(user.Id);
+        await _events.Add(user.Id, "email-changed", HttpContext);
+        return Ok(new { message = "Email changed. Log in again with the new address." });
     }
 
     async Task TrySendPasswordReset(AppUser user)
@@ -153,22 +241,10 @@ public class AuthController : ControllerBase
         }
     }
 
-    async Task<string> CreateToken(AppUser user)
+    // same body for login and refresh; the long-lived token only ever travels in the cookie
+    async Task<object> SignedIn(AppUser user, Guid sessionId) => new
     {
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.Id),
-            new(JwtRegisteredClaimNames.Email, user.Email!)
-        };
-        claims.AddRange((await _users.GetRolesAsync(user)).Select(r => new Claim(ClaimTypes.Role, r)));
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Issuer"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
-            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
+        accessToken = await _sessions.AccessToken(user, sessionId),
+        userId = user.Id, email = user.Email, userName = user.UserName, emailVerified = user.EmailConfirmed
+    };
 }
