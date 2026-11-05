@@ -119,21 +119,23 @@ public class FriendsController : ControllerBase
     public async Task<IActionResult> Unfriend(string username)
     {
         var me = UserId;
-        var other = await SocialRules.FindVisible(_db, me, username);
-        var f = other == null ? null : await SocialRules.FindFriendship(_db, me, other.Id);
-        if (f == null || f.Status != FriendStatus.Accepted) return NotFound();
+        var other = await SocialRules.FindByName(_db, username);
+        if (other == null) return NotFound(new { message = "No user with that username." });
+        var f = await SocialRules.FindFriendship(_db, me, other.Id);
+        if (f == null || f.Status != FriendStatus.Accepted) return NoContent(); // nothing to undo, same answer
         await SocialRules.Remove(_db, f);
         await _db.SaveChangesAsync();
         return NoContent();
     }
 
-    // silent: the blocked user is told nothing; their requests and my profile just 404 for them
+    // silent: the blocked user is told nothing; their requests and my profile just 404 for them. Idempotent.
     [HttpPut("blocks/{username}")]
     [EnableRateLimiting("block")]
     public async Task<IActionResult> Block(string username)
     {
         var me = UserId;
-        var other = await SocialRules.FindVisible(_db, me, username);
+        // FindByName, not FindVisible: anyone can block anyone, even someone who blocked them, and the answer is the same
+        var other = await SocialRules.FindByName(_db, username);
         if (other == null) return NotFound(new { message = "No user with that username." });
         if (other.Id == me) return BadRequest(new { message = "You can't block yourself." });
 
@@ -151,11 +153,14 @@ public class FriendsController : ControllerBase
     {
         var me = UserId;
         var other = await SocialRules.FindByName(_db, username);
-        var block = other == null ? null : await _db.UserBlocks.FirstOrDefaultAsync(b => b.BlockerId == me && b.BlockedId == other.Id);
-        if (block == null) return NotFound();
-        _db.UserBlocks.Remove(block);
-        await _db.SaveChangesAsync();
-        return NoContent();
+        if (other == null) return NotFound(new { message = "No user with that username." });
+        var block = await _db.UserBlocks.FirstOrDefaultAsync(b => b.BlockerId == me && b.BlockedId == other.Id);
+        if (block != null)
+        {
+            _db.UserBlocks.Remove(block);
+            await _db.SaveChangesAsync();
+        }
+        return NoContent(); // same answer whether or not there was a block
     }
 
     // a pending request that is addressed to me (not one I sent); anything else is a 404 so ids can't be probed

@@ -20,7 +20,7 @@ public class PostgresTests
     static readonly string? Admin = Environment.GetEnvironmentVariable("TEST_PG");
     const string BeforeSeries = "20261105141812_RemoveTwoFactor", SeriesMigration = "20261105145714_AddSeries";
 
-    class Throwaway : IAsyncDisposable
+    internal class Throwaway : IAsyncDisposable
     {
         readonly string _name = "series_test_" + Guid.NewGuid().ToString("N");
         public string ConnectionString { get; }
