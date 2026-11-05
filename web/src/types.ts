@@ -161,3 +161,39 @@ export interface RankingRow {
   average: number
   ratingCount: number
 }
+
+export type FriendState = 'None' | 'OutgoingPending' | 'IncomingPending' | 'Friends' | 'BlockedByViewer' | 'Self'
+
+export interface Profile {
+  userName: string
+  joinedAt: string
+  friendCount: number
+  viewerState: FriendState | null // null when nobody is signed in
+  requestId: number | null // set while a request between the two is pending
+}
+
+export interface FriendsData {
+  friends: { userName: string; since: string }[]
+  incoming: { requestId: number; userName: string; sentAt: string }[]
+  outgoing: { requestId: number; userName: string; sentAt: string }[]
+}
+
+export interface Notification {
+  id: number
+  type: 'FriendRequest' | 'FriendAccepted'
+  actor: string
+  createdAt: string
+  read: boolean
+  actionable: boolean // a friend request that can still be answered
+  requestId: number | null
+}
+
+export interface NotificationPage {
+  items: Notification[]
+  nextCursor: number | null
+}
+
+export interface NotificationPref {
+  type: string
+  enabled: boolean
+}

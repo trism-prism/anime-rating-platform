@@ -17,6 +17,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<Series> Series => Set<Series>();
     public DbSet<TitleRelation> TitleRelations => Set<TitleRelation>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -48,5 +52,44 @@ public class AppDbContext : IdentityDbContext<AppUser>
         b.Entity<WatchListEntry>().Property(w => w.Status).HasConversion<string>();
         b.Entity<Session>().HasIndex(s => s.UserId);
         // two refreshes with the same token: only the first update finds this hash still in place
-        b.Entity<Session>().Property(s => s.CurrentTokenHash).IsConcurrencyToken();    }
+        b.Entity<Session>().Property(s => s.CurrentTokenHash).IsConcurrencyToken();
+
+        // social: every table hangs off the user with cascade, so deleting an account removes its rows
+        b.Entity<Friendship>(e =>
+        {
+            e.HasOne<AppUser>().WithMany().HasForeignKey(f => f.UserLowId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(f => f.UserHighId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(f => f.RequesterId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(f => f.Status).HasConversion<string>();
+            e.Property(f => f.Status).IsConcurrencyToken(); // accept, decline and cancel only act on the status they read
+            e.HasIndex(f => new { f.UserLowId, f.UserHighId }).IsUnique();
+            e.HasIndex(f => f.UserHighId); // the low side is covered by the pair index
+            // COLLATE "C" so the database orders ids byte-wise like the code does, whatever the database collation is
+            e.ToTable(t => t.HasCheckConstraint("CK_Friendships_Order", "\"UserLowId\" COLLATE \"C\" < \"UserHighId\" COLLATE \"C\""));
+            e.ToTable(t => t.HasCheckConstraint("CK_Friendships_Requester", "\"RequesterId\" = \"UserLowId\" OR \"RequesterId\" = \"UserHighId\""));
+        });
+        b.Entity<UserBlock>(e =>
+        {
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.BlockerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.BlockedId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.BlockerId, x.BlockedId }).IsUnique();
+            e.HasIndex(x => x.BlockedId);
+            e.ToTable(t => t.HasCheckConstraint("CK_UserBlocks_NotSelf", "\"BlockerId\" <> \"BlockedId\""));
+        });
+        b.Entity<Notification>(e =>
+        {
+            e.HasOne<AppUser>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(n => n.Actor).WithMany().HasForeignKey(n => n.ActorId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(n => n.Type).HasConversion<string>();
+            e.HasIndex(n => new { n.UserId, n.ReadAt, n.CreatedAt }).IsDescending(false, false, true);
+            e.HasIndex(n => new { n.UserId, n.Id }); // the paged list
+            e.HasIndex(n => n.SubjectId); // cleanup when a friendship goes
+        });
+        b.Entity<NotificationPreference>(e =>
+        {
+            e.HasKey(p => new { p.UserId, p.Type });
+            e.HasOne<AppUser>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(p => p.Type).HasConversion<string>();
+        });
+    }
 }
