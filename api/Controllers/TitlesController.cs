@@ -88,13 +88,14 @@ public class TitlesController : ControllerBase
                 userName = r.User.UserName, r.Volume, r.Overall, r.Story, r.Art, r.Characters, r.Enjoyment, r.ReviewText, r.CreatedAt
             }).ToListAsync();
 
-        // manga with a known volume count: one average per rated volume
-        var volumeAverages = t.Volumes == null ? null : (await ratings.Where(r => r.Volume != null)
+        // one average per rated volume; shown whenever volume ratings exist, even if the volume count was later lost
+        var perVolume = (await ratings.Where(r => r.Volume != null)
             .GroupBy(r => r.Volume)
             .Select(g => new { Volume = g.Key, Average = g.Average(r => r.Overall), Count = g.Count() })
             .ToListAsync())
             .OrderBy(v => v.Volume)
-            .Select(v => new { volume = v.Volume, average = Math.Round(v.Average, 2), count = v.Count });
+            .Select(v => new { volume = v.Volume, average = Math.Round(v.Average, 2), count = v.Count }).ToList();
+        var volumeAverages = perVolume.Count == 0 && t.Volumes == null ? null : perVolume;
 
         return Ok(new
         {
