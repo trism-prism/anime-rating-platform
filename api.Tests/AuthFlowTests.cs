@@ -8,7 +8,6 @@ using api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -76,11 +75,9 @@ public class AuthFlowTests
     static JsonElement Body(ObjectResult r) => JsonSerializer.SerializeToElement(r.Value);
     static string Message(ObjectResult r) => Body(r).GetProperty("message").GetString()!;
 
-    static async Task<string> ResetToken(ServiceProvider p, AppUser user)
-    {
-        var raw = await p.GetRequiredService<UserManager<AppUser>>().GeneratePasswordResetTokenAsync(user);
-        return WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(raw));
-    }
+    // the 6-digit code that Forgot password emails
+    static Task<string> ResetCode(ServiceProvider p, AppUser user) =>
+        p.GetRequiredService<UserManager<AppUser>>().GenerateUserTokenAsync(user, TokenOptions.DefaultEmailProvider, EmailCodes.Reset);
 
     [Fact]
     public async Task Login_shows_tries_left_only_near_the_limit_then_locks_with_423()
@@ -134,13 +131,13 @@ public class AuthFlowTests
         var unknown = Assert.IsType<OkObjectResult>(await Auth(p).ForgotPassword(new EmailRequest("nobody@example.com")));
         var failedSend = Assert.IsType<OkObjectResult>(await Auth(p, Environments.Production).ForgotPassword(new EmailRequest("kai@example.com")));
 
-        Assert.Equal("If that email exists, a reset link was sent.", Message(known));
+        Assert.Equal("If that email has an account, a code was sent.", Message(known));
         Assert.Equal(Message(known), Message(unknown));
         Assert.Equal(Message(known), Message(failedSend));
     }
 
     [Fact]
-    public async Task Reset_password_changes_it_clears_lockout_and_the_token_works_once()
+    public async Task Reset_password_changes_it_clears_lockout_and_the_code_works_once()
     {
         using var p = Build(Clean());
         var user = await AddUser(p);
@@ -149,30 +146,31 @@ public class AuthFlowTests
         for (var i = 0; i < 10; i++) await auth.Login(new LoginRequest("kai@example.com", "wrong"));
         Assert.True(await users.IsLockedOutAsync(user));
 
-        var token = await ResetToken(p, user);
-        Assert.IsType<OkObjectResult>(await auth.ResetPassword(new ResetPasswordRequest(user.Id, token, "a brand new passphrase")));
+        var code = await ResetCode(p, user);
+        Assert.IsType<OkObjectResult>(await auth.ResetPassword(new ResetPasswordRequest("kai@example.com", code, "a brand new passphrase")));
 
         Assert.False(await users.IsLockedOutAsync(user));
         Assert.Equal(0, await users.GetAccessFailedCountAsync(user));
         Assert.True(await users.CheckPasswordAsync(user, "a brand new passphrase"));
-        // the security stamp changed, so the same link is dead
-        Assert.IsType<BadRequestObjectResult>(await auth.ResetPassword(new ResetPasswordRequest(user.Id, token, "another new passphrase")));
+        // the security stamp changed, so the same code is dead
+        Assert.IsType<BadRequestObjectResult>(await auth.ResetPassword(new ResetPasswordRequest("kai@example.com", code, "another new passphrase")));
     }
 
     [Fact]
-    public async Task Reset_password_with_a_bad_token_or_user_gives_the_generic_error()
+    public async Task Reset_password_with_a_bad_code_or_address_gives_the_generic_error()
     {
         using var p = Build(Clean());
-        var user = await AddUser(p);
+        await AddUser(p);
         var auth = Auth(p);
 
         foreach (var req in new[]
         {
-            new ResetPasswordRequest(user.Id, WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("junk")), "a brand new passphrase"),
-            new ResetPasswordRequest(user.Id, "!!not base64!!", "a brand new passphrase"),
-            new ResetPasswordRequest("missing", "abc", "a brand new passphrase"),
+            new ResetPasswordRequest("kai@example.com", "123456", "a brand new passphrase"),
+            new ResetPasswordRequest("kai@example.com", "", "a brand new passphrase"),
+            new ResetPasswordRequest("nobody@example.com", "123456", "a brand new passphrase"),
+            new ResetPasswordRequest(null!, null!, "a brand new passphrase"),
         })
-            Assert.Equal("Invalid or expired reset link.", Message(Assert.IsType<BadRequestObjectResult>(await auth.ResetPassword(req))));
+            Assert.Equal("Invalid or expired code.", Message(Assert.IsType<BadRequestObjectResult>(await auth.ResetPassword(req))));
     }
 
     [Fact]
@@ -180,8 +178,20 @@ public class AuthFlowTests
     {
         using var p = Build(Clean());
         var user = await AddUser(p);
-        var res = Assert.IsType<BadRequestObjectResult>(await Auth(p).ResetPassword(new ResetPasswordRequest(user.Id, await ResetToken(p, user), "short")));
+        var res = Assert.IsType<BadRequestObjectResult>(await Auth(p).ResetPassword(new ResetPasswordRequest("kai@example.com", await ResetCode(p, user), "short")));
         Assert.Contains("at least 12", Body(res).GetProperty("errors").ToString());
+    }
+
+    [Fact]
+    public async Task Reset_password_refuses_a_breached_password()
+    {
+        var sha = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes("password12345")));
+        using var p = Build(new Hibp($"{sha[5..]}:42\r\n"));
+        var user = new AppUser { UserName = "kai", Email = "kai@example.com" };
+        Assert.True((await p.GetRequiredService<UserManager<AppUser>>().CreateAsync(user)).Succeeded);
+
+        var res = Assert.IsType<BadRequestObjectResult>(await Auth(p).ResetPassword(new ResetPasswordRequest("kai@example.com", await ResetCode(p, user), "password12345")));
+        Assert.Contains("known data breach", Body(res).GetProperty("errors").ToString());
     }
 
     [Fact]

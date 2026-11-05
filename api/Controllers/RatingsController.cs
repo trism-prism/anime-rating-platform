@@ -36,7 +36,7 @@ public class RatingsController : ControllerBase
         var userId = UserId;
         // only verified accounts may post public text
         if (!string.IsNullOrWhiteSpace(body.ReviewText) && !await _db.Users.AnyAsync(u => u.Id == userId && u.EmailConfirmed))
-            return StatusCode(403, new { message = "Verify your email to post a review." });
+            return StatusCode(403, new { message = "Verify your email to write reviews." });
         var r = await _db.Ratings.FirstOrDefaultAsync(x => x.UserId == userId && x.TitleId == id);
         if (r == null)
         {

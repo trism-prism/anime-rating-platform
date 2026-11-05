@@ -12,6 +12,7 @@ namespace api.Controllers;
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 public record ChangeEmailRequest(string NewEmail, string CurrentPassword);
 public record ChangeUserNameRequest(string UserName);
+public record VerifyEmailRequest(string Code);
 
 [ApiController]
 [Authorize]
@@ -23,15 +24,17 @@ public class AccountController : ControllerBase
     readonly SessionService _sessions;
     readonly CredentialCheck _check;
     readonly IMemoryCache _cache;
+    readonly IConfiguration _config;
     readonly ILogger<AccountController> _log;
 
-    public AccountController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, IMemoryCache cache, ILogger<AccountController> log)
+    public AccountController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, IMemoryCache cache, IConfiguration config, ILogger<AccountController> log)
     {
         _users = users;
         _email = email;
         _sessions = sessions;
         _check = check;
         _cache = cache;
+        _config = config;
         _log = log;
     }
 
@@ -125,25 +128,46 @@ public class AccountController : ControllerBase
         });
     }
 
-    [HttpPost("verify-email")]
-    public async Task<IActionResult> VerifyEmail()
+    // emails a 6-digit code to the account address, at most one per 30 s per user
+    [HttpPost("verify/send")]
+    public async Task<IActionResult> SendVerifyCode()
     {
         var user = await Current();
         if (user == null) return Unauthorized();
-        if (user.EmailConfirmed) return Ok(new { message = "Already verified." });
+        if (user.EmailConfirmed) return Ok(new { emailVerified = true, message = "Already verified." });
 
-        var key = "verify-email:" + user.Id;
+        var key = "verify-code:" + user.Id;
         if (_cache.TryGetValue(key, out _))
-            return StatusCode(429, new { message = "A verification email was just sent. Wait a minute before asking again." });
-        _cache.Set(key, true, TimeSpan.FromSeconds(60));
+            return StatusCode(429, new { message = "A code was just sent. Wait 30 seconds before asking again." });
+        _cache.Set(key, true, TimeSpan.FromSeconds(30));
 
-        try { await _email.SendConfirmation(_users, user); }
-        catch (Exception ex) // the exception can hold the link, so log only the user id
+        try { await _email.SendVerificationCode(_users, user); }
+        catch (Exception ex) // the exception can hold the code, so log only the user id
         {
-            _log.LogError(ex.GetType().Name + " sending confirmation email for user {UserId}", user.Id);
+            _log.LogError(ex.GetType().Name + " sending verification code for user {UserId}", user.Id);
             _cache.Remove(key);
             return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
         }
-        return Ok(new { message = "Verification email sent." });
+        return Ok(new { emailVerified = false, message = "Code sent. Check your email." });
+    }
+
+    // a wrong code answers 400, not 401 (the web client would retry a 401); 5 tries per 15 minutes
+    [HttpPost("verify")]
+    public async Task<IActionResult> VerifyEmail(VerifyEmailRequest req)
+    {
+        var user = await Current();
+        if (user == null) return Unauthorized();
+        if (user.EmailConfirmed) return Ok(new { emailVerified = true });
+
+        var key = "verify-tries:" + user.Id;
+        if (!EmailCodes.Try(_cache, key)) return StatusCode(429, new { message = "Too many attempts, wait 15 minutes." });
+        if (!await EmailCodes.Right(_users, user, EmailCodes.Verify, req.Code))
+            return BadRequest(new { message = "Wrong or expired code." });
+
+        EmailCodes.Clear(_cache, key);
+        user.EmailConfirmed = true;
+        await _users.UpdateAsync(user);
+        await AdminBootstrap.TryPromote(_users, _config, user);
+        return Ok(new { emailVerified = true });
     }
 }

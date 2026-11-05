@@ -34,15 +34,16 @@ Back in Railway > Variables set `App__FrontendUrl` to the Vercel URL (no trailin
 
 Either:
 - Railway CLI: `railway link`, then `railway run dotnet out/api.dll import` (runs on your PC against the Railway database, so use the database's public URL if it complains), or
-- register on the site with `Admin__Email`, confirm the email (link or `POST /me/verify-email`), log in again so you get the Admin role, then use the import button on the site's Admin page.
+- register on the site with `Admin__Email`, verify the email (the banner or the avatar menu opens the `/verify` page, which emails a 6-digit code), log in again so you get the Admin role, then use the import button on the site's Admin page.
 
 ## 5. Smoke test
 
 - [ ] `/health` on the Railway domain says `ok`
 - [ ] Vercel site loads and a refresh on a deep link (e.g. `/trending`) does not 404
 - [ ] Browse page shows anime
-- [ ] Register, the confirmation email arrives, the link confirms the account
-- [ ] Log in works even before the email is confirmed; posting review text needs a confirmed email
+- [ ] Register, log in, then `/verify` > Send code: the email arrives and the code verifies the account
+- [ ] Log in works even before the email is verified; posting review text needs a verified email
+- [ ] Forgot password: the email, then the code, then a new password; you are sent to login and every device is signed out
 - [ ] Log in, rate a title, it appears in My List
 - [ ] Trending and Rankings pages load
 - [ ] Wrong password 10 times locks the account for 5 minutes
@@ -73,9 +74,9 @@ Adds a "Continue with Google" link to the login and register pages. It uses its 
 3. In Railway > API service > Variables add `Google__ClientId` and `Google__ClientSecret` (you type the secret in Railway yourself, never in chat or the repo). `App__FrontendUrl` must be the Vercel domain, since it builds the redirect URI.
 4. Without both variables the link is hidden and `/auth/google/start` answers 404.
 
-Accounts made this way have no password; "Forgot password" on the login page gives them one. Google counts as the strong factor, so the emailed two-step code is not asked after a Google sign-in. An existing confirmed account is linked by its Google-verified email even when two-step verification is on, since the emailed code proves nothing more than Google already did.
+Accounts made this way have no password and a verified email; "Forgot password" on the login page gives them a password. An existing account is linked by its Google-verified email.
 
-Two-step verification emails a 6-digit code at login, so it needs a working mail sender (Gmail or Resend above).
+Emailed 6-digit codes verify the account email and reset a forgotten password (nothing asks for a code at login), so they need a working mail sender (Gmail or Resend above).
 
 ## If something breaks
 
@@ -86,5 +87,5 @@ Two-step verification emails a 6-digit code at login, so it needs a working mail
 - Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
 - Gmail "token request failed: 400" (`invalid_grant`): the refresh token was revoked or expired, usually because the consent screen is still in Testing. Publish the app and create a new token.
 - Gmail "rejected the email: 403": the Gmail API is not enabled for the project (APIs & Services > Library).
-- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. Every refusal is logged as a warning `Google callback refused: <reason>` (`not-configured`, `no-code`, `no-cookie`, `state-mismatch`, `exchange-failed`, `locked`, `linked-other`, `create-failed`, `link-failed`); `exchange-failed` is preceded by the status code Google answered with or the id_token check that failed.
+- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. Every refusal is logged as a warning `Google callback refused: <reason>` (`not-configured`, `no-code`, `no-cookie`, `state-mismatch`, `exchange-failed`, `locked`, `linked-other`, `create-failed`, `link-failed`); `exchange-failed` is preceded by the status code Google answered with or the id_token check that failed. `no-cookie` also logs the number of cookies on the request, the Referer's host (or `none`) and the Host header: 0 cookies means the browser did not send the `g_oauth` cookie back (blocked cookies, or the callback came through another host than the one that started the sign-in).
 - Database errors: migrations run on every start; check the Railway deploy logs.

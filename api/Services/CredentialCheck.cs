@@ -6,7 +6,7 @@ namespace api.Services;
 
 public enum Check { Ok, Wrong, Locked, NoPassword }
 
-// checks a password or an emailed sign-in code; every miss counts toward the same lockout
+// checks a password; every miss counts toward the lockout
 public class CredentialCheck
 {
     readonly UserManager<AppUser> _users;
@@ -18,15 +18,6 @@ public class CredentialCheck
         if (await _users.IsLockedOutAsync(user)) return Check.Locked;
         if (!await _users.HasPasswordAsync(user)) return Check.NoPassword; // signs in with Google only; nothing to guess, so no lockout count
         if (await _users.CheckPasswordAsync(user, password)) return Check.Ok;
-        return await Failed(user);
-    }
-
-    // the code that was emailed at login
-    public async Task<Check> Code(AppUser user, string code)
-    {
-        if (await _users.IsLockedOutAsync(user)) return Check.Locked;
-        var c = (code ?? "").Replace(" ", "");
-        if (c.Length > 0 && await _users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, c)) return Check.Ok;
         return await Failed(user);
     }
 

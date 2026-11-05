@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import type { MyRating } from '../types'
@@ -11,6 +11,7 @@ const blank: Record<Field, number> = { story: 5, art: 5, characters: 5, enjoymen
 
 export default function RateForm({ titleId, onChanged }: { titleId: number; onChanged: () => void }) {
   const { user, emailVerified } = useAuth()
+  const { pathname } = useLocation()
   const [scores, setScores] = useState(blank)
   const [review, setReview] = useState('')
   const [hasRating, setHasRating] = useState(false)
@@ -98,7 +99,7 @@ export default function RateForm({ titleId, onChanged }: { titleId: number; onCh
         onChange={(e) => setReview(e.target.value)}
       />
       {!emailVerified && (
-        <p className="muted hint"><Link to="/settings" className="link">Verify your email in Settings</Link> to write a review</p>
+        <p className="muted hint"><Link to="/verify" state={{ from: pathname }} className="link">Verify your email</Link> to write reviews</p>
       )}
       <div className="row">
         <button type="submit" disabled={busy}>{hasRating ? 'Update rating' : 'Save rating'}</button>

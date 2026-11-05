@@ -41,11 +41,20 @@ public class GoogleController : ControllerBase
     string Front => (_config["App:FrontendUrl"] ?? "").TrimEnd('/');
     string RedirectUri => Front + "/api/auth/google/callback";
 
-    // the reason is a fixed code (never the code, tokens or email) so the log shows where a sign-in stopped
-    IActionResult Failed(string reason)
+    // the reason is a fixed code (never the code, tokens or email) so the log shows where a sign-in stopped;
+    // details is for non-sensitive extras
+    IActionResult Failed(string reason, string details = "")
     {
-        _log.LogWarning("Google callback refused: {Reason}", reason);
+        _log.LogWarning("Google callback refused: {Reason}{Details}", reason, details);
         return Redirect(Front + "/login?error=google");
+    }
+
+    // for a missing g_oauth cookie: how many cookies came, where from (host only) and to which host.
+    // Counts and hosts only, never cookie names or values.
+    string CookieDiagnostics()
+    {
+        var referer = Uri.TryCreate(Request.Headers.Referer.ToString(), UriKind.Absolute, out var r) ? r.Host : Request.Headers.ContainsKey("Referer") ? "unreadable" : "none";
+        return $" (cookies={Request.Cookies.Count}, referer={SessionService.Trim(referer, 100)}, host={SessionService.Trim(Request.Host.ToString(), 100)})";
     }
 
     [HttpGet("providers")]
@@ -81,7 +90,7 @@ public class GoogleController : ControllerBase
         Response.Cookies.Delete(CookieName, CookieOptions(null)); // one try per start
         if (!_google.Configured) return Failed("not-configured");
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state)) return Failed("no-code"); // Google sent an error, e.g. access_denied
-        if (saved is not [var savedState, var verifier]) return Failed("no-cookie");
+        if (saved is not [var savedState, var verifier]) return Failed("no-cookie", CookieDiagnostics());
         if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state), Encoding.UTF8.GetBytes(savedState)))
             return Failed("state-mismatch");
 
@@ -112,8 +121,7 @@ public class GoogleController : ControllerBase
         }
         else if (linking)
         {
-            // a confirmed account with two-step on is linked too: the code goes to the account's email, and Google
-            // verified that same address, so the email code would prove nothing more than Google already did
+            // a confirmed account is linked too: Google verified the same address
             if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded) return Failed("link-failed");
             // an unconfirmed account may have been made by someone who does not own the address: drop what they set up
             // (after the link, so a failed link does not leave a wiped placeholder)
@@ -122,18 +130,16 @@ public class GoogleController : ControllerBase
             await _users.UpdateAsync(user);
         }
 
-        // Google is the strong factor here, so the emailed code is not asked for
         await AdminBootstrap.TryPromote(_users, _config, user);
         var (_, refreshToken) = await _sessions.Create(user, Request.Headers.UserAgent.ToString(), HttpContext.Connection.RemoteIpAddress?.ToString());
         _sessions.SetCookie(Response, user.Id, refreshToken);
         return Redirect($"{Front}/auth/callback?userId={user.Id}");
     }
 
-    // removes the password, two-step setting and sessions of an account whose email was never confirmed
+    // removes the password and sessions of an account whose email was never confirmed
     async Task TakeOver(AppUser user)
     {
         if (await _users.HasPasswordAsync(user)) await _users.RemovePasswordAsync(user);
-        await _users.SetTwoFactorEnabledAsync(user, false);
         await _users.SetLockoutEndDateAsync(user, null);
         await _sessions.RevokeAll(user.Id);
     }
