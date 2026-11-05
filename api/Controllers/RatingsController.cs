@@ -1,12 +1,16 @@
 using api.Data;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers;
 
-public record RatingRequest(int Story, int Art, int Characters, int Enjoyment, string? ReviewText);
+// Audience (Public, Friends, OnlyMe) is optional: a new rating is Public, an existing one keeps its audience
+public record RatingRequest(int Story, int Art, int Characters, int Enjoyment, string? ReviewText, string? Audience = null, bool Spoiler = false);
+public record AudienceRequest(string? Audience);
 
 public static class RatingMath
 {
@@ -34,7 +38,13 @@ public class RatingsController : ControllerBase
     {
         foreach (var v in new[] { body.Story, body.Art, body.Characters, body.Enjoyment })
             if (v < 1 || v > 10) return BadRequest("Each score must be between 1 and 10.");
-        if (body.ReviewText?.Length > 2000) return BadRequest("Review must be 2000 characters or fewer.");
+        if (body.ReviewText?.Length > ReviewRules.MaxReview) return BadRequest("Review must be 2000 characters or fewer.");
+        Audience? audience = null;
+        if (body.Audience != null)
+        {
+            if (!ReviewRules.TryAudience(body.Audience, out var a)) return BadRequest("Audience must be Public, Friends or OnlyMe.");
+            audience = a;
+        }
 
         var userId = UserId;
         // only verified accounts may post public text
@@ -67,12 +77,17 @@ public class RatingsController : ControllerBase
             r.Characters = body.Characters;
             r.Enjoyment = body.Enjoyment;
             r.Overall = overall;
+            var hadText = r.ReviewText != null;
             r.ReviewText = string.IsNullOrWhiteSpace(body.ReviewText) ? null : body.ReviewText.Trim();
+            r.Spoiler = r.ReviewText != null && body.Spoiler;
+            if (audience != null) r.Audience = audience.Value;
+            // replies and reactions stay in the database but nothing reaches them while there is no text; so does their notification
+            if (hadText && r.ReviewText == null) await SocialRules.RemoveReviewNotifications(_db, r.Id);
 
             try
             {
                 await _db.SaveChangesAsync();
-                return Ok(new { r.Id, r.TitleId, r.Volume, r.Story, r.Art, r.Characters, r.Enjoyment, r.Overall, r.ReviewText, r.CreatedAt });
+                return Ok(new { r.Id, r.TitleId, r.Volume, r.Story, r.Art, r.Characters, r.Enjoyment, r.Overall, r.ReviewText, r.Spoiler, audience = r.Audience.ToString(), r.CreatedAt });
             }
             catch (DbUpdateConcurrencyException) when (attempt < Retries)
             {
@@ -89,6 +104,7 @@ public class RatingsController : ControllerBase
         {
             var r = await _db.Ratings.FirstOrDefaultAsync(x => x.UserId == userId && x.TitleId == id && x.Volume == volume);
             if (r == null) return NotFound();
+            await SocialRules.RemoveReviewNotifications(_db, r.Id);
             if (volume == null)
             {
                 var title = await _db.Titles.FirstAsync(t => t.Id == id);
@@ -109,6 +125,20 @@ public class RatingsController : ControllerBase
         }
     }
 
+    // the My ratings list changes who sees one rating (score and review) without resending the scores
+    [HttpPut("titles/{id:int}/rating/audience")]
+    [EnableRateLimiting("audience")]
+    public async Task<IActionResult> SetAudience(int id, AudienceRequest body, int? volume = null)
+    {
+        if (!ReviewRules.TryAudience(body.Audience, out var audience)) return BadRequest("Audience must be Public, Friends or OnlyMe.");
+        var userId = UserId;
+        var r = await _db.Ratings.FirstOrDefaultAsync(x => x.UserId == userId && x.TitleId == id && x.Volume == volume);
+        if (r == null) return NotFound();
+        r.Audience = audience;
+        await _db.SaveChangesAsync();
+        return Ok(new { audience = audience.ToString() });
+    }
+
     [HttpGet("me/ratings")]
     public async Task<IActionResult> Mine()
     {
@@ -117,8 +147,8 @@ public class RatingsController : ControllerBase
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new
             {
-                r.TitleId, r.Volume, titleName = r.Title.Name, coverUrl = r.Title.CoverUrl, seriesId = r.Title.SeriesId,
-                r.Story, r.Art, r.Characters, r.Enjoyment, r.Overall, r.ReviewText, r.CreatedAt
+                r.Id, r.TitleId, r.Volume, titleName = r.Title.Name, coverUrl = r.Title.CoverUrl, seriesId = r.Title.SeriesId,
+                r.Story, r.Art, r.Characters, r.Enjoyment, r.Overall, r.ReviewText, r.Spoiler, Audience = r.Audience.ToString(), r.CreatedAt
             }).ToListAsync();
         return Ok(list);
     }

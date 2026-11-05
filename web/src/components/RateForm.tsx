@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import type { MyRating } from '../types'
+import type { Audience, MyRating } from '../types'
+import AudienceSelect from './AudienceSelect'
 
 const FIELDS = ['story', 'art', 'characters', 'enjoyment'] as const
 type Field = (typeof FIELDS)[number]
@@ -15,28 +16,46 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
   const { pathname } = useLocation()
   const [scores, setScores] = useState(blank)
   const [review, setReview] = useState('')
+  const [audience, setAudience] = useState<Audience>('Public') // new ratings are public
+  const [spoiler, setSpoiler] = useState(false)
   const [hasRating, setHasRating] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // which title/volume the prefill answered or failed for; Save waits for the answer so it cannot overwrite an unseen rating
+  const key = `${titleId}:${volume}`
+  const [loadedKey, setLoadedKey] = useState('')
+  const [errorKey, setErrorKey] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  const loaded = loadedKey === key
+  const loadError = errorKey === key
+  const touched = useRef(false) // the user edited the form before the prefill arrived
 
   // prefill with the user's existing rating for this title
   useEffect(() => {
     if (!user) return
-    let stale = false
+    const ac = new AbortController()
+    touched.current = false
     api<MyRating[]>('/me/ratings')
       .then((list) => {
+        if (ac.signal.aborted) return
         const mine = list.find((r) => r.titleId === titleId && (r.volume ?? null) === volume)
-        if (stale || !mine) return
-        setScores({ story: mine.story, art: mine.art, characters: mine.characters, enjoyment: mine.enjoyment })
-        setReview(mine.reviewText ?? '')
-        setHasRating(true)
+        if (mine) {
+          if (!touched.current) {
+            setScores({ story: mine.story, art: mine.art, characters: mine.characters, enjoyment: mine.enjoyment })
+            setReview(mine.reviewText ?? '')
+            setAudience(mine.audience)
+            setSpoiler(mine.spoiler)
+          }
+          setHasRating(true)
+        }
+        setLoadedKey(`${titleId}:${volume}`)
       })
-      .catch(() => {})
+      .catch(() => { if (!ac.signal.aborted) setErrorKey(`${titleId}:${volume}`) })
     return () => {
-      stale = true
+      ac.abort()
     }
-  }, [titleId, volume, user])
+  }, [titleId, volume, user, attempt])
 
   if (!user) {
     return <p><Link to="/login" className="link">Log in</Link> to rate this title.</p>
@@ -50,7 +69,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
     setMsg('')
     setError('')
     try {
-      await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review }) })
+      await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review, audience, spoiler }) })
       setHasRating(true)
       setMsg('Saved.')
       onChanged()
@@ -69,6 +88,8 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
       await api(ratingUrl, { method: 'DELETE' })
       setScores(blank)
       setReview('')
+      setSpoiler(false)
+      setAudience('Public')
       setHasRating(false)
       setMsg('Rating deleted.')
       onChanged()
@@ -89,7 +110,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
             min={1}
             max={10}
             value={scores[f]}
-            onChange={(e) => setScores({ ...scores, [f]: Number(e.target.value) })}
+            onChange={(e) => { touched.current = true; setScores({ ...scores, [f]: Number(e.target.value) }) }}
           />
           <span className="score-value">{scores[f]}</span>
         </label>
@@ -99,13 +120,23 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
         rows={4}
         value={review}
         disabled={!emailVerified}
-        onChange={(e) => setReview(e.target.value)}
+        onChange={(e) => { touched.current = true; setReview(e.target.value) }}
       />
       {!emailVerified && (
         <p className="muted hint"><Link to="/verify" state={{ from: pathname }} className="link">Verify your email</Link> to write reviews</p>
       )}
+      <label className="check">
+        <input type="checkbox" checked={spoiler} disabled={!emailVerified || !review.trim()} onChange={(e) => { touched.current = true; setSpoiler(e.target.checked) }} /> Contains spoilers
+      </label>
+      <label className="row">
+        <span className="muted">Who can see this rating and review</span>
+        <AudienceSelect label="Who can see this rating and review" value={audience} onChange={(a) => { touched.current = true; setAudience(a) }} />
+      </label>
+      {loadError && (
+        <p className="error" role="alert">Could not load your existing rating. <button type="button" onClick={() => { setErrorKey(''); setAttempt((n) => n + 1) }}>Retry</button></p>
+      )}
       <div className="row">
-        <button type="submit" disabled={busy}>{hasRating ? 'Update rating' : 'Save rating'}</button>
+        <button type="submit" disabled={busy || !loaded}>{hasRating ? 'Update rating' : 'Save rating'}</button>
         {hasRating && <button type="button" disabled={busy} onClick={remove}>Delete</button>}
         {msg && <span className="muted">{msg}</span>}
         {error && <span className="error">{error}</span>}

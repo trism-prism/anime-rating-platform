@@ -11,4 +11,6 @@ public class WatchListEntry
     public Title Title { get; set; } = null!;
     public WatchStatus Status { get; set; }
     public int Progress { get; set; }
+    // stored and editable now; nothing shows a user's list to others yet (custom lists with audiences come later)
+    public Audience Audience { get; set; } = Audience.Public;
 }
