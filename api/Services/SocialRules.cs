@@ -36,6 +36,15 @@ public static class SocialRules
     public static Task<bool> HasBlocked(AppDbContext db, string blockerId, string blockedId) =>
         db.UserBlocks.AnyAsync(b => b.BlockerId == blockerId && b.BlockedId == blockedId);
 
+    // either side blocked the other: content between them is invisible both ways
+    public static Task<bool> BlockedEither(AppDbContext db, string a, string b) =>
+        db.UserBlocks.AnyAsync(x => (x.BlockerId == a && x.BlockedId == b) || (x.BlockerId == b && x.BlockedId == a));
+
+    // AllowAnonymous skips the 401 an expired token would get; routes that look at the viewer send it so the web client
+    // refreshes and retries instead of showing a signed-in user the anonymous view
+    public static bool ExpiredToken(HttpRequest request, System.Security.Claims.ClaimsPrincipal user) =>
+        request.Headers.ContainsKey("Authorization") && user.Identity?.IsAuthenticated != true;
+
     public static Task<Friendship?> FindFriendship(AppDbContext db, string a, string b)
     {
         var (low, high) = Friendship.Order(a, b);
@@ -77,6 +86,31 @@ public static class SocialRules
     }
 
     public static Task Remove(AppDbContext db, Friendship f) => RemoveMany(db, new[] { f });
+
+    // Reply and Reaction notifications point at content that is going or hidden; the caller saves.
+    // Reply notifications carry the reply id, Reaction notifications the rating id.
+    public static async Task RemoveReplyNotifications(AppDbContext db, IReadOnlyList<int> replyIds)
+    {
+        var ids = replyIds.Select(i => (int?)i).ToList();
+        db.Notifications.RemoveRange(await db.Notifications.Where(n => n.Type == NotificationType.Reply && ids.Contains(n.SubjectId)).ToListAsync());
+    }
+
+    public static async Task RemoveReviewNotifications(AppDbContext db, int ratingId)
+    {
+        var replyIds = await db.Replies.Where(r => r.RatingId == ratingId).Select(r => r.Id).ToListAsync();
+        await RemoveReplyNotifications(db, replyIds);
+        db.Notifications.RemoveRange(await db.Notifications.Where(n => n.Type == NotificationType.Reaction && n.SubjectId == ratingId).ToListAsync());
+    }
+
+    // when one blocks the other, the replies and reactions between them leave both bells
+    public static async Task RemoveReviewNotificationsBetween(AppDbContext db, string a, string b)
+    {
+        var dead = await db.Notifications
+            .Where(n => (n.Type == NotificationType.Reply || n.Type == NotificationType.Reaction)
+                && ((n.UserId == a && n.ActorId == b) || (n.UserId == b && n.ActorId == a)))
+            .ToListAsync();
+        db.Notifications.RemoveRange(dead);
+    }
 
     public const int RequestExpiryDays = 30;
 

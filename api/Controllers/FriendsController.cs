@@ -207,6 +207,10 @@ public class FriendsController : ControllerBase
             }
         }
 
+        // their replies and reactions on each other's reviews leave both bells (best effort: the block itself is saved)
+        await SocialRules.RemoveReviewNotificationsBetween(_db, me, other.Id);
+        await SocialRules.TrySave(_db);
+
         // then end any friendship or request; a concurrent accept or unfriend can change the row under the delete, so look again
         var ended = false;
         for (var i = 0; i < 10 && !ended; i++)
