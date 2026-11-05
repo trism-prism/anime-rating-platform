@@ -20,6 +20,7 @@ namespace api.Migrations
                 .HasAnnotation("ProductVersion", "8.0.33")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -280,14 +281,56 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("Volume")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TitleId");
 
                     b.HasIndex("UserId", "TitleId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Volume\" IS NULL");
+
+                    b.HasIndex("UserId", "TitleId", "Volume")
+                        .IsUnique()
+                        .HasFilter("\"Volume\" IS NOT NULL");
 
                     b.ToTable("Ratings");
+                });
+
+            modelBuilder.Entity("api.Models.Series", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CoverUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Popularity")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Name"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Name"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("Popularity", "Id");
+
+                    b.ToTable("Series");
                 });
 
             modelBuilder.Entity("api.Models.Session", b =>
@@ -359,6 +402,10 @@ namespace api.Migrations
                     b.Property<int?>("Episodes")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Genres")
                         .IsRequired()
                         .HasColumnType("text");
@@ -370,6 +417,29 @@ namespace api.Migrations
                     b.Property<int>("Popularity")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RatingCount")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<double>("RatingSum")
+                        .IsConcurrencyToken()
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("SeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("SeriesLocked")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("StartDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("StartMonth")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Synopsis")
                         .HasColumnType("text");
 
@@ -377,10 +447,23 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("Volumes")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AniListId")
                         .IsUnique();
+
+                    b.HasIndex("Name");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Name"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Name"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("SeriesId", "Position");
 
                     b.ToTable("Titles");
                 });
@@ -416,6 +499,34 @@ namespace api.Migrations
                         .IsUnique();
 
                     b.ToTable("TitleCharacters");
+                });
+
+            modelBuilder.Entity("api.Models.TitleRelation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FromAniListId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ToAniListId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ToAniListId");
+
+                    b.HasIndex("FromAniListId", "ToAniListId", "Type")
+                        .IsUnique();
+
+                    b.ToTable("TitleRelations");
                 });
 
             modelBuilder.Entity("api.Models.VoiceActor", b =>
@@ -557,6 +668,17 @@ namespace api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("api.Models.Title", b =>
+                {
+                    b.HasOne("api.Models.Series", "Series")
+                        .WithMany("Titles")
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Series");
+                });
+
             modelBuilder.Entity("api.Models.TitleCharacter", b =>
                 {
                     b.HasOne("api.Models.Character", "Character")
@@ -599,6 +721,11 @@ namespace api.Migrations
                     b.Navigation("Title");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("api.Models.Series", b =>
+                {
+                    b.Navigation("Titles");
                 });
 
             modelBuilder.Entity("api.Models.Title", b =>

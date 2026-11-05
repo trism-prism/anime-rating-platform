@@ -7,6 +7,8 @@ public class Rating
     public AppUser User { get; set; } = null!;
     public int TitleId { get; set; }
     public Title Title { get; set; } = null!;
+    // null = the whole title; 1..Volumes for a manga volume
+    public int? Volume { get; set; }
     // each 1-10
     public int Story { get; set; }
     public int Art { get; set; }

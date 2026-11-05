@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import TitleCard from '../components/TitleCard'
+import SeriesCard from '../components/SeriesCard'
 import type { TitleType, TrendingItem } from '../types'
 
 export default function Trending() {
@@ -33,7 +33,7 @@ export default function Trending() {
       {!loading && items.list.length === 0 && <p className="muted">Nothing trending right now.</p>}
       {!loading && (
         <div className="grid">
-          {items.list.map((t) => <TitleCard key={t.id} title={t} />)}
+          {items.list.map((t) => <SeriesCard key={t.id} id={t.id} name={t.name} coverUrl={t.coverUrl} type={t.type} average={t.averageOverall} />)}
         </div>
       )}
     </div>

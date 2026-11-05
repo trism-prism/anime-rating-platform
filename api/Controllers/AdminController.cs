@@ -17,8 +17,13 @@ public class AdminController : ControllerBase
 
     public AdminController(UserManager<AppUser> users) => _users = users;
 
+    // the import takes minutes, so it runs in the background; poll GET /admin/import
     [HttpPost("import")]
-    public async Task<IActionResult> Import([FromServices] AniListImporter importer) => Ok(await importer.Import());
+    public IActionResult Import([FromServices] ImportJob job) =>
+        job.TryStart() ? Accepted(job.Status) : Conflict(job.Status);
+
+    [HttpGet("import")]
+    public IActionResult ImportState([FromServices] ImportJob job) => Ok(job.Status);
 
     [HttpGet("users")]
     public async Task<IActionResult> Users(string? search, int page = 1, int pageSize = 20)

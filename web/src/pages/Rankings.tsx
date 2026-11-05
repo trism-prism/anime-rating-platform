@@ -47,7 +47,7 @@ export default function Rankings() {
         <ol className="rankings">
           {rows.list.map((r) => (
             <li key={r.id}>
-              <Link to={`/titles/${r.id}`} className="list-name">{r.name}</Link>
+              <Link to={`/series/${r.id}`} className="list-name">{r.name}</Link>
               <span className="muted">{r.type}</span>
               <strong>{r.average}</strong>
               <span className="muted">{r.ratingCount} {r.ratingCount === 1 ? 'rating' : 'ratings'}</span>

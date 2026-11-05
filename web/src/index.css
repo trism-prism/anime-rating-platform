@@ -168,4 +168,47 @@ textarea { font: inherit; color: var(--text); background: var(--panel); border: 
 @media (max-width: 600px) {
   .detail { flex-direction: column; }
   .cover { max-width: 60%; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
 }
+
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.link-quiet:hover { color: var(--accent); }
+
+/* browse search with typeahead */
+.search { display: flex; gap: 8px; flex: 1; min-width: 220px; position: relative; }
+.search input { flex: 1; min-width: 0; }
+.suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.suggest ul { list-style: none; margin: 0; padding: 4px; }
+.suggest li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+.suggest li.on { background: var(--border); }
+.suggest-status { padding: 8px 12px; }
+.filters .search { flex: 1 1 260px; }
+.results { min-height: 60vh; }
+.card-body { min-height: 4.2em; }
+
+.crumb { margin: 0 0 4px; }
+.skeleton { background: var(--border); border-radius: 8px; }
+.skeleton-text { min-height: 120px; }
+
+.entries { list-style: none; padding: 0; margin: 0; }
+.entries li { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
+.entries img, .entries .noimg { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.entry-pos { width: 2.5em; text-align: right; flex-shrink: 0; }
+.entry-main { flex: 1; min-width: 0; }
+.entry-score { text-align: right; flex-shrink: 0; min-width: 5.5em; }
+.related-group h3 { margin: 12px 0 4px; font-size: 1rem; color: var(--muted); }
+.related-group ul { margin: 0; padding-left: 20px; }
+.volumes { max-width: 520px; }
+
+/* admin series tools */
+.picker { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 260px; }
+.picker-list { height: 168px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 4px; background: var(--panel); }
+.picker-list button { display: flex; width: 100%; justify-content: space-between; gap: 8px; border: 0; background: none; text-align: left; padding: 4px 8px; }
+.picker-list button[aria-pressed='true'] { background: var(--border); color: var(--accent); }
+.picker-list p { margin: 6px 8px; }
+.admin-box { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+.admin-box h3 { margin: 0 0 8px; font-size: 1rem; }
+.admin-status { min-height: 1.5em; margin: 8px 0 0; }
+dialog { color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; max-width: 440px; padding: 20px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+dialog h3 { margin: 0 0 8px; }

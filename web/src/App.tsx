@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import Browse from './pages/Browse'
+import SeriesPage from './pages/SeriesPage'
 import TitleDetail from './pages/TitleDetail'
 import Trending from './pages/Trending'
 import Rankings from './pages/Rankings'
@@ -23,6 +24,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Browse />} />
+          <Route path="/series/:id" element={<SeriesPage />} />
           <Route path="/titles/:id" element={<TitleDetail />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/rankings" element={<Rankings />} />

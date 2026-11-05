@@ -34,8 +34,8 @@ public class TitlesController : ControllerBase
             .Select(t => new
             {
                 t.Id, t.Name, t.CoverUrl, t.Type, t.Genres, t.Popularity,
-                AverageOverall = t.Ratings.Average(r => (double?)r.Overall),
-                RatingCount = t.Ratings.Count()
+                AverageOverall = t.Ratings.Where(r => r.Volume == null).Average(r => (double?)r.Overall),
+                RatingCount = t.Ratings.Count(r => r.Volume == null)
             }).ToListAsync();
 
         var items = rows.Select(t => new
@@ -51,7 +51,11 @@ public class TitlesController : ControllerBase
     public async Task<IActionResult> Get(int id)
     {
         var t = await _db.Titles.Where(x => x.Id == id)
-            .Select(x => new { x.Id, x.AniListId, x.Type, x.Name, x.CoverUrl, x.Synopsis, x.Episodes, x.Chapters, x.Genres, x.Popularity })
+            .Select(x => new
+            {
+                x.Id, x.AniListId, x.Type, x.Name, x.CoverUrl, x.Synopsis, x.Episodes, x.Chapters, x.Genres, x.Popularity,
+                x.SeriesId, SeriesName = x.Series.Name, x.Position, x.Format, x.Year, x.Volumes
+            })
             .FirstOrDefaultAsync();
         if (t == null) return NotFound();
 
@@ -66,7 +70,8 @@ public class TitlesController : ControllerBase
             }).ToListAsync();
 
         var ratings = _db.Ratings.Where(r => r.TitleId == id);
-        var avg = await ratings.GroupBy(r => 1).Select(g => new
+        // title averages use whole-title ratings only; volumes are averaged separately below
+        var avg = await ratings.Where(r => r.Volume == null).GroupBy(r => 1).Select(g => new
         {
             Story = g.Average(r => r.Story),
             Art = g.Average(r => r.Art),
@@ -80,13 +85,23 @@ public class TitlesController : ControllerBase
             .OrderByDescending(r => r.CreatedAt).Take(50)
             .Select(r => new
             {
-                userName = r.User.UserName, r.Overall, r.Story, r.Art, r.Characters, r.Enjoyment, r.ReviewText, r.CreatedAt
+                userName = r.User.UserName, r.Volume, r.Overall, r.Story, r.Art, r.Characters, r.Enjoyment, r.ReviewText, r.CreatedAt
             }).ToListAsync();
+
+        // one average per rated volume; shown whenever volume ratings exist, even if the volume count was later lost
+        var perVolume = (await ratings.Where(r => r.Volume != null)
+            .GroupBy(r => r.Volume)
+            .Select(g => new { Volume = g.Key, Average = g.Average(r => r.Overall), Count = g.Count() })
+            .ToListAsync())
+            .OrderBy(v => v.Volume)
+            .Select(v => new { volume = v.Volume, average = Math.Round(v.Average, 2), count = v.Count }).ToList();
+        var volumeAverages = perVolume.Count == 0 && t.Volumes == null ? null : perVolume;
 
         return Ok(new
         {
             t.Id, t.AniListId, type = t.Type.ToString(), t.Name, t.CoverUrl, t.Synopsis, t.Episodes, t.Chapters,
             genres = SplitGenres(t.Genres), t.Popularity,
+            t.SeriesId, t.SeriesName, t.Position, t.Format, t.Year, t.Volumes, volumeAverages,
             characters,
             averages = avg == null ? null : new
             {
