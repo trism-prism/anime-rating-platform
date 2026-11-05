@@ -14,22 +14,28 @@ function plainText(html: string | null) {
 export default function TitleDetail() {
   const { id } = useParams()
   const [title, setTitle] = useState<Detail | null>(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{ id: string; message: string } | null>(null)
   const [tick, setTick] = useState(0) // bump to refetch after rating
   const [picked, setPicked] = useState({ titleId: 0, volume: 0 }) // volume 0 = none picked
 
   useEffect(() => {
     let stale = false
     api<Detail>(`/titles/${id}`)
-      .then((d) => { if (!stale) { setTitle(d); setError('') } })
-      .catch((e: Error) => !stale && setError(e.message))
+      .then((d) => { if (!stale) { setTitle(d); setError(null) } })
+      .catch((e: Error) => !stale && id && setError({ id, message: e.message }))
     return () => {
       stale = true
     }
   }, [id, tick])
   const load = () => setTick((t) => t + 1)
 
-  if (error && !title) return <p className="error">{error}</p>
+  if (error && error.id === id) {
+    return (
+      <p className="error">
+        {error.message} <button onClick={() => { setError(null); load() }}>Retry</button>
+      </p>
+    )
+  }
   if (!title || title.id !== Number(id)) return <p className="muted">Loading...</p>
 
   const a = title.averages
