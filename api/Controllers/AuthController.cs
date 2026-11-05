@@ -91,6 +91,8 @@ public class AuthController : ControllerBase
 
         var check = await _check.Password(user, req.Password, HttpContext);
         if (check == Check.Locked) return CredentialCheck.Locked();
+        // same answer as a wrong password, so the login form does not reveal which accounts use Google
+        if (check == Check.NoPassword) return Unauthorized(new { message = "Invalid email or password." });
         if (check == Check.Wrong)
         {
             // warn only when the lockout is close

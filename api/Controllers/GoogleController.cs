@@ -104,9 +104,13 @@ public class GoogleController : ControllerBase
         }
         else if (linking)
         {
-            // an unconfirmed account may have been made by someone who does not own the address: drop what they set up
-            if (!user.EmailConfirmed) await TakeOver(user);
+            // a Google account with the same address must not bypass the authenticator; accounts already linked
+            // keep signing in with Google as the strong factor
+            if (user.EmailConfirmed && user.TwoFactorEnabled) return Failed();
             if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded) return Failed();
+            // an unconfirmed account may have been made by someone who does not own the address: drop what they set up
+            // (after the link, so a failed link does not leave a wiped placeholder)
+            if (!user.EmailConfirmed) await TakeOver(user);
             user.EmailConfirmed = true; // Google verified the address
             await _users.UpdateAsync(user);
         }
@@ -126,6 +130,7 @@ public class GoogleController : ControllerBase
         if (await _users.HasPasswordAsync(user)) await _users.RemovePasswordAsync(user);
         await _users.SetTwoFactorEnabledAsync(user, false);
         await _users.ResetAuthenticatorKeyAsync(user);
+        await _users.GenerateNewTwoFactorRecoveryCodesAsync(user, 0); // replaces the saved codes with none
         await _users.SetLockoutEndDateAsync(user, null);
         await _sessions.RevokeAll(user.Id);
     }

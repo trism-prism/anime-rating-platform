@@ -198,13 +198,40 @@ public class GoogleTests
         var db = p.GetRequiredService<AppDbContext>();
         var old = new SessionService(db, users, Config(), new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
         var (attackerSession, _) = await old.Create(planted, "test", "1.2.3.4");
+        await users.SetTwoFactorEnabledAsync(planted, true); // the placeholder's owner set up an authenticator
+        await users.GenerateNewTwoFactorRecoveryCodesAsync(planted, 10);
+        Assert.Equal(10, await users.CountRecoveryCodesAsync(planted));
 
-        await Callback(p, IdToken("kai@example.com"));
+        Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("kai@example.com")));
 
         var user = (await users.FindByIdAsync(planted.Id))!;
         Assert.True(user.EmailConfirmed);
         Assert.False(await users.HasPasswordAsync(user));
+        Assert.False(user.TwoFactorEnabled);
+        Assert.Equal(0, await users.CountRecoveryCodesAsync(user));
         Assert.False(await old.IsActive(attackerSession.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task Confirmed_account_with_two_factor_is_not_linked_by_email()
+    {
+        using var p = Build();
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        var local = new AppUser { UserName = "kai", Email = "kai@example.com", EmailConfirmed = true };
+        Assert.True((await users.CreateAsync(local, "correct horse battery")).Succeeded);
+        await users.SetTwoFactorEnabledAsync(local, true);
+
+        Assert.Equal(Failed, await Callback(p, IdToken("kai@example.com")));
+        Assert.Null(await users.FindByLoginAsync("Google", "g-1"));
+        Assert.Empty(p.GetRequiredService<AppDbContext>().Sessions);
+        Assert.True(await users.HasPasswordAsync(local));
+
+        // once linked (before two-factor was turned on), Google keeps signing in
+        var linked = new AppUser { UserName = "ann", Email = "ann@example.com", EmailConfirmed = true };
+        Assert.True((await users.CreateAsync(linked, "correct horse battery")).Succeeded);
+        await Callback(p, IdToken("ann@example.com", sub: "g-2"));
+        await users.SetTwoFactorEnabledAsync(linked, true);
+        Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("ann@example.com", sub: "g-2")));
     }
 
     [Theory]
@@ -259,6 +286,24 @@ public class GoogleTests
     }
 
     [Fact]
+    public async Task Password_login_for_a_google_only_account_is_a_plain_401()
+    {
+        using var p = Build();
+        await Callback(p, IdToken("sam@example.com"));
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+        var db = p.GetRequiredService<AppDbContext>();
+        var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = Environments.Development };
+        var events = new SecurityLog(db);
+        var auth = new AuthController(users, new EmailSender(Config(), NullLogger<EmailSender>.Instance, env, new HttpClient()),
+            new SessionService(db, users, Config(), env), new CredentialCheck(users, events), events, Config(), NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+
+        var r = Assert.IsType<UnauthorizedObjectResult>(await auth.Login(new LoginRequest("sam@example.com", "anything at all")));
+        Assert.Contains("Invalid email or password.", JsonSerializer.Serialize(r.Value));
+        Assert.Single(db.Sessions); // only the Google one
+    }
+
+    [Fact]
     public async Task Password_checks_fail_normally_for_an_account_without_a_password()
     {
         using var p = Build();
@@ -268,7 +313,12 @@ public class GoogleTests
         var check = new CredentialCheck(users, new SecurityLog(p.GetRequiredService<AppDbContext>()));
 
         for (var i = 0; i < 15; i++)
-            Assert.Equal(Check.Wrong, await check.Password(user, "anything at all", new DefaultHttpContext()));
+            Assert.Equal(Check.NoPassword, await check.Password(user, "anything at all", new DefaultHttpContext()));
         Assert.False(await users.IsLockedOutAsync(user)); // nothing to guess, so no lockout
+
+        var refused = CredentialCheck.Refused(Check.NoPassword, "Wrong password.");
+        Assert.Equal(403, refused.StatusCode);
+        Assert.Contains("no password", JsonSerializer.Serialize(refused.Value));
+        Assert.Contains("Wrong password.", JsonSerializer.Serialize(CredentialCheck.Refused(Check.Wrong, "Wrong password.").Value));
     }
 }

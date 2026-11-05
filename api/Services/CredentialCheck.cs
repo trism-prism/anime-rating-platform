@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace api.Services;
 
-public enum Check { Ok, Wrong, Locked }
+public enum Check { Ok, Wrong, Locked, NoPassword }
 
 // checks a password or a two-factor code; every miss counts toward the same lockout
 public class CredentialCheck
@@ -21,7 +21,7 @@ public class CredentialCheck
     public async Task<Check> Password(AppUser user, string password, HttpContext http)
     {
         if (await _users.IsLockedOutAsync(user)) return Check.Locked;
-        if (!await _users.HasPasswordAsync(user)) return Check.Wrong; // signs in with Google only; nothing to guess, so no lockout count
+        if (!await _users.HasPasswordAsync(user)) return Check.NoPassword; // signs in with Google only; nothing to guess, so no lockout count
         if (await _users.CheckPasswordAsync(user, password)) return Check.Ok;
         return await Failed(user, http);
     }
@@ -50,5 +50,7 @@ public class CredentialCheck
 
     // 403 rather than 401: the web client retries a 401 once with a fresh token, which would count the miss twice
     public static ObjectResult Refused(Check check, string wrong) =>
-        check == Check.Locked ? Locked() : new(new { message = wrong }) { StatusCode = 403 };
+        check == Check.Locked ? Locked()
+        : check == Check.NoPassword ? new(new { message = "This account has no password. Use Forgot password on the login page to set one." }) { StatusCode = 403 }
+        : new(new { message = wrong }) { StatusCode = 403 };
 }
