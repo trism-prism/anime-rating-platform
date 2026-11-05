@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import ConfirmDialog from './ConfirmDialog'
-import type { SeriesDetail } from '../types'
+
+type AdminDetail = { id: number; name: string; kind: string; entries: { id: number; name: string; position: number; format: string | null; seriesLocked: boolean }[] }
 
 type Row = { id: number; name: string; kind: string; entries: number }
 
 function message(err: unknown) {
-  if (err instanceof ApiError && err.status === 404) return 'Not found: it may have been merged or removed. Search again.'
+  // the API sends a message with its 404s; fall back for older servers
+  if (err instanceof ApiError && err.status === 404) return err.message.startsWith('Request failed') ? 'Not found: it may have been merged or removed. Search again.' : err.message
   if (err instanceof ApiError && err.status === 403) return 'Admin access is required.'
   return (err as Error).message
 }
@@ -109,18 +111,19 @@ function MoveTool() {
   const [gen, setGen] = useState(0)
   const [source, setSource] = useState<Row | null>(null)
   const [dest, setDest] = useState<Row | null>(null)
-  const [detail, setDetail] = useState<{ id: number; series?: SeriesDetail; error?: string } | null>(null)
-  const [locked, setLocked] = useState<Set<number>>(new Set()) // titles moved in this visit; the API does not report the lock
+  const [detail, setDetail] = useState<{ id: number; series?: AdminDetail; error?: string } | null>(null)
+  const selected = useRef<number | null>(null) // the series the table should show; older responses are dropped
   const [busy, setBusy] = useState<number | null>(null)
   const [status, setStatus] = useState<Status>(null)
 
   function load(id: number) {
-    api<SeriesDetail>(`/series/${id}`)
-      .then((series) => setDetail({ id, series }))
-      .catch((e) => setDetail({ id, error: message(e) }))
+    api<AdminDetail>(`/admin/series/${id}`)
+      .then((series) => selected.current === id && setDetail({ id, series }))
+      .catch((e) => selected.current === id && setDetail({ id, error: message(e) }))
   }
 
   useEffect(() => {
+    selected.current = source?.id ?? null
     if (source) load(source.id)
   }, [source])
 
@@ -128,9 +131,8 @@ function MoveTool() {
     setBusy(entryId)
     try {
       const r = await api<{ seriesId: number }>(`/admin/titles/${entryId}/move`, { method: 'POST', body: JSON.stringify({ seriesId: target?.id ?? null }) })
-      setLocked((l) => new Set(l).add(entryId))
       setStatus({ ok: true, text: target ? `Moved "${name}" to "${target.name}" and locked it.` : `Split "${name}" into a new series (id ${r.seriesId}) and locked it.` })
-      if (source) load(source.id)
+      if (selected.current !== null) load(selected.current) // the series may have been renamed or removed
     } catch (e) {
       setStatus({ ok: false, text: `Move failed: ${message(e)}` })
     } finally {
@@ -160,7 +162,7 @@ function MoveTool() {
                   <tr key={e.id}>
                     <td>{e.position}</td>
                     <td>{e.name}</td>
-                    <td className="muted">{locked.has(e.id) ? 'Locked (moved)' : 'Unknown (API does not report it)'}</td>
+                    <td className="muted">{e.seriesLocked ? 'Locked' : 'Importer-managed'}</td>
                     <td>
                       <div className="row">
                         <button disabled={busy !== null || !!blocked} title={blocked} onClick={() => move(e.id, e.name, dest)}>Move to destination</button>
