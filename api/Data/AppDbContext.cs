@@ -22,6 +22,11 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(b);
 
+        // trigram indexes serve the ILIKE '%text%' in SeriesSearch; the extension is created by the migration
+        b.HasPostgresExtension("pg_trgm");
+        b.Entity<Series>().HasIndex(s => s.Name).HasMethod("gin").HasOperators("gin_trgm_ops");
+        b.Entity<Title>().HasIndex(t => t.Name).HasMethod("gin").HasOperators("gin_trgm_ops");
+
         b.Entity<Title>().HasIndex(t => t.AniListId).IsUnique();
         b.Entity<Title>().Property(t => t.Type).HasConversion<string>();
         b.Entity<Character>().HasIndex(c => c.AniListId).IsUnique();

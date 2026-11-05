@@ -20,6 +20,7 @@ namespace api.Migrations
                 .HasAnnotation("ProductVersion", "8.0.33")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -322,6 +323,11 @@ namespace api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Name"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Name"), new[] { "gin_trgm_ops" });
+
                     b.HasIndex("Popularity", "Id");
 
                     b.ToTable("Series");
@@ -451,6 +457,11 @@ namespace api.Migrations
 
                     b.HasIndex("AniListId")
                         .IsUnique();
+
+                    b.HasIndex("Name");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Name"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Name"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("SeriesId", "Position");
 
