@@ -14,9 +14,8 @@ public record RegisterRequest(string Email, string Password, string? UserName);
 public record EmailRequest(string Email);
 public record LoginRequest(string Email, string Password);
 public record UserIdRequest(string UserId);
-public record ResetPasswordRequest(string UserId, string Token, string NewPassword);
-public record TwoFactorLoginRequest(string ChallengeToken, string Code);
-public record ChallengeRequest(string ChallengeToken);
+public record ResetCodeRequest(string Email, string Code);
+public record ResetPasswordRequest(string Email, string Code, string NewPassword);
 public record ConfirmEmailChangeRequest(string UserId, string NewEmail, string Token);
 
 [ApiController]
@@ -54,42 +53,8 @@ public class AuthController : ControllerBase
         var result = await _users.CreateAsync(user, req.Password);
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
-        if (!await TrySendConfirmation(user))
-            return Ok(new { message = "Account created, but the confirmation email could not be sent. Verify your email in Settings later." });
-        return Ok(new { message = "Check your email to confirm your account." });
-    }
-
-    [HttpGet("confirm-email")]
-    public async Task<IActionResult> ConfirmEmail(string userId, string token)
-    {
-        var user = await _users.FindByIdAsync(userId);
-        if (user == null) return BadRequest(new { message = "Invalid confirmation link." });
-
-        string raw;
-        try { raw = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token)); }
-        catch (FormatException) { return BadRequest(new { message = "Invalid confirmation link." }); }
-
-        var result = await _users.ConfirmEmailAsync(user, raw);
-        if (!result.Succeeded) return BadRequest(new { message = "Invalid or expired confirmation link." });
-        await AdminBootstrap.TryPromote(_users, _config, user);
-        return Ok(new { message = "Email confirmed. You can log in now." });
-    }
-
-    [HttpPost("resend-confirmation")]
-    public async Task<IActionResult> Resend(EmailRequest req)
-    {
-        var user = await _users.FindByEmailAsync(req.Email);
-        // one mail per address per minute; a blocked request gets the same answer as any other
-        if (user != null && !user.EmailConfirmed && !CoolingDown("resend-confirmation", req.Email))
-        {
-            if (!await TrySendConfirmation(user))
-            {
-                _cache.Remove(CooldownKey("resend-confirmation", req.Email));
-                return StatusCode(503, new { message = "Could not send the email right now. Try again later." });
-            }
-        }
-        // same answer either way
-        return Ok(new { message = "If the account exists, a new confirmation email was sent." });
+        // the email is verified later, with a code (see AccountController.SendVerifyCode)
+        return Ok(new { message = "Account created. Log in, then verify your email to write reviews." });
     }
 
     [HttpPost("login")]
@@ -110,63 +75,7 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
-        // no session yet: the code step comes first (the failed count is kept until it passes)
-        if (user.TwoFactorEnabled)
-        {
-            if (!await TrySendCode(user)) return StatusCode(503, new { message = "Could not send the sign-in code right now. Try again later." });
-            return Ok(new { twoFactorRequired = true, challengeToken = _sessions.ChallengeToken(user) });
-        }
-        return await OpenSession(user);
-    }
-
-    [HttpPost("2fa")]
-    public async Task<IActionResult> TwoFactor(TwoFactorLoginRequest req)
-    {
-        var user = await ChallengeUser(req.ChallengeToken);
-        if (user == null) return Unauthorized(new { message = "Sign-in expired. Log in again." });
-
-        var check = await _check.Code(user, req.Code);
-        if (check == Check.Locked) return CredentialCheck.Locked();
-        if (check == Check.Wrong) return Unauthorized(new { message = "Invalid code." });
-        return await OpenSession(user);
-    }
-
-    // a new code, at most one per 30 s per user; the answer is the same whether or not one was sent
-    [HttpPost("2fa/resend")]
-    public async Task<IActionResult> ResendCode(ChallengeRequest req)
-    {
-        var user = await ChallengeUser(req.ChallengeToken);
-        if (user == null) return Unauthorized(new { message = "Sign-in expired. Log in again." });
-        if (await _users.IsLockedOutAsync(user)) return CredentialCheck.Locked();
-        await TrySendCode(user);
-        return Ok(new { message = "If a code can be sent, it is on its way." });
-    }
-
-    async Task<AppUser?> ChallengeUser(string? challengeToken)
-    {
-        var id = _sessions.ReadChallenge(challengeToken);
-        var user = id == null ? null : await _users.FindByIdAsync(id);
-        return user is { TwoFactorEnabled: true } ? user : null;
-    }
-
-    // false only when the send failed; true also when the 30 s cooldown skipped it
-    async Task<bool> TrySendCode(AppUser user)
-    {
-        var key = "2fa-code:" + user.Id;
-        if (_cache.TryGetValue(key, out _)) return true;
-        _cache.Set(key, true, TimeSpan.FromSeconds(30));
-        try { await _email.SendSignInCode(_users, user); return true; }
-        catch (Exception ex) // the exception can hold the code, so log only the user id
-        {
-            _log.LogError(ex.GetType().Name + " sending sign-in code for user {UserId}", user.Id);
-            _cache.Remove(key);
-            return false;
-        }
-    }
-
-    // password (and code) are right: start the session and set the cookie
-    async Task<IActionResult> OpenSession(AppUser user)
-    {
+        // a right password is all it takes: no code is asked at login
         await _users.ResetAccessFailedCountAsync(user);
         await AdminBootstrap.TryPromote(_users, _config, user);
         var (session, refreshToken) = await _sessions.Create(user, Request.Headers.UserAgent.ToString(), HttpContext.Connection.RemoteIpAddress?.ToString());
@@ -205,37 +114,55 @@ public class AuthController : ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(EmailRequest req)
     {
-        var user = await _users.FindByEmailAsync(req.Email);
-        if (user != null && !CoolingDown("forgot-password", req.Email)) await TrySendPasswordReset(user);
+        var user = await _users.FindByEmailAsync((req.Email ?? "").Trim());
+        if (user != null && !CoolingDown("forgot-password", req.Email)) await TrySendResetCode(user);
         // same answer whether or not the email exists, or the send failed
-        return Ok(new { message = "If that email exists, a reset link was sent." });
+        return Ok(new { message = "If that email has an account, a code was sent." });
     }
 
+    // step two of the reset: is the emailed code right? Passwordless (Google) accounts use it too, to set a password.
+    [HttpPost("reset-code/verify")]
+    public async Task<IActionResult> VerifyResetCode(ResetCodeRequest req)
+    {
+        var key = TriesKey(req.Email);
+        if (!EmailCodes.Try(_cache, key)) return TooManyTries();
+        var ok = await ResetUser(req.Email, req.Code) != null;
+        if (ok) EmailCodes.Clear(_cache, key); // the next step checks the code again
+        return Ok(new { ok });
+    }
+
+    // step three: the code once more, then the new password (the policy and breach check apply)
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest req)
     {
-        var invalid = BadRequest(new { message = "Invalid or expired reset link." });
-        var user = await _users.FindByIdAsync(req.UserId);
-        if (user == null) return invalid;
+        var key = TriesKey(req.Email);
+        if (!EmailCodes.Try(_cache, key)) return TooManyTries();
+        var user = await ResetUser(req.Email, req.Code);
+        if (user == null) return BadRequest(new { message = "Invalid or expired code." });
+        EmailCodes.Clear(_cache, key); // a right code gives the tries back, so a weak password can be retried
 
-        string raw;
-        try { raw = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Token)); }
-        catch (FormatException) { return invalid; }
+        var result = await _users.ResetPasswordAsync(user, await _users.GeneratePasswordResetTokenAsync(user), req.NewPassword);
+        if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
-        // also runs the password policy; a bad token is the only error not shown to the user
-        var result = await _users.ResetPasswordAsync(user, raw, req.NewPassword);
-        if (!result.Succeeded)
-        {
-            if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidToken))) return invalid;
-            return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
-        }
-
-        // the new password signs every device out: no refresh tokens left, and access tokens die with their session
+        // owning the inbox proves the address; the new password also ends any lockout
+        user.EmailConfirmed = true;
+        user.LockoutEnd = null;
+        user.AccessFailedCount = 0;
+        await _users.UpdateAsync(user);
+        // every device signs out: no refresh tokens left, and access tokens die with their session
         await _sessions.RevokeAll(user.Id);
-        await _users.SetLockoutEndDateAsync(user, null);
-        await _users.ResetAccessFailedCountAsync(user);
-        return Ok(new { message = "Password changed. You can log in now." });
+        return Ok(new { message = "Password changed. Log in with it." });
     }
+
+    // the account when the address exists and the code is right for a reset, else null (same for both causes)
+    async Task<AppUser?> ResetUser(string? email, string? code)
+    {
+        var user = await _users.FindByEmailAsync((email ?? "").Trim());
+        return user != null && await EmailCodes.Right(_users, user, EmailCodes.Reset, code) ? user : null;
+    }
+
+    string TriesKey(string? email) => "reset-tries:" + Normalized(email);
+    static ObjectResult TooManyTries() => new(new { message = "Too many attempts, wait 15 minutes." }) { StatusCode = 429 };
 
     // the link from the email sent to the new address (see AccountController.ChangeEmail)
     [HttpPost("confirm-email-change")]
@@ -262,34 +189,25 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Email changed. Log in again with the new address." });
     }
 
-    // 60 s per action and address (lowercase); true when one was already sent, else starts the cooldown
-    static string CooldownKey(string action, string? email) => $"{action}:{(email ?? "").Trim().ToLowerInvariant()}";
+    // the address as Identity looks it up (so odd spellings of one address share a key)
+    string Normalized(string? email) => _users.NormalizeEmail((email ?? "").Trim()) ?? "";
 
+    // 60 s per action and address; true when one was already sent, else starts the cooldown
     bool CoolingDown(string action, string? email)
     {
-        var key = CooldownKey(action, email);
+        var key = $"{action}:{Normalized(email)}";
         if (_cache.TryGetValue(key, out _)) return true;
         _cache.Set(key, true, TimeSpan.FromSeconds(60));
         return false;
     }
 
-    async Task TrySendPasswordReset(AppUser user)
+    // the exception can hold the code, so log only the user id
+    async Task TrySendResetCode(AppUser user)
     {
-        try { await _email.SendPasswordReset(_users, user); }
+        try { await _email.SendResetCode(_users, user); }
         catch (Exception ex)
         {
-            _log.LogError(ex.GetType().Name + " sending reset email for user {UserId}", user.Id);
-        }
-    }
-
-    // the exception can hold the link, so log only the user id
-    async Task<bool> TrySendConfirmation(AppUser user)
-    {
-        try { await _email.SendConfirmation(_users, user); return true; }
-        catch (Exception ex)
-        {
-            _log.LogError(ex.GetType().Name + " sending confirmation email for user {UserId}", user.Id);
-            return false;
+            _log.LogError(ex.GetType().Name + " sending reset code for user {UserId}", user.Id);
         }
     }
 

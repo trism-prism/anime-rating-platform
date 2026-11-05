@@ -126,7 +126,7 @@ public class SessionService
         await _db.SaveChangesAsync();
     }
 
-    // an identity change (password, email, 2FA) renews the security stamp, which ends sessions at their next refresh.
+    // an identity change (password, email) renews the security stamp, which ends sessions at their next refresh.
     // So the caller's own session takes the new stamp and every other one ends now.
     public async Task KeepOnly(string userId, Guid? keep)
     {
@@ -170,31 +170,6 @@ public class SessionService
         };
         claims.AddRange((await _users.GetRolesAsync(user)).Select(r => new Claim(ClaimTypes.Role, r)));
         return Sign(claims, _config["Jwt:Issuer"]!, TimeSpan.FromMinutes(15));
-    }
-
-    // proves the password step for 5 minutes; its own audience keeps the API from accepting it as an access token
-    public string ChallengeToken(AppUser user) =>
-        Sign(new[] { new Claim(JwtRegisteredClaimNames.Sub, user.Id), new Claim("purpose", "2fa") },
-            _config["Jwt:Issuer"] + ":2fa", TimeSpan.FromMinutes(5));
-
-    // the user id in a valid challenge token, else null
-    public string? ReadChallenge(string? token)
-    {
-        try
-        {
-            var p = new JwtSecurityTokenHandler { MapInboundClaims = false }.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidIssuer = _config["Jwt:Issuer"],
-                ValidAudience = _config["Jwt:Issuer"] + ":2fa",
-                IssuerSigningKey = Key(),
-                ClockSkew = TimeSpan.FromSeconds(30)
-            }, out _);
-            return p.FindFirst("purpose")?.Value == "2fa" ? p.FindFirst("sub")?.Value : null;
-        }
-        catch (Exception) // malformed, expired, wrong audience or signature
-        {
-            return null;
-        }
     }
 
     CookieOptions CookieOptions(TimeSpan? maxAge) => new()

@@ -1,9 +1,14 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import AvatarMenu from './AvatarMenu'
 
 export default function Layout() {
-  const { user } = useAuth()
+  const { user, emailVerified, loading } = useAuth()
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const [hidden, setHidden] = useState(false) // dismissed until the next page load
+  const showBanner = !!user && !loading && !emailVerified && !hidden && pathname !== '/verify'
 
   return (
     <>
@@ -22,6 +27,13 @@ export default function Layout() {
           </>
         )}
       </nav>
+      {showBanner && (
+        <div className="banner" role="status">
+          <span>Verify your email to start writing reviews</span>
+          <button type="button" onClick={() => navigate('/verify', { state: { from: pathname } })}>Verify</button>
+          <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setHidden(true)}>&times;</button>
+        </div>
+      )}
       <main className="page">
         <Outlet />
       </main>
