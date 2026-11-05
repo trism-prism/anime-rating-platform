@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import type { FriendsData } from '../types'
+import ConfirmDialog from './ConfirmDialog'
 
 const profile = (name: string) => `/u/${encodeURIComponent(name)}`
 
@@ -13,6 +14,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
   const [name, setName] = useState('')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false) // the "decline all" dialog
 
   const load = useCallback(() => {
     api<FriendsData>('/me/friends').then((d) => { setData(d); setError('') }).catch((e: Error) => setError(e.message))
@@ -67,7 +69,10 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
         <>
           {data.incoming.length > 0 && (
             <>
-              <h3 className="subhead">Requests to you</h3>
+              <div className="row subhead-row">
+                <h3 className="subhead">Requests to you</h3>
+                <button disabled={busy} onClick={() => setConfirming(true)}>Decline all</button>
+              </div>
               <ul className="people">
                 {data.incoming.map((r) => (
                   <li key={r.requestId}>
@@ -106,6 +111,11 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
           )}
         </>
       )}
+      <ConfirmDialog open={confirming} title="Decline all requests?" confirmLabel="Decline all" busy={busy}
+        onConfirm={async () => { await run(() => api('/friends/requests/decline-all', { method: 'POST' })); setConfirming(false) }}
+        onCancel={() => setConfirming(false)}>
+        <p>Every pending request sent to you is removed. The senders aren't told, and anyone can ask again later.</p>
+      </ConfirmDialog>
     </section>
   )
 }

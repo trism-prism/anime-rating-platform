@@ -250,3 +250,5 @@ dialog h3 { margin: 0 0 8px; }
 @media (max-width: 600px) {
   .bell-panel { position: fixed; left: 12px; right: 12px; top: 108px; width: auto; }
 }
+.subhead-row { justify-content: space-between; margin-top: 16px; }
+.subhead-row .subhead { margin: 0; }

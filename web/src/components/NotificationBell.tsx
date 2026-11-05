@@ -34,6 +34,9 @@ export default function NotificationBell() {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [busy, setBusy] = useState(false) // loading more
+  const [answering, setAnswering] = useState<number[]>([]) // requests being accepted or declined right now
+  const inFlight = useRef(new Set<number>()) // the same, readable at once (state lags a fast double click)
+  const gen = useRef(0) // bumped on every reload, so a late "load older" answer from before it is dropped
   const box = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
 
@@ -53,12 +56,16 @@ export default function NotificationBell() {
     }
   }, [loadCount])
 
-  const loadFirst = useCallback(() => {
-    setError('')
-    setItems(null)
+  // fetches the first page; `quiet` keeps the current list on screen meanwhile (used to resync after a failed action)
+  const loadFirst = useCallback((quiet = false) => {
+    const g = ++gen.current
+    if (!quiet) {
+      setError('')
+      setItems(null)
+    }
     api<NotificationPage>('/me/notifications')
-      .then((p) => { setItems(p.items); setNext(p.nextCursor) })
-      .catch((e: Error) => setError(e.message))
+      .then((p) => { if (g === gen.current) { setItems(p.items); setNext(p.nextCursor); setError('') } })
+      .catch((e: Error) => { if (g === gen.current && !quiet) setError(e.message) })
     loadCount()
   }, [loadCount])
 
@@ -72,10 +79,15 @@ export default function NotificationBell() {
   }, [open])
 
   async function loadMore() {
+    const g = gen.current
     setBusy(true)
     try {
       const p = await api<NotificationPage>(`/me/notifications?cursor=${next}`)
-      setItems((l) => [...(l ?? []), ...p.items])
+      if (g !== gen.current) return // the list was reloaded meanwhile; this page belongs to the old one
+      setItems((l) => {
+        const have = new Set((l ?? []).map((x) => x.id))
+        return [...(l ?? []), ...p.items.filter((x) => !have.has(x.id))]
+      })
       setNext(p.nextCursor)
     } catch (e) {
       setActionError((e as Error).message)
@@ -91,6 +103,7 @@ export default function NotificationBell() {
       return true
     } catch (e) {
       setActionError((e as Error).message)
+      loadFirst(true) // it may have been answered elsewhere: show what is really there
       return false
     }
   }
@@ -106,7 +119,12 @@ export default function NotificationBell() {
   }
 
   async function answer(n: Notification, accept: boolean) {
+    if (inFlight.current.has(n.id)) return // a double click must not send the second answer
+    inFlight.current.add(n.id)
+    setAnswering([...inFlight.current])
     const ok = await act(() => api(`/friends/requests/${n.requestId}/${accept ? 'accept' : 'decline'}`, { method: 'POST' }))
+    inFlight.current.delete(n.id)
+    setAnswering([...inFlight.current])
     if (!ok) return
     // accepted: the row stays, read and no longer actionable; declined: the server deleted it
     setItems((l) => l && (accept ? l.map((x) => (x.id === n.id ? { ...x, read: true, actionable: false } : x)) : l.filter((x) => x.id !== n.id)))
@@ -147,7 +165,7 @@ export default function NotificationBell() {
           </div>
           {actionError && <p className="error bell-msg" role="alert">{actionError}</p>}
           {error && (
-            <p className="error bell-msg" role="alert">{error} <button onClick={loadFirst}>Retry</button></p>
+            <p className="error bell-msg" role="alert">{error} <button onClick={() => loadFirst()}>Retry</button></p>
           )}
           {!items && !error && <p className="muted bell-msg">Loading...</p>}
           {items && items.length === 0 && <p className="muted bell-msg">No notifications yet.</p>}
@@ -161,8 +179,8 @@ export default function NotificationBell() {
                   </button>
                   {n.actionable && (
                     <span className="bell-actions">
-                      <button className="icon-button" aria-label={`Accept friend request from ${n.actor}`} onClick={() => answer(n, true)}><CheckIcon /></button>
-                      <button className="icon-button" aria-label={`Decline friend request from ${n.actor}`} onClick={() => answer(n, false)}><CrossIcon /></button>
+                      <button className="icon-button" aria-label={`Accept friend request from ${n.actor}`} disabled={answering.includes(n.id)} onClick={() => answer(n, true)}><CheckIcon /></button>
+                      <button className="icon-button" aria-label={`Decline friend request from ${n.actor}`} disabled={answering.includes(n.id)} onClick={() => answer(n, false)}><CrossIcon /></button>
                     </span>
                   )}
                 </li>
