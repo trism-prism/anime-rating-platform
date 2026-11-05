@@ -72,16 +72,76 @@ export interface Scores {
   overall: number
 }
 
-export interface Review {
-  userName: string
+export type Audience = 'Public' | 'Friends' | 'OnlyMe'
+export type ReactionKind = 'Helpful' | 'Unhelpful' | 'Funny'
+export const REACTIONS: ReactionKind[] = ['Helpful', 'Unhelpful', 'Funny']
+
+// the part of a review a reaction changes; every reaction call answers with it
+export interface ReactionState {
+  myReaction: ReactionKind | null
+  helpful: number
+  unhelpful: number
+  funny: number
+}
+
+// a rating with text, as the review lists send it (username only, no ids beyond what the page needs)
+export interface ReviewItem extends ReactionState {
+  id: number
+  titleId: number
+  titleName: string
+  seriesId: number
   volume: number | null
+  userName: string
+  mine: boolean
   overall: number
   story: number
   art: number
   characters: number
   enjoyment: number
   reviewText: string
+  spoiler: boolean // the client collapses the text; the API still sends it
   createdAt: string
+  replyCount: number
+}
+
+// keyset page: pass nextCursor back as ?cursor= until it is null
+export interface ReviewPage {
+  items: ReviewItem[]
+  nextCursor: string | null
+}
+
+export interface ReplyItem {
+  id: number
+  userName: string
+  body: string
+  spoiler: boolean
+  createdAt: string
+  mine: boolean
+  canDelete: boolean
+}
+
+export interface ReplyPage {
+  items: ReplyItem[]
+  nextCursor: number | null
+}
+
+export interface ProfileRating {
+  ratingId: number
+  titleId: number
+  titleName: string
+  seriesId: number
+  seriesName: string
+  volume: number | null
+  overall: number
+  createdAt: string
+  hasReview: boolean
+  spoiler: boolean
+  snippet: string | null
+}
+
+export interface ProfileRatingPage {
+  items: ProfileRating[]
+  nextCursor: number | null
 }
 
 export interface VolumeAverage {
@@ -104,7 +164,6 @@ export interface TitleDetail {
   characters: TitleCharacter[]
   averages: Scores | null
   ratingCount: number
-  reviews: Review[]
   seriesId: number
   seriesName: string
   position: number
@@ -116,6 +175,9 @@ export interface TitleDetail {
 }
 
 export interface MyRating {
+  id: number
+  audience: Audience
+  spoiler: boolean
   titleId: number
   volume: number | null
   seriesId: number
@@ -142,6 +204,7 @@ export interface WatchEntry {
   type: TitleType
   status: WatchStatus
   progress: number
+  audience: Audience
 }
 
 // trending and rankings are per series; id is the series id
@@ -180,12 +243,13 @@ export interface FriendsData {
 
 export interface Notification {
   id: number
-  type: 'FriendRequest' | 'FriendAccepted'
+  type: 'FriendRequest' | 'FriendAccepted' | 'Reply' | 'Reaction'
   actor: string
   createdAt: string
   read: boolean
   actionable: boolean // a friend request that can still be answered
   requestId: number | null
+  reviewId: number | null // Reply and Reaction: the review it is about
 }
 
 export interface NotificationPage {

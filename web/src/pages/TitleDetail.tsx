@@ -4,6 +4,7 @@ import { api } from '../api'
 import ScoreBar from '../components/ScoreBar'
 import RateForm from '../components/RateForm'
 import ListForm from '../components/ListForm'
+import Reviews from '../components/Reviews'
 import type { TitleDetail as Detail } from '../types'
 
 // AniList synopses contain html (<br>, <i>); show as plain text instead of injecting html
@@ -126,16 +127,7 @@ export default function TitleDetail() {
         ))}
       </ul>
 
-      <h2>Reviews</h2>
-      {title.reviews.length === 0 && <p className="muted">No reviews yet.</p>}
-      {title.reviews.map((r, i) => (
-        <div key={i} className="review">
-          <div>
-            <strong>{r.userName}</strong> <span className="muted">{r.volume != null && `· Volume ${r.volume} `}· {r.overall} / 10 · {new Date(r.createdAt).toLocaleDateString()}</span>
-          </div>
-          <p>{r.reviewText}</p>
-        </div>
-      ))}
+      <Reviews key={title.id} path={`/titles/${title.id}`} showTitle={false} refresh={tick} />
     </div>
   )
 }

@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import type { MyRating } from '../types'
+import type { Audience, MyRating } from '../types'
+import AudienceSelect from './AudienceSelect'
 
 const FIELDS = ['story', 'art', 'characters', 'enjoyment'] as const
 type Field = (typeof FIELDS)[number]
@@ -15,6 +16,8 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
   const { pathname } = useLocation()
   const [scores, setScores] = useState(blank)
   const [review, setReview] = useState('')
+  const [audience, setAudience] = useState<Audience>('Public') // new ratings are public
+  const [spoiler, setSpoiler] = useState(false)
   const [hasRating, setHasRating] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
@@ -30,6 +33,8 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
         if (stale || !mine) return
         setScores({ story: mine.story, art: mine.art, characters: mine.characters, enjoyment: mine.enjoyment })
         setReview(mine.reviewText ?? '')
+        setAudience(mine.audience)
+        setSpoiler(mine.spoiler)
         setHasRating(true)
       })
       .catch(() => {})
@@ -50,7 +55,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
     setMsg('')
     setError('')
     try {
-      await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review }) })
+      await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review, audience, spoiler }) })
       setHasRating(true)
       setMsg('Saved.')
       onChanged()
@@ -69,6 +74,8 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
       await api(ratingUrl, { method: 'DELETE' })
       setScores(blank)
       setReview('')
+      setSpoiler(false)
+      setAudience('Public')
       setHasRating(false)
       setMsg('Rating deleted.')
       onChanged()
@@ -104,6 +111,13 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
       {!emailVerified && (
         <p className="muted hint"><Link to="/verify" state={{ from: pathname }} className="link">Verify your email</Link> to write reviews</p>
       )}
+      <label className="check">
+        <input type="checkbox" checked={spoiler} disabled={!emailVerified || !review.trim()} onChange={(e) => setSpoiler(e.target.checked)} /> Contains spoilers
+      </label>
+      <label className="row">
+        <span className="muted">Who can see this rating and review</span>
+        <AudienceSelect label="Who can see this rating and review" value={audience} onChange={setAudience} />
+      </label>
       <div className="row">
         <button type="submit" disabled={busy}>{hasRating ? 'Update rating' : 'Save rating'}</button>
         {hasRating && <button type="button" disabled={busy} onClick={remove}>Delete</button>}
