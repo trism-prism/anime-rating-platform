@@ -201,7 +201,9 @@ public class SocialTests
         Assert.Equal(204, Status(await Friends(db, "b").Unblock("alice")));
         Assert.Equal(204, Status(await Friends(db, "b").Unblock("alice")));
         Assert.Equal(200, Status(await Profiles(db, "a").Get("bob")));
-        Assert.Equal(400, Status(await Friends(db, "a").Block("alice")));
+        var before = await db.UserBlocks.CountAsync();
+        Assert.Equal(204, Status(await Friends(db, "a").Block("alice"))); // yourself: a no-op, no row
+        Assert.Equal(before, await db.UserBlocks.CountAsync());
         Assert.Equal(404, Status(await Friends(db, "a").Block("nobody")));
     }
 

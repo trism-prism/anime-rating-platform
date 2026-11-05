@@ -17,7 +17,9 @@ export default function NotificationPreferences() {
   const [saving, setSaving] = useState<string[]>([])
 
   const load = useCallback(() => {
-    api<NotificationPref[]>('/me/notification-preferences').then((p) => { setPrefs(p); setError('') }).catch((e: Error) => setError(e.message))
+    api<NotificationPref[]>('/me/notification-preferences')
+      .then((p) => { setPrefs(p); setError('') })
+      .catch((e: Error) => { setPrefs(null); setError(e.message) }) // no list rather than a guessed checkbox
   }, [])
 
   useEffect(() => {

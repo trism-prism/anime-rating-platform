@@ -33,6 +33,8 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
       return true
     } catch (e) {
       setActionError((e as Error).message)
+      load() // resync, so buttons for requests that are already gone disappear
+      onChange()
       return false
     } finally {
       setBusy(false)

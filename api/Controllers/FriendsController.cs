@@ -14,8 +14,8 @@ public record SendFriendRequest(string? Username);
 [Authorize]
 public class FriendsController : ControllerBase
 {
-    public const int MaxPendingIncoming = 200; // per recipient; high, because one actor filling it must spend many accounts (see MaxOutgoing)
-    public const int MaxOutgoing = 50; // pending requests one user can have out at once
+    public const int MaxPendingIncoming = 200; // soft limit (check then insert, concurrent sends can overshoot); per recipient; high, because one actor filling it must spend many accounts (see MaxOutgoing)
+    public const int MaxOutgoing = 50; // soft limit, like MaxPendingIncoming: pending requests one user can have out at once
     const int MaxFriendsListed = 500, MaxRequestsListed = 100;
     const string NoUser = "No user with that username.";
 
@@ -193,7 +193,7 @@ public class FriendsController : ControllerBase
         var me = UserId;
         var other = await SocialRules.FindByName(_db, username);
         if (other == null) return NotFound(new { message = NoUser });
-        if (other.Id == me) return BadRequest(new { message = "You can't block yourself." });
+        if (other.Id == me) return NoContent(); // nothing to do, no row
 
         // the block goes in first and alone, so no failure further down can lose it
         if (!await SocialRules.HasBlocked(_db, me, other.Id))
@@ -208,14 +208,16 @@ public class FriendsController : ControllerBase
         }
 
         // then end any friendship or request; a concurrent accept or unfriend can change the row under the delete, so look again
-        for (var i = 0; i < 3; i++)
+        var ended = false;
+        for (var i = 0; i < 10 && !ended; i++)
         {
             var f = await SocialRules.FindFriendship(_db, me, other.Id);
-            if (f == null) break;
+            if (f == null) { ended = true; break; }
             await SocialRules.Remove(_db, f);
-            if (await SocialRules.TrySave(_db)) break;
+            ended = await SocialRules.TrySave(_db);
         }
-        return NoContent();
+        // the block itself is saved; only the friendship kept changing under us
+        return ended ? NoContent() : Conflict(new { message = "Try again." });
     }
 
     [HttpDelete("blocks/{username}")]

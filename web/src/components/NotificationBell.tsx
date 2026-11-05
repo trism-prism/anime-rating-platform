@@ -112,7 +112,7 @@ export default function NotificationBell() {
     if (!n.read) {
       setItems((l) => l && l.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
       setUnread((u) => Math.max(0, u - 1))
-      api(`/me/notifications/${n.id}/read`, { method: 'POST' }).catch(() => {})
+      api(`/me/notifications/${n.id}/read`, { method: 'POST' }).catch(loadCount) // failed: take the real count back
     }
     setOpen(false)
     navigate(`/u/${encodeURIComponent(n.actor)}`)

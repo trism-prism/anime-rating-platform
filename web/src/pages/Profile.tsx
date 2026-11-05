@@ -41,6 +41,7 @@ function Profile({ username }: { username: string }) {
       await load()
     } catch (e) {
       setActionError((e as Error).message)
+      await load() // it may have changed on the other side (cancelled, accepted): show what is really there
     } finally {
       setBusy(false)
       setConfirmBlock(false)
