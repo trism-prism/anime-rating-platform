@@ -174,7 +174,7 @@ namespace api.Migrations
                 column: "SeriesId",
                 principalTable: "Series",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />

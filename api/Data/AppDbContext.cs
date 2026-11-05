@@ -35,7 +35,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // Volume is nullable and Postgres treats NULLs as distinct, so two filtered unique indexes
         b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId }).IsUnique().HasFilter("\"Volume\" IS NULL");
         b.Entity<Rating>().HasIndex(r => new { r.UserId, r.TitleId, r.Volume }).IsUnique().HasFilter("\"Volume\" IS NOT NULL");
-        b.Entity<Title>().HasOne(t => t.Series).WithMany(s => s.Titles).HasForeignKey(t => t.SeriesId);
+        b.Entity<Title>().HasOne(t => t.Series).WithMany(s => s.Titles).HasForeignKey(t => t.SeriesId)
+            .OnDelete(DeleteBehavior.Restrict); // deleting a series must never take its titles (and their ratings) with it
         b.Entity<Title>().HasIndex(t => new { t.SeriesId, t.Position });
         b.Entity<Title>().Property(t => t.RatingCount).IsConcurrencyToken();
         b.Entity<Title>().Property(t => t.RatingSum).IsConcurrencyToken();

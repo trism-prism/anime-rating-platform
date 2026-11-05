@@ -665,7 +665,7 @@ namespace api.Migrations
                     b.HasOne("api.Models.Series", "Series")
                         .WithMany("Titles")
                         .HasForeignKey("SeriesId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Series");
