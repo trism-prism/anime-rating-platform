@@ -108,8 +108,16 @@ if (args.Contains("import"))
 {
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
-    var counts = await scope.ServiceProvider.GetRequiredService<AniListImporter>().Import();
-    Console.WriteLine(counts);
+    try
+    {
+        // takes the same Postgres advisory lock as the admin import, so the two cannot overlap
+        Console.WriteLine(await scope.ServiceProvider.GetRequiredService<AniListImporter>().Import());
+    }
+    catch (InvalidOperationException ex)
+    {
+        Console.Error.WriteLine(ex.Message);
+        Environment.ExitCode = 1;
+    }
     return;
 }
 

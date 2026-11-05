@@ -25,7 +25,26 @@ public class AniListImporter
         _client = client;
     }
 
+    // Postgres advisory lock key: one import at a time across every process (web admin job and CLI)
+    public const long LockKey = 0x616E696D6549;
+
     public async Task<ImportCounts> Import(int pagesPerType = 6)
+    {
+        if (!_db.Database.IsNpgsql()) return await Run(pagesPerType);
+
+        // session-level lock, so the connection must stay open for the whole run
+        await _db.Database.OpenConnectionAsync();
+        try
+        {
+            var got = await _db.Database.SqlQuery<bool>($"SELECT pg_try_advisory_lock({LockKey}) AS \"Value\"").SingleAsync();
+            if (!got) throw new InvalidOperationException("Another import is already running.");
+            try { return await Run(pagesPerType); }
+            finally { await _db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({LockKey})"); }
+        }
+        finally { await _db.Database.CloseConnectionAsync(); }
+    }
+
+    async Task<ImportCounts> Run(int pagesPerType)
     {
         _characters.Clear();
         _actors.Clear();
@@ -36,6 +55,8 @@ public class AniListImporter
                 await Save(await _client.GetPage(type.ToString().ToUpper(), page), type);
 
         var neighbours = await AddNeighbours();
+        // the context has held every title since the first page; a rating made since then must not make the assigner's writes conflict
+        _db.ChangeTracker.Clear();
         await new SeriesAssigner(_db).Assign();
         return new ImportCounts(_newTitles, _newChars, _newActors, _newLinks, neighbours, await _db.Series.CountAsync());
     }
@@ -137,7 +158,7 @@ public class AniListImporter
                 _newLinks++;
             }
         }
-        await _db.SaveChangesAsync();
+        await _db.SaveRetryingAsync();
     }
 
     async Task<Character> GetCharacter(Dictionary<int, Character> seen, ACharacterNode n)

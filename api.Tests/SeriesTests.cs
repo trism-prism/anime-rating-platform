@@ -59,4 +59,24 @@ public class SeriesTests
         Assert.Equal(lockedSeries, (await db.Titles.FindAsync(2))!.SeriesId);
         Assert.NotEqual(lockedSeries, (await db.Titles.FindAsync(1))!.SeriesId);
     }
+
+    [Fact]
+    public async Task Save_retrying_survives_a_rating_made_while_the_context_was_open()
+    {
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using (var seed = new AppDbContext(opts)) { seed.Add(T(1, "Show")); await seed.SaveChangesAsync(); }
+
+        using var importer = new AppDbContext(opts);
+        var title = await importer.Titles.FindAsync(1);
+        using (var rater = new AppDbContext(opts)) { (await rater.Titles.FindAsync(1))!.RatingCount++; await rater.SaveChangesAsync(); }
+
+        title!.Position = 7;
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => importer.SaveChangesAsync()); // what the importer used to hit
+        await importer.SaveRetryingAsync();
+
+        using var check = new AppDbContext(opts);
+        var saved = await check.Titles.FindAsync(1);
+        Assert.Equal(7, saved!.Position);
+        Assert.Equal(1, saved.RatingCount); // the rating made meanwhile is kept
+    }
 }
