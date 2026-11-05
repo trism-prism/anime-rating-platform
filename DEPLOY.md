@@ -73,7 +73,7 @@ Adds a "Continue with Google" link to the login and register pages. It uses its 
 3. In Railway > API service > Variables add `Google__ClientId` and `Google__ClientSecret` (you type the secret in Railway yourself, never in chat or the repo). `App__FrontendUrl` must be the Vercel domain, since it builds the redirect URI.
 4. Without both variables the link is hidden and `/auth/google/start` answers 404.
 
-Accounts made this way have no password; "Forgot password" on the login page gives them one. Google counts as the strong factor, so the emailed two-step code is not asked after a Google sign-in. An existing account with two-step verification on is not linked by email (Google answers with `/login?error=google-2fa`): that person logs in with the password and the emailed code.
+Accounts made this way have no password; "Forgot password" on the login page gives them one. Google counts as the strong factor, so the emailed two-step code is not asked after a Google sign-in. An existing confirmed account is linked by its Google-verified email even when two-step verification is on, since the emailed code proves nothing more than Google already did.
 
 Two-step verification emails a 6-digit code at login, so it needs a working mail sender (Gmail or Resend above).
 
@@ -86,5 +86,5 @@ Two-step verification emails a 6-digit code at login, so it needs a working mail
 - Resend 403 validation error in the logs = unverified domain or wrong From: use `onboarding@resend.dev` (and only email your own Resend address), or verify a domain and use an address on it.
 - Gmail "token request failed: 400" (`invalid_grant`): the refresh token was revoked or expired, usually because the consent screen is still in Testing. Publish the app and create a new token.
 - Gmail "rejected the email: 403": the Gmail API is not enabled for the project (APIs & Services > Library).
-- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. Every refusal is logged as a warning `Google callback refused: <reason>` (`not-configured`, `no-code`, `no-cookie`, `state-mismatch`, `exchange-failed`, `locked`, `linked-other`, `2fa-account`, `create-failed`, `link-failed`); `exchange-failed` is preceded by the status code Google answered with or the id_token check that failed.
+- Google sign-in sends you back to `/login?error=google`: check the redirect URI in the Google console matches exactly, and that `Google__ClientId`/`Google__ClientSecret` belong to the same client. Every refusal is logged as a warning `Google callback refused: <reason>` (`not-configured`, `no-code`, `no-cookie`, `state-mismatch`, `exchange-failed`, `locked`, `linked-other`, `create-failed`, `link-failed`); `exchange-failed` is preceded by the status code Google answered with or the id_token check that failed.
 - Database errors: migrations run on every start; check the Railway deploy logs.

@@ -230,7 +230,7 @@ public class GoogleTests
     }
 
     [Fact]
-    public async Task Confirmed_account_with_two_factor_is_not_linked_by_email()
+    public async Task Confirmed_account_with_two_step_is_linked_by_email_and_keeps_its_settings()
     {
         using var p = Build();
         var users = p.GetRequiredService<UserManager<AppUser>>();
@@ -239,18 +239,12 @@ public class GoogleTests
         await users.SetTwoFactorEnabledAsync(local, true);
 
         var log = new Reasons();
-        Assert.Equal(Front + "/login?error=google-2fa", await Callback(p, IdToken("kai@example.com"), log: log)); // its own message on the login page
-        Assert.Equal(new[] { "Warning Google callback refused: 2fa-account" }, log.Lines);
-        Assert.Null(await users.FindByLoginAsync("Google", "g-1"));
-        Assert.Empty(p.GetRequiredService<AppDbContext>().Sessions);
+        Assert.Equal($"{Front}/auth/callback?userId={local.Id}", await Callback(p, IdToken("kai@example.com"), log: log));
+        Assert.Empty(log.Lines);
+        Assert.Equal(local.Id, (await users.FindByLoginAsync("Google", "g-1"))!.Id);
+        Assert.Single(await p.GetRequiredService<AppDbContext>().Sessions.ToListAsync());
         Assert.True(await users.HasPasswordAsync(local));
-
-        // once linked (before two-factor was turned on), Google keeps signing in
-        var linked = new AppUser { UserName = "ann", Email = "ann@example.com", EmailConfirmed = true };
-        Assert.True((await users.CreateAsync(linked, "correct horse battery")).Succeeded);
-        await Callback(p, IdToken("ann@example.com", sub: "g-2"));
-        await users.SetTwoFactorEnabledAsync(linked, true);
-        Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("ann@example.com", sub: "g-2")));
+        Assert.True((await users.FindByIdAsync(local.Id))!.TwoFactorEnabled); // password login still asks for the code
     }
 
     [Theory]

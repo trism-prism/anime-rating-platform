@@ -13,7 +13,6 @@ const mask = (email: string) => email.charAt(0) + '***' + email.slice(email.inde
 // ?error=... as set by the Google callback
 const GOOGLE_ERRORS: Record<string, string> = {
   google: 'Google sign-in failed. Try again or use your password.',
-  'google-2fa': 'This email has two-step verification on. Log in with your password and the code we email you.',
 }
 
 export default function Login() {

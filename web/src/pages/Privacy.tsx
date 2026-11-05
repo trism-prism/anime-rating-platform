@@ -22,8 +22,9 @@ export default function Privacy() {
         These emails are sent through Google's Gmail API or Resend.
       </p>
       <p>
-        We do not sell or share your data. There are no ads and no tracking cookies. Your
-        sign-in token is kept in your browser's local storage.
+        We do not sell or share your data. There are no ads and no tracking. Your sign-in is
+        kept in an HttpOnly cookie, the only cookie we use. The names of the accounts signed in
+        on this device are kept in your browser's local storage.
       </p>
 
       <h2>Anime data</h2>

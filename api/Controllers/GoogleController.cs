@@ -42,10 +42,10 @@ public class GoogleController : ControllerBase
     string RedirectUri => Front + "/api/auth/google/callback";
 
     // the reason is a fixed code (never the code, tokens or email) so the log shows where a sign-in stopped
-    IActionResult Failed(string reason, string error = "google")
+    IActionResult Failed(string reason)
     {
         _log.LogWarning("Google callback refused: {Reason}", reason);
-        return Redirect(Front + "/login?error=" + error);
+        return Redirect(Front + "/login?error=google");
     }
 
     [HttpGet("providers")]
@@ -112,9 +112,8 @@ public class GoogleController : ControllerBase
         }
         else if (linking)
         {
-            // a Google account with the same address must not bypass the email code; accounts already linked
-            // keep signing in with Google as the strong factor
-            if (user.EmailConfirmed && user.TwoFactorEnabled) return Failed("2fa-account", "google-2fa");
+            // a confirmed account with two-step on is linked too: the code goes to the account's email, and Google
+            // verified that same address, so the email code would prove nothing more than Google already did
             if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded) return Failed("link-failed");
             // an unconfirmed account may have been made by someone who does not own the address: drop what they set up
             // (after the link, so a failed link does not leave a wiped placeholder)
