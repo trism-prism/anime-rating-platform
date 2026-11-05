@@ -60,7 +60,11 @@ public class GoogleClient
     GoogleProfile? ReadIdToken(string? idToken)
     {
         var parts = (idToken ?? "").Split('.');
-        if (parts.Length != 3) return null;
+        if (parts.Length != 3)
+        {
+            _log.LogWarning("Google id_token refused: not-a-jwt");
+            return null;
+        }
         using var doc = JsonDocument.Parse(WebEncoders.Base64UrlDecode(parts[1]));
         var c = doc.RootElement;
 
@@ -70,8 +74,17 @@ public class GoogleClient
         var sub = Text(c, "sub");
         var email = Text(c, "email");
 
-        if (iss != "accounts.google.com" && iss != "https://accounts.google.com") return null;
-        if (Text(c, "aud") != ClientId || !live || !verified || sub == "" || email == "") return null;
+        // fixed reason codes only: the claims are personal data
+        var reason = iss != "accounts.google.com" && iss != "https://accounts.google.com" ? "issuer"
+            : Text(c, "aud") != ClientId ? "audience"
+            : !live ? "expired"
+            : !verified ? "email-not-verified"
+            : sub == "" || email == "" ? "missing-claim" : null;
+        if (reason != null)
+        {
+            _log.LogWarning("Google id_token refused: {Reason}", reason);
+            return null;
+        }
         return new GoogleProfile(sub, email);
     }
 

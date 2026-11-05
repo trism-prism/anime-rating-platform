@@ -1,20 +1,41 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import Avatar from './Avatar'
+
+const icon = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
+
+// two arrows stacked: one pointing right above one pointing left
+const SwitchIcon = () => (
+  <svg {...icon}>
+    <path d="M2 5h11M10 2l3 3-3 3" />
+    <path d="M14 11H3M6 8l-3 3 3 3" />
+  </svg>
+)
+
+const PlusIcon = () => (
+  <svg {...icon}>
+    <path d="M8 3v10M3 8h10" />
+  </svg>
+)
 
 // round avatar button with a popover menu for the signed-in account
 export default function AvatarMenu() {
   const { user, accounts, isAdmin, logout, switchTo } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [switching, setSwitching] = useState(false) // the account list under "Switch account"
   const box = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const switchButton = useRef<HTMLButtonElement>(null)
 
-  const items = () => Array.from(box.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+  const items = (selector: string) => Array.from(box.current?.querySelectorAll<HTMLElement>(selector) ?? [])
+  const mainItems = () => items('.menu > [role="menuitem"]')
+  const subItems = () => items('.submenu > [role="menuitem"]')
 
   useEffect(() => {
     if (!open) return
-    items()[0]?.focus()
+    mainItems()[0]?.focus()
     const onDown = (e: MouseEvent) => {
       if (!box.current?.contains(e.target as Node)) setOpen(false)
     }
@@ -22,25 +43,45 @@ export default function AvatarMenu() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
+  useEffect(() => {
+    if (switching) subItems()[0]?.focus()
+  }, [switching])
+
   if (!user) return null
 
   function onKeyDown(e: KeyboardEvent) {
+    const inSub = !!(e.target as HTMLElement).closest('.submenu')
     if (e.key === 'Escape') {
-      setOpen(false)
-      button.current?.focus()
+      // the list closes first, then the menu
+      if (switching) {
+        setSwitching(false)
+        switchButton.current?.focus()
+      } else {
+        setOpen(false)
+        button.current?.focus()
+      }
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
-      const list = items()
+      const list = inSub ? subItems() : mainItems()
       const i = list.indexOf(document.activeElement as HTMLElement)
       const next = e.key === 'ArrowDown' ? i + 1 : i - 1
       list[(next + list.length) % list.length]?.focus()
+    } else if (e.key === 'ArrowRight' && e.target === switchButton.current) {
+      e.preventDefault()
+      setSwitching(true)
+    } else if (e.key === 'ArrowLeft' && inSub) {
+      e.preventDefault()
+      setSwitching(false)
+      switchButton.current?.focus()
     }
   }
 
+  // a full page load, so every page, form and cache starts fresh for the new account
   async function doSwitch(userId: string) {
     setOpen(false)
     try {
-      if (!(await switchTo(userId))) navigate('/login')
+      if (await switchTo(userId)) window.location.assign('/')
+      else navigate('/login')
     } catch {
       // server unreachable: stay signed in as before
     }
@@ -49,8 +90,10 @@ export default function AvatarMenu() {
   async function doLogout() {
     setOpen(false)
     await logout()
-    navigate('/')
+    window.location.assign('/')
   }
+
+  const others = accounts.filter((a) => a.userId !== user.userId)
 
   return (
     <div
@@ -62,24 +105,42 @@ export default function AvatarMenu() {
     >
       <button
         ref={button}
-        className="avatar"
+        className="avatar-button"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account menu for ${user.userName}`}
-        onClick={() => setOpen(!open)}
+        onClick={() => { setSwitching(false); setOpen(!open) }} // the account list always starts closed
       >
-        {user.userName.charAt(0).toUpperCase()}
+        <Avatar userName={user.userName} />
       </button>
       {open && (
-        <div className="menu" role="menu">
-          <div className="menu-label">{user.userName}</div>
+        <div className="menu" role="menu" aria-label="Account">
+          <div className="menu-label" role="presentation">{user.userName}</div>
           <Link to="/settings" role="menuitem" onClick={() => setOpen(false)}>Settings</Link>
           {isAdmin && <Link to="/admin" role="menuitem" onClick={() => setOpen(false)}>Admin</Link>}
-          <div className="menu-label">Switch account</div>
-          {accounts.filter((a) => a.userId !== user.userId).map((a) => (
-            <button key={a.userId} role="menuitem" onClick={() => doSwitch(a.userId)}>{a.userName}</button>
-          ))}
-          <Link to="/login" role="menuitem" onClick={() => setOpen(false)}>Add account</Link>
+          <button
+            ref={switchButton}
+            className="menu-switch"
+            role="menuitem"
+            aria-haspopup="menu"
+            aria-expanded={switching}
+            aria-controls="switch-menu"
+            onClick={() => setSwitching(!switching)}
+          >
+            <SwitchIcon /> Switch account
+          </button>
+          {switching && (
+            <div className="submenu" id="switch-menu" role="menu" aria-label="Switch account">
+              {others.map((a) => (
+                <button key={a.userId} role="menuitem" onClick={() => doSwitch(a.userId)}>
+                  <Avatar userName={a.userName} small /> {a.userName}
+                </button>
+              ))}
+              <Link to="/login" role="menuitem" onClick={() => setOpen(false)}>
+                <PlusIcon /> Add account
+              </Link>
+            </div>
+          )}
           <button role="menuitem" onClick={doLogout}>Log out</button>
         </div>
       )}

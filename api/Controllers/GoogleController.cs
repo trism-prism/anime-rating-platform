@@ -24,23 +24,29 @@ public class GoogleController : ControllerBase
     readonly UserManager<AppUser> _users;
     readonly GoogleClient _google;
     readonly SessionService _sessions;
-    readonly SecurityLog _events;
     readonly IConfiguration _config;
     readonly IHostEnvironment _env;
+    readonly ILogger<GoogleController> _log;
 
-    public GoogleController(UserManager<AppUser> users, GoogleClient google, SessionService sessions, SecurityLog events, IConfiguration config, IHostEnvironment env)
+    public GoogleController(UserManager<AppUser> users, GoogleClient google, SessionService sessions, IConfiguration config, IHostEnvironment env, ILogger<GoogleController> log)
     {
         _users = users;
         _google = google;
         _sessions = sessions;
-        _events = events;
         _config = config;
         _env = env;
+        _log = log;
     }
 
     string Front => (_config["App:FrontendUrl"] ?? "").TrimEnd('/');
     string RedirectUri => Front + "/api/auth/google/callback";
-    IActionResult Failed() => Redirect(Front + "/login?error=google");
+
+    // the reason is a fixed code (never the code, tokens or email) so the log shows where a sign-in stopped
+    IActionResult Failed(string reason, string error = "google")
+    {
+        _log.LogWarning("Google callback refused: {Reason}", reason);
+        return Redirect(Front + "/login?error=" + error);
+    }
 
     [HttpGet("providers")]
     public IActionResult Providers() => Ok(new { google = _google.Configured });
@@ -73,12 +79,14 @@ public class GoogleController : ControllerBase
     {
         var saved = Request.Cookies[CookieName]?.Split('.');
         Response.Cookies.Delete(CookieName, CookieOptions(null)); // one try per start
-        if (!_google.Configured || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state) || saved is not [var savedState, var verifier]
-            || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state), Encoding.UTF8.GetBytes(savedState)))
-            return Failed();
+        if (!_google.Configured) return Failed("not-configured");
+        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state)) return Failed("no-code"); // Google sent an error, e.g. access_denied
+        if (saved is not [var savedState, var verifier]) return Failed("no-cookie");
+        if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state), Encoding.UTF8.GetBytes(savedState)))
+            return Failed("state-mismatch");
 
         var profile = await _google.Exchange(code, verifier, RedirectUri);
-        if (profile == null) return Failed();
+        if (profile == null) return Failed("exchange-failed"); // token request failed or the id_token claims were refused
 
         var user = await _users.FindByLoginAsync(Provider, profile.Sub);
         var linking = false;
@@ -88,26 +96,26 @@ public class GoogleController : ControllerBase
             linking = user != null;
         }
         // an unconfirmed account may be a placeholder someone made (and locked) with this address; TakeOver clears it
-        if (user is { EmailConfirmed: true } && await _users.IsLockedOutAsync(user)) return Failed();
+        if (user is { EmailConfirmed: true } && await _users.IsLockedOutAsync(user)) return Failed("locked");
         // the address changed hands: another Google account must not attach to this one
-        if (linking && (await _users.GetLoginsAsync(user!)).Any(l => l.LoginProvider == Provider)) return Failed();
+        if (linking && (await _users.GetLoginsAsync(user!)).Any(l => l.LoginProvider == Provider)) return Failed("linked-other");
 
         if (user == null)
         {
             user = new AppUser { Email = profile.Email, UserName = await UserNames.FromEmail(_users, profile.Email), EmailConfirmed = true };
-            if (!(await _users.CreateAsync(user)).Succeeded) return Failed(); // for example a second sign-up at the same moment
+            if (!(await _users.CreateAsync(user)).Succeeded) return Failed("create-failed"); // for example a second sign-up at the same moment
             if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded)
             {
                 await _users.DeleteAsync(user);
-                return Failed();
+                return Failed("link-failed");
             }
         }
         else if (linking)
         {
-            // a Google account with the same address must not bypass the authenticator; accounts already linked
+            // a Google account with the same address must not bypass the email code; accounts already linked
             // keep signing in with Google as the strong factor
-            if (user.EmailConfirmed && user.TwoFactorEnabled) return Failed();
-            if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded) return Failed();
+            if (user.EmailConfirmed && user.TwoFactorEnabled) return Failed("2fa-account", "google-2fa");
+            if (!(await _users.AddLoginAsync(user, new UserLoginInfo(Provider, profile.Sub, Provider))).Succeeded) return Failed("link-failed");
             // an unconfirmed account may have been made by someone who does not own the address: drop what they set up
             // (after the link, so a failed link does not leave a wiped placeholder)
             if (!user.EmailConfirmed) await TakeOver(user);
@@ -115,22 +123,18 @@ public class GoogleController : ControllerBase
             await _users.UpdateAsync(user);
         }
 
-        // Google is the strong factor here, so the local authenticator code is not asked for
+        // Google is the strong factor here, so the emailed code is not asked for
         await AdminBootstrap.TryPromote(_users, _config, user);
         var (_, refreshToken) = await _sessions.Create(user, Request.Headers.UserAgent.ToString(), HttpContext.Connection.RemoteIpAddress?.ToString());
         _sessions.SetCookie(Response, user.Id, refreshToken);
-        if (linking) await _events.Add(user.Id, "google-linked", HttpContext);
-        await _events.Add(user.Id, "login-google", HttpContext);
         return Redirect($"{Front}/auth/callback?userId={user.Id}");
     }
 
-    // removes the password, two-factor setup and sessions of an account whose email was never confirmed
+    // removes the password, two-step setting and sessions of an account whose email was never confirmed
     async Task TakeOver(AppUser user)
     {
         if (await _users.HasPasswordAsync(user)) await _users.RemovePasswordAsync(user);
         await _users.SetTwoFactorEnabledAsync(user, false);
-        await _users.ResetAuthenticatorKeyAsync(user);
-        await _users.GenerateNewTwoFactorRecoveryCodesAsync(user, 0); // replaces the saved codes with none
         await _users.SetLockoutEndDateAsync(user, null);
         await _sessions.RevokeAll(user.Id);
     }

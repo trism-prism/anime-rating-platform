@@ -10,15 +10,16 @@ export default function Privacy() {
 
       <h2>What we store</h2>
       <ul>
-        <li>Your email address and username.</li>
+        <li>Your email address and display name.</li>
         <li>Your password, hashed. It is never stored in plain text.</li>
         <li>Your ratings, reviews and watch list.</li>
       </ul>
 
       <h2>How it is used</h2>
       <p>
-        Your email is used only to verify your account and to send the verification message.
-        Verification emails are sent through Google's Gmail API or Resend.
+        Your email is used only to verify your account, to send sign-in codes if you turn on
+        two-step verification, and to send the verification message.
+        These emails are sent through Google's Gmail API or Resend.
       </p>
       <p>
         We do not sell or share your data. There are no ads and no tracking cookies. Your

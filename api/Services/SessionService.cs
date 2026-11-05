@@ -118,16 +118,6 @@ public class SessionService
             .OrderByDescending(s => s.LastUsedAt).ToListAsync();
     }
 
-    // false when the session does not exist or belongs to someone else
-    public async Task<bool> Revoke(string userId, Guid id)
-    {
-        var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
-        if (s == null) return false;
-        s.RevokedAt ??= DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-        return true;
-    }
-
     public async Task RevokeAll(string userId, Guid? except = null)
     {
         // ponytail: dead rows are never deleted; add a cleanup job if the table grows

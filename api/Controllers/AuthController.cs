@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace api.Controllers;
 
@@ -15,6 +16,7 @@ public record LoginRequest(string Email, string Password);
 public record UserIdRequest(string UserId);
 public record ResetPasswordRequest(string UserId, string Token, string NewPassword);
 public record TwoFactorLoginRequest(string ChallengeToken, string Code);
+public record ChallengeRequest(string ChallengeToken);
 public record ConfirmEmailChangeRequest(string UserId, string NewEmail, string Token);
 
 [ApiController]
@@ -27,18 +29,18 @@ public class AuthController : ControllerBase
     readonly EmailSender _email;
     readonly SessionService _sessions;
     readonly CredentialCheck _check;
-    readonly SecurityLog _events;
+    readonly IMemoryCache _cache;
     readonly IConfiguration _config;
     readonly ILogger<AuthController> _log;
 
-    public AuthController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, SecurityLog events, IConfiguration config, ILogger<AuthController> log)
+    public AuthController(UserManager<AppUser> users, EmailSender email, SessionService sessions, CredentialCheck check, IMemoryCache cache, IConfiguration config, ILogger<AuthController> log)
     {
         _log = log;
         _users = users;
         _email = email;
         _sessions = sessions;
         _check = check;
-        _events = events;
+        _cache = cache;
         _config = config;
     }
 
@@ -89,7 +91,7 @@ public class AuthController : ControllerBase
         var user = await _users.FindByEmailAsync(req.Email);
         if (user == null) return Unauthorized(new { message = "Invalid email or password." });
 
-        var check = await _check.Password(user, req.Password, HttpContext);
+        var check = await _check.Password(user, req.Password);
         if (check == Check.Locked) return CredentialCheck.Locked();
         // same answer as a wrong password, so the login form does not reveal which accounts use Google
         if (check == Check.NoPassword) return Unauthorized(new { message = "Invalid email or password." });
@@ -102,21 +104,57 @@ public class AuthController : ControllerBase
         }
 
         // no session yet: the code step comes first (the failed count is kept until it passes)
-        if (user.TwoFactorEnabled) return Ok(new { twoFactorRequired = true, challengeToken = _sessions.ChallengeToken(user) });
+        if (user.TwoFactorEnabled)
+        {
+            if (!await TrySendCode(user)) return StatusCode(503, new { message = "Could not send the sign-in code right now. Try again later." });
+            return Ok(new { twoFactorRequired = true, challengeToken = _sessions.ChallengeToken(user) });
+        }
         return await OpenSession(user);
     }
 
     [HttpPost("2fa")]
     public async Task<IActionResult> TwoFactor(TwoFactorLoginRequest req)
     {
-        var id = _sessions.ReadChallenge(req.ChallengeToken);
-        var user = id == null ? null : await _users.FindByIdAsync(id);
-        if (user == null || !user.TwoFactorEnabled) return Unauthorized(new { message = "Sign-in expired. Log in again." });
+        var user = await ChallengeUser(req.ChallengeToken);
+        if (user == null) return Unauthorized(new { message = "Sign-in expired. Log in again." });
 
-        var check = await _check.Code(user, req.Code, HttpContext);
+        var check = await _check.Code(user, req.Code);
         if (check == Check.Locked) return CredentialCheck.Locked();
         if (check == Check.Wrong) return Unauthorized(new { message = "Invalid code." });
         return await OpenSession(user);
+    }
+
+    // a new code, at most one per 30 s per user; the answer is the same whether or not one was sent
+    [HttpPost("2fa/resend")]
+    public async Task<IActionResult> ResendCode(ChallengeRequest req)
+    {
+        var user = await ChallengeUser(req.ChallengeToken);
+        if (user == null) return Unauthorized(new { message = "Sign-in expired. Log in again." });
+        if (await _users.IsLockedOutAsync(user)) return CredentialCheck.Locked();
+        await TrySendCode(user);
+        return Ok(new { message = "If a code can be sent, it is on its way." });
+    }
+
+    async Task<AppUser?> ChallengeUser(string? challengeToken)
+    {
+        var id = _sessions.ReadChallenge(challengeToken);
+        var user = id == null ? null : await _users.FindByIdAsync(id);
+        return user is { TwoFactorEnabled: true } ? user : null;
+    }
+
+    // false only when the send failed; true also when the 30 s cooldown skipped it
+    async Task<bool> TrySendCode(AppUser user)
+    {
+        var key = "2fa-code:" + user.Id;
+        if (_cache.TryGetValue(key, out _)) return true;
+        _cache.Set(key, true, TimeSpan.FromSeconds(30));
+        try { await _email.SendSignInCode(_users, user); return true; }
+        catch (Exception ex) // the exception can hold the code, so log only the user id
+        {
+            _log.LogError(ex.GetType().Name + " sending sign-in code for user {UserId}", user.Id);
+            _cache.Remove(key);
+            return false;
+        }
     }
 
     // password (and code) are right: start the session and set the cookie
@@ -126,7 +164,6 @@ public class AuthController : ControllerBase
         await AdminBootstrap.TryPromote(_users, _config, user);
         var (session, refreshToken) = await _sessions.Create(user, Request.Headers.UserAgent.ToString(), HttpContext.Connection.RemoteIpAddress?.ToString());
         _sessions.SetCookie(Response, user.Id, refreshToken);
-        await _events.Add(user.Id, "login", HttpContext);
         return Ok(await SignedIn(user, session.Id));
     }
 
@@ -153,8 +190,7 @@ public class AuthController : ControllerBase
     {
         if (!Guid.TryParse(req.UserId, out _)) return BadRequest(new { message = "Invalid user id." });
         var token = Request.Cookies[SessionService.CookieName(req.UserId)];
-        // only a real session's cookie writes an event, so nobody can fill another user's log
-        if (token != null && await _sessions.RevokeByToken(req.UserId, token)) await _events.Add(req.UserId, "logout", HttpContext);
+        if (token != null) await _sessions.RevokeByToken(req.UserId, token);
         _sessions.DeleteCookie(Response, req.UserId);
         return NoContent();
     }
@@ -191,7 +227,6 @@ public class AuthController : ControllerBase
         await _sessions.RevokeAll(user.Id);
         await _users.SetLockoutEndDateAsync(user, null);
         await _users.ResetAccessFailedCountAsync(user);
-        await _events.Add(user.Id, "password-reset", HttpContext);
         return Ok(new { message = "Password changed. You can log in now." });
     }
 
@@ -217,7 +252,6 @@ public class AuthController : ControllerBase
 
         // the new address changes the security stamp anyway, so every device signs in again
         await _sessions.RevokeAll(user.Id);
-        await _events.Add(user.Id, "email-changed", HttpContext);
         return Ok(new { message = "Email changed. Log in again with the new address." });
     }
 

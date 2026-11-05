@@ -1,9 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using api.Controllers;
 using api.Data;
 using api.Models;
@@ -21,7 +21,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace api.Tests;
 
-// re-authentication, authenticator-app two-factor, email change and the activity log
+// re-authentication, emailed-code two-step sign-in, email change and display name
 public class SecurityTests
 {
     const string Pass = "correct horse battery"; // the real policy (12+ characters) applies
@@ -30,12 +30,12 @@ public class SecurityTests
     // records the mail EmailSender posts to Resend
     class Outbox : HttpMessageHandler
     {
-        public List<(string To, string Text)> Sent = new();
+        public List<(string To, string Subject, string Text)> Sent = new();
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct)).RootElement;
-            Sent.Add((json.GetProperty("to")[0].GetString()!, json.GetProperty("text").GetString()!));
+            Sent.Add((json.GetProperty("to")[0].GetString()!, json.GetProperty("subject").GetString()!, json.GetProperty("text").GetString()!));
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
@@ -45,11 +45,10 @@ public class SecurityTests
         public readonly ServiceProvider P;
         public readonly Outbox Mail = new();
         public readonly UserManager<AppUser> Users;
-        public readonly SecurityLog Events;
         public readonly SessionService Sessions;
+        public readonly IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions());
         readonly CredentialCheck _check;
         readonly EmailSender _email;
-        readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions());
         readonly IConfiguration _config;
 
         public Rig()
@@ -71,31 +70,40 @@ public class SecurityTests
             var env = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" };
             var db = P.GetRequiredService<AppDbContext>();
             Users = P.GetRequiredService<UserManager<AppUser>>();
-            Events = new SecurityLog(db);
             Sessions = new SessionService(db, Users, _config, env);
-            _check = new CredentialCheck(Users, Events);
+            _check = new CredentialCheck(Users);
             _email = new EmailSender(_config, NullLogger<EmailSender>.Instance, env, new HttpClient(Mail));
         }
 
         public void Dispose() => P.Dispose();
 
-        public async Task<AppUser> AddUser(string name)
+        public async Task<AppUser> AddUser(string name, bool confirmed = true)
         {
-            var user = new AppUser { UserName = name, Email = name + "@example.com" };
+            var user = new AppUser { UserName = name, Email = name + "@example.com", EmailConfirmed = confirmed };
             Assert.True((await Users.CreateAsync(user, Pass)).Succeeded);
             return user;
         }
 
         public AuthController Auth(HttpContext? http = null) =>
-            new(Users, _email, Sessions, _check, Events, _config, NullLogger<AuthController>.Instance)
+            new(Users, _email, Sessions, _check, Cache, _config, NullLogger<AuthController>.Instance)
             { ControllerContext = new ControllerContext { HttpContext = http ?? new DefaultHttpContext() } };
 
         public AccountController Account(AppUser user, Guid sid) =>
-            new(Users, _email, Sessions, _check, Events, _cache, NullLogger<AccountController>.Instance)
+            new(Users, _email, Sessions, _check, Cache, NullLogger<AccountController>.Instance)
             { ControllerContext = new ControllerContext { HttpContext = Signed(user, sid) } };
 
         public TwoFactorController TwoFactor(AppUser user, Guid sid) =>
-            new(Users, Sessions, _check, Events) { ControllerContext = new ControllerContext { HttpContext = Signed(user, sid) } };
+            new(Users, Sessions, _check) { ControllerContext = new ControllerContext { HttpContext = Signed(user, sid) } };
+
+        // the code in the newest "Your sign-in code" mail
+        public string LastCode()
+        {
+            var mail = Mail.Sent.Last(m => m.Subject == "Your sign-in code");
+            return Regex.Match(mail.Text, "[0-9]{6}").Value;
+        }
+
+        // pretends 30 seconds passed, so the next send is allowed
+        public void SkipCooldown(AppUser user) => Cache.Remove("2fa-code:" + user.Id);
 
         static HttpContext Signed(AppUser user, Guid sid) => new DefaultHttpContext
         {
@@ -108,34 +116,11 @@ public class SecurityTests
     static T Ok<T>(IActionResult r) where T : class => Assert.IsType<T>(r);
     static int Status(IActionResult r) => Assert.IsType<ObjectResult>(r).StatusCode!.Value;
 
-    // RFC 6238: 6 digits, 30 second steps, HMAC-SHA1; the key is the base32 text Identity hands out
-    static string Totp(string key)
-    {
-        var bytes = new List<byte>();
-        int buffer = 0, bits = 0;
-        foreach (var c in key.ToUpperInvariant())
-        {
-            buffer = (buffer << 5) | "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".IndexOf(c);
-            bits += 5;
-            if (bits >= 8) { bits -= 8; bytes.Add((byte)(buffer >> bits)); buffer &= (1 << bits) - 1; }
-        }
-        var step = BitConverter.GetBytes(DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 30);
-        Array.Reverse(step);
-        var hash = HMACSHA1.HashData(bytes.ToArray(), step);
-        var o = hash[^1] & 0xf;
-        var n = ((hash[o] & 0x7f) << 24) | (hash[o + 1] << 16) | (hash[o + 2] << 8) | hash[o + 3];
-        return (n % 1_000_000).ToString("D6");
-    }
+    // turns two-step verification on for a user
+    static async Task EnableTwoFactor(Rig r, AppUser user, Guid sid) =>
+        Assert.IsType<NoContentResult>(await r.TwoFactor(user, sid).Enable(new PasswordRequest(Pass)));
 
-    // sets up and turns on 2FA for a user; returns the key and the recovery codes
-    static async Task<(string Key, string[] Codes)> EnableTwoFactor(Rig r, AppUser user, Guid sid)
-    {
-        var tf = r.TwoFactor(user, sid);
-        var key = Body(Ok<OkObjectResult>(await tf.Setup(new PasswordRequest(Pass)))).GetProperty("key").GetString()!;
-        var res = Body(Ok<OkObjectResult>(await tf.Enable(new EnableTwoFactorRequest(Pass, Totp(key)))));
-        return (key, res.GetProperty("recoveryCodes").EnumerateArray().Select(c => c.GetString()!).ToArray());
-    }
-
+    // password login of a user who has two-step on; the answer holds the challenge and a code was mailed
     static async Task<string> Challenge(Rig r, string email)
     {
         var res = Ok<OkObjectResult>(await r.Auth().Login(new LoginRequest(email, Pass)));
@@ -162,11 +147,10 @@ public class SecurityTests
         Assert.Equal(new[] { phone.Id }, (await r.Sessions.Active(user.Id)).Select(s => s.Id).ToArray());
         Assert.NotNull(await r.Sessions.Refresh(user.Id, phoneToken)); // the caller stays signed in
         Assert.True(await r.Users.CheckPasswordAsync(user, NewPass));
-        Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "password-changed");
     }
 
     [Fact]
-    public async Task Wrong_current_passwords_count_toward_lockout_and_log_it_once()
+    public async Task Wrong_current_passwords_count_toward_lockout()
     {
         using var r = new Rig();
         var user = await r.AddUser("kai");
@@ -177,11 +161,10 @@ public class SecurityTests
         for (var i = 1; i <= 9; i++) Assert.Equal(403, Status(await account.ChangePassword(bad)));
         Assert.Equal(423, Status(await account.ChangePassword(bad))); // the 10th miss locks
         Assert.Equal(423, Status(await account.ChangePassword(new ChangePasswordRequest(Pass, NewPass)))); // even the right one
-        Assert.Single((await r.Events.Latest(user.Id)).Where(e => e.Type == "locked-out"));
     }
 
     [Fact]
-    public async Task Setup_gives_the_key_and_link_and_enable_needs_a_valid_code()
+    public async Task Enable_needs_the_password_and_a_confirmed_email_and_ends_the_other_sessions()
     {
         using var r = new Rig();
         var user = await r.AddUser("kai");
@@ -189,39 +172,45 @@ public class SecurityTests
         await r.Sessions.Create(user, "laptop", "2.2.2.2");
         var tf = r.TwoFactor(user, phone.Id);
 
-        Assert.Equal(403, Status(await tf.Setup(new PasswordRequest("nope")))); // the key is a secret
-        var setup = Body(Ok<OkObjectResult>(await tf.Setup(new PasswordRequest(Pass))));
-        var key = setup.GetProperty("key").GetString()!;
-        Assert.Equal($"otpauth://totp/Anime%20Rating%20Platform:kai%40example.com?secret={key}&issuer=Anime%20Rating%20Platform&digits=6",
-            setup.GetProperty("uri").GetString());
         Assert.False(Body(Ok<OkObjectResult>(await tf.Status())).GetProperty("enabled").GetBoolean());
-
-        Assert.Equal(403, Status(await tf.Enable(new EnableTwoFactorRequest("nope", Totp(key))))); // right code, wrong password
-        var badCode = Assert.IsType<ObjectResult>(await tf.Enable(new EnableTwoFactorRequest(Pass, "000000")));
-        Assert.Equal(403, badCode.StatusCode);
-        Assert.Equal("Invalid code.", Message(badCode));
-        Assert.Equal(3, user.AccessFailedCount); // all three misses counted (setup password, enable password, code)
+        Assert.Equal(403, Status(await tf.Enable(new PasswordRequest("nope"))));
         Assert.False(user.TwoFactorEnabled);
 
-        var codes = Body(Ok<OkObjectResult>(await tf.Enable(new EnableTwoFactorRequest(Pass, Totp(key))))).GetProperty("recoveryCodes");
-        Assert.Equal(10, codes.GetArrayLength());
-        var status = Body(Ok<OkObjectResult>(await tf.Status()));
-        Assert.True(status.GetProperty("enabled").GetBoolean());
-        Assert.Equal(10, status.GetProperty("recoveryCodesLeft").GetInt32());
-        Assert.IsType<BadRequestObjectResult>(await tf.Setup(new PasswordRequest(Pass))); // already on
+        Assert.IsType<NoContentResult>(await tf.Enable(new PasswordRequest(Pass)));
+        Assert.True(Body(Ok<OkObjectResult>(await tf.Status())).GetProperty("enabled").GetBoolean());
+        Assert.IsType<BadRequestObjectResult>(await tf.Enable(new PasswordRequest(Pass))); // already on
         // other devices end (the stamp changed), this one stays
         Assert.Equal(new[] { phone.Id }, (await r.Sessions.Active(user.Id)).Select(s => s.Id).ToArray());
         Assert.NotNull(await r.Sessions.Refresh(user.Id, phoneToken));
-        Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "2fa-enabled");
+
+        // the codes go to the account address, so it must be confirmed
+        var fresh = await r.AddUser("ann", confirmed: false);
+        var (annSession, _) = await r.Sessions.Create(fresh, "phone", "3.3.3.3");
+        Assert.IsType<BadRequestObjectResult>(await r.TwoFactor(fresh, annSession.Id).Enable(new PasswordRequest(Pass)));
+        Assert.False(fresh.TwoFactorEnabled);
     }
 
     [Fact]
-    public async Task Login_with_2fa_gives_a_challenge_and_no_session_until_the_code_passes()
+    public async Task A_google_only_account_gets_the_no_password_answer_from_enable()
+    {
+        using var r = new Rig();
+        var user = new AppUser { UserName = "gina", Email = "gina@example.com", EmailConfirmed = true };
+        Assert.True((await r.Users.CreateAsync(user)).Succeeded);
+        var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
+
+        var res = Assert.IsType<ObjectResult>(await r.TwoFactor(user, session.Id).Enable(new PasswordRequest(Pass)));
+        Assert.Equal(403, res.StatusCode);
+        Assert.Contains("no password", Message(res));
+        Assert.False(user.TwoFactorEnabled);
+    }
+
+    [Fact]
+    public async Task Login_with_2fa_emails_a_code_and_gives_no_session_until_it_passes()
     {
         using var r = new Rig();
         var user = await r.AddUser("kai");
         var (setupSession, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
-        var (key, _) = await EnableTwoFactor(r, user, setupSession.Id);
+        await EnableTwoFactor(r, user, setupSession.Id);
         var before = (await r.Sessions.Active(user.Id)).Count;
 
         var http = new DefaultHttpContext();
@@ -232,12 +221,33 @@ public class SecurityTests
         Assert.Equal(before, (await r.Sessions.Active(user.Id)).Count);
         var challenge = login.GetProperty("challengeToken").GetString()!;
 
+        var mail = r.Mail.Sent.Single(m => m.Subject == "Your sign-in code");
+        Assert.Equal("kai@example.com", mail.To);
+        Assert.Contains("expires", mail.Text);
+        Assert.DoesNotContain(r.LastCode(), challenge); // the code is not inside the token
+
         var codeHttp = new DefaultHttpContext();
-        var done = Body(Ok<OkObjectResult>(await r.Auth(codeHttp).TwoFactor(new TwoFactorLoginRequest(challenge, Totp(key)))));
+        var done = Body(Ok<OkObjectResult>(await r.Auth(codeHttp).TwoFactor(new TwoFactorLoginRequest(challenge, r.LastCode()))));
         Assert.False(string.IsNullOrEmpty(done.GetProperty("accessToken").GetString()));
         Assert.StartsWith(SessionService.CookieName(user.Id).ToLowerInvariant() + "=", codeHttp.Response.Headers.SetCookie.ToString().ToLowerInvariant());
         Assert.Equal(before + 1, (await r.Sessions.Active(user.Id)).Count);
-        Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "login");
+    }
+
+    [Fact]
+    public async Task A_wrong_password_sends_no_code_and_a_user_without_2fa_gets_a_session_at_once()
+    {
+        using var r = new Rig();
+        var user = await r.AddUser("kai");
+        var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
+        await EnableTwoFactor(r, user, session.Id);
+
+        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().Login(new LoginRequest("kai@example.com", "nope")));
+        Assert.Empty(r.Mail.Sent);
+
+        await r.AddUser("ann");
+        var plain = Body(Ok<OkObjectResult>(await r.Auth().Login(new LoginRequest("ann@example.com", Pass))));
+        Assert.False(string.IsNullOrEmpty(plain.GetProperty("accessToken").GetString()));
+        Assert.Empty(r.Mail.Sent);
     }
 
     [Fact]
@@ -246,36 +256,63 @@ public class SecurityTests
         using var r = new Rig();
         var user = await r.AddUser("kai");
         var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
-        var (key, _) = await EnableTwoFactor(r, user, session.Id);
+        await EnableTwoFactor(r, user, session.Id);
         var challenge = await Challenge(r, "kai@example.com");
-        var bad = new TwoFactorLoginRequest(challenge, "000000");
+        var good = r.LastCode();
+        var wrong = good == "000000" ? "111111" : "000000";
+        var bad = new TwoFactorLoginRequest(challenge, wrong);
 
         for (var i = 1; i <= 3; i++)
             Assert.Equal("Invalid code.", Message(Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(bad))));
         var again = await Challenge(r, "kai@example.com"); // logging in again must not wipe the misses
-        bad = new TwoFactorLoginRequest(again, "000000");
+        bad = new TwoFactorLoginRequest(again, wrong);
         for (var i = 4; i <= 9; i++) Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(bad));
         Assert.Equal(423, Status(await r.Auth().TwoFactor(bad))); // the 10th miss
 
-        Assert.Equal(423, Status(await r.Auth().TwoFactor(new TwoFactorLoginRequest(again, Totp(key))))); // even the right code
-        Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "locked-out");
+        Assert.Equal(423, Status(await r.Auth().TwoFactor(new TwoFactorLoginRequest(again, good)))); // even the right code
     }
 
     [Fact]
-    public async Task A_recovery_code_works_once_and_an_empty_code_never()
+    public async Task An_empty_code_never_passes_and_spaces_in_the_code_are_ignored()
     {
         using var r = new Rig();
         var user = await r.AddUser("kai");
         var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
-        var (_, codes) = await EnableTwoFactor(r, user, session.Id);
-        var first = await Challenge(r, "kai@example.com");
-        Ok<OkObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(first, codes[0])));
-        Assert.Equal(9, Body(Ok<OkObjectResult>(await r.TwoFactor(user, session.Id).Status())).GetProperty("recoveryCodesLeft").GetInt32());
-        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(first, codes[0]))); // spent
+        await EnableTwoFactor(r, user, session.Id);
+        var challenge = await Challenge(r, "kai@example.com");
 
-        // no codes left: "" must not match the empty list
-        await r.Users.GenerateNewTwoFactorRecoveryCodesAsync(user, 0);
-        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(first, "")));
+        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(challenge, "")));
+        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(challenge, "   ")));
+        var code = r.LastCode();
+        Ok<OkObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(challenge, code[..3] + " " + code[3..])));
+    }
+
+    [Fact]
+    public async Task Resend_sends_a_new_mail_at_most_every_30_seconds_with_the_same_answer()
+    {
+        using var r = new Rig();
+        var user = await r.AddUser("kai");
+        var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
+        await EnableTwoFactor(r, user, session.Id);
+        var challenge = await Challenge(r, "kai@example.com");
+        Assert.Single(r.Mail.Sent); // the login sent the first one
+
+        var tooSoon = Ok<OkObjectResult>(await r.Auth().ResendCode(new ChallengeRequest(challenge)));
+        Assert.Single(r.Mail.Sent);
+
+        r.SkipCooldown(user);
+        var later = Ok<OkObjectResult>(await r.Auth().ResendCode(new ChallengeRequest(challenge)));
+        Assert.Equal(2, r.Mail.Sent.Count);
+        Assert.Equal(JsonSerializer.Serialize(tooSoon.Value), JsonSerializer.Serialize(later.Value)); // generic answer
+
+        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().ResendCode(new ChallengeRequest("garbage")));
+        Assert.Equal(2, r.Mail.Sent.Count);
+
+        // a locked account gets no more mail
+        await r.Users.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddMinutes(5));
+        r.SkipCooldown(user);
+        Assert.Equal(423, Status(await r.Auth().ResendCode(new ChallengeRequest(challenge))));
+        Assert.Equal(2, r.Mail.Sent.Count);
     }
 
     [Fact]
@@ -310,53 +347,30 @@ public class SecurityTests
         var user = await r.AddUser("kai");
         Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest("garbage", "123456")));
         // a valid challenge for an account that has no 2FA
-        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(r.Sessions.ChallengeToken(user), "123456")));
+        var challenge = r.Sessions.ChallengeToken(user);
+        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(challenge, "123456")));
+        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().ResendCode(new ChallengeRequest(challenge)));
+        Assert.Empty(r.Mail.Sent);
     }
 
     [Fact]
-    public async Task Disable_needs_the_password_and_a_code_and_then_login_is_plain_again()
+    public async Task Disable_needs_the_password_and_then_login_is_plain_again()
     {
         using var r = new Rig();
         var user = await r.AddUser("kai");
         var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
-        var (key, codes) = await EnableTwoFactor(r, user, session.Id);
+        await EnableTwoFactor(r, user, session.Id);
         var tf = r.TwoFactor(user, session.Id);
 
-        Assert.Equal(403, Status(await tf.Disable(new DisableTwoFactorRequest("nope", Totp(key)))));
-        var badCode = Assert.IsType<ObjectResult>(await tf.Disable(new DisableTwoFactorRequest(Pass, "000000")));
-        Assert.Equal(403, badCode.StatusCode);
-        Assert.Equal("Invalid code.", Message(badCode));
+        Assert.Equal(403, Status(await tf.Disable(new PasswordRequest("nope"))));
         Assert.True(user.TwoFactorEnabled);
 
-        Assert.IsType<NoContentResult>(await tf.Disable(new DisableTwoFactorRequest(Pass, codes[0]))); // a recovery code is fine too
+        Assert.IsType<NoContentResult>(await tf.Disable(new PasswordRequest(Pass)));
         Assert.False(user.TwoFactorEnabled);
+        Assert.IsType<BadRequestObjectResult>(await tf.Disable(new PasswordRequest(Pass))); // already off
         var login = Body(Ok<OkObjectResult>(await r.Auth().Login(new LoginRequest("kai@example.com", Pass))));
         Assert.False(string.IsNullOrEmpty(login.GetProperty("accessToken").GetString()));
-        Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "2fa-disabled");
-
-        // a recovery code left from this setup must not turn it back on
-        Ok<OkObjectResult>(await tf.Setup(new PasswordRequest(Pass)));
-        Assert.Equal(403, Status(await tf.Enable(new EnableTwoFactorRequest(Pass, codes[1]))));
-        Assert.False(user.TwoFactorEnabled);
-    }
-
-    [Fact]
-    public async Task New_recovery_codes_need_the_password_and_replace_the_old_ones()
-    {
-        using var r = new Rig();
-        var user = await r.AddUser("kai");
-        var (session, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
-        var (_, old) = await EnableTwoFactor(r, user, session.Id);
-        var tf = r.TwoFactor(user, session.Id);
-
-        Assert.Equal(403, Status(await tf.NewRecoveryCodes(new PasswordRequest("nope"))));
-        var fresh = Body(Ok<OkObjectResult>(await tf.NewRecoveryCodes(new PasswordRequest(Pass)))).GetProperty("recoveryCodes");
-        Assert.Equal(10, fresh.GetArrayLength());
-
-        var challenge = await Challenge(r, "kai@example.com");
-        Assert.IsType<UnauthorizedObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(challenge, old[0])));
-        Ok<OkObjectResult>(await r.Auth().TwoFactor(new TwoFactorLoginRequest(challenge, fresh[0].GetString()!)));
-        Assert.Contains(await r.Events.Latest(user.Id), e => e.Type == "recovery-codes-regenerated");
+        Assert.Empty(r.Mail.Sent);
     }
 
     [Fact]
@@ -395,39 +409,38 @@ public class SecurityTests
         Assert.True(kai.EmailConfirmed);
         Assert.Equal("kai", kai.UserName);
         Assert.Empty(await r.Sessions.Active(kai.Id));
-        var types = (await r.Events.Latest(kai.Id)).Select(e => e.Type).ToArray();
-        Assert.Contains("email-change-requested", types);
-        Assert.Contains("email-changed", types);
         // the link works once
         Assert.IsType<BadRequestObjectResult>(await r.Auth().ConfirmEmailChange(new ConfirmEmailChangeRequest(Q("userId"), Q("newEmail"), Q("token"))));
     }
 
     [Fact]
-    public async Task Activity_lists_only_the_callers_latest_50_events()
+    public async Task Display_name_change_checks_the_format_and_uniqueness_and_keeps_other_devices_signed_in()
     {
         using var r = new Rig();
         var kai = await r.AddUser("kai");
-        var ann = await r.AddUser("ann");
-        Ok<OkObjectResult>(await r.Auth().Login(new LoginRequest("kai@example.com", Pass)));
-        Ok<OkObjectResult>(await r.Auth().Login(new LoginRequest("ann@example.com", Pass)));
-        var (session, _) = await r.Sessions.Create(kai, "phone", "1.1.1.1");
+        await r.AddUser("ann");
+        var (phone, phoneToken) = await r.Sessions.Create(kai, "phone", "1.1.1.1");
+        await r.Sessions.Create(kai, "laptop", "2.2.2.2");
+        var account = r.Account(kai, phone.Id);
 
-        async Task<JsonElement> List() =>
-            JsonSerializer.SerializeToElement(Assert.IsAssignableFrom<IEnumerable<object>>(Ok<OkObjectResult>(await r.Account(kai, session.Id).Activity()).Value));
+        foreach (var bad in new[] { "ab", new string('a', 31), "has space", "a@b.com", "tab\there", "", "naïve" })
+            Assert.IsType<BadRequestObjectResult>(await account.ChangeUserName(new ChangeUserNameRequest(bad)));
+        Assert.Equal("That display name is not available.", Message(Assert.IsType<BadRequestObjectResult>(await account.ChangeUserName(new ChangeUserNameRequest("Ann")))));
+        Assert.NotNull(await r.Users.FindByNameAsync("kai")); // nothing was saved
 
-        var mine = await List();
-        Assert.Equal(1, mine.GetArrayLength());
-        Assert.Equal("login", mine[0].GetProperty("Type").GetString());
+        var ok = Body(Ok<OkObjectResult>(await account.ChangeUserName(new ChangeUserNameRequest("  Kai_2.0-x  "))));
+        Assert.Equal("Kai_2.0-x", ok.GetProperty("userName").GetString());
+        Assert.Equal("Kai_2.0-x", (await r.Users.FindByNameAsync("kai_2.0-x"))!.UserName);
+        Assert.Null(await r.Users.FindByNameAsync("kai"));
 
-        for (var i = 0; i < 60; i++) await r.Events.Add(kai.Id, "session-revoked", new DefaultHttpContext());
-        var latest = await List();
-        Assert.Equal(50, latest.GetArrayLength());
-        Assert.Equal("session-revoked", latest[0].GetProperty("Type").GetString()); // newest first
-        Assert.Single(await r.Events.Latest(ann.Id));
+        // no password asked, and no device signed out
+        Assert.Equal(2, (await r.Sessions.Active(kai.Id)).Count);
+        Assert.NotNull(await r.Sessions.Refresh(kai.Id, phoneToken));
+        Ok<OkObjectResult>(await account.ChangeUserName(new ChangeUserNameRequest("Kai_2.0-x"))); // same name again is fine
     }
 
     [Fact]
-    public async Task Logout_writes_an_event_only_for_a_real_session_cookie()
+    public async Task Logout_ends_the_session_only_for_a_real_session_cookie()
     {
         using var r = new Rig();
         var user = await r.AddUser("kai");
@@ -443,45 +456,8 @@ public class SecurityTests
         }
 
         await r.Auth(With("bogus")).Logout(new UserIdRequest(user.Id));
-        Assert.DoesNotContain(await r.Events.Latest(user.Id), e => e.Type == "logout");
+        Assert.Single(await r.Sessions.Active(user.Id));
         await r.Auth(With(cookie)).Logout(new UserIdRequest(user.Id));
-        Assert.Single((await r.Events.Latest(user.Id)).Where(e => e.Type == "logout"));
-    }
-
-    [Fact]
-    public async Task User_agent_in_an_event_is_trimmed_to_200_characters()
-    {
-        using var r = new Rig();
-        var user = await r.AddUser("kai");
-        var http = new DefaultHttpContext();
-        http.Request.Headers.UserAgent = new string('a', 500);
-        await r.Events.Add(user.Id, "login", http);
-        Assert.Equal(200, (await r.Events.Latest(user.Id)).Single().UserAgent.Length);
-    }
-
-    [Fact]
-    public async Task Session_revoke_endpoints_write_events()
-    {
-        using var r = new Rig();
-        var user = await r.AddUser("kai");
-        var (phone, _) = await r.Sessions.Create(user, "phone", "1.1.1.1");
-        var (laptop, _) = await r.Sessions.Create(user, "laptop", "2.2.2.2");
-        var api = new SessionsController(r.Sessions, r.Events)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext
-                {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id), new Claim("sid", phone.Id.ToString()) }, "test"))
-                }
-            }
-        };
-
-        await api.Revoke(laptop.Id);
-        await api.RevokeOthers();
-
-        var types = (await r.Events.Latest(user.Id)).Select(e => e.Type).ToArray();
-        Assert.Contains("session-revoked", types);
-        Assert.Contains("other-sessions-revoked", types);
+        Assert.Empty(await r.Sessions.Active(user.Id));
     }
 }
