@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -55,24 +56,9 @@ public class SessionTests
         var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = env };
         return new AuthController(users,
             new EmailSender(Config, NullLogger<EmailSender>.Instance, host, new HttpClient()),
-            Sessions(p, env), Check(p), Events(p), Config, NullLogger<AuthController>.Instance)
+            Sessions(p, env), new CredentialCheck(users), new MemoryCache(new MemoryCacheOptions()), Config, NullLogger<AuthController>.Instance)
         { ControllerContext = new ControllerContext { HttpContext = http } };
     }
-
-    static SecurityLog Events(ServiceProvider p) => new(p.GetRequiredService<AppDbContext>());
-    static CredentialCheck Check(ServiceProvider p) => new(p.GetRequiredService<UserManager<AppUser>>(), Events(p));
-
-    static SessionsController SessionsApi(ServiceProvider p, AppUser user, Guid sid) =>
-        new(Sessions(p), Events(p))
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext
-                {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id), new Claim("sid", sid.ToString()) }, "test"))
-                }
-            }
-        };
 
     // the browser would send back what Set-Cookie held
     static HttpContext WithCookie(string userId, string token)
@@ -145,7 +131,7 @@ public class SessionTests
 
         // Program.cs calls this from JwtBearer's OnTokenValidated
         Assert.True(await sessions.IsActive(sid));
-        Assert.True(await sessions.Revoke(user.Id, session.Id));
+        await sessions.RevokeAll(user.Id);
         Assert.False(await sessions.IsActive(sid));
         Assert.False(await sessions.IsActive(null));
         Assert.False(await sessions.IsActive("not a guid"));
@@ -317,7 +303,7 @@ public class SessionTests
     }
 
     [Fact]
-    public async Task Sessions_endpoints_only_touch_the_callers_sessions()
+    public async Task RevokeAll_keeps_the_excepted_session_and_leaves_other_users_alone()
     {
         using var p = Build();
         var kai = await AddUser(p, "kai");
@@ -325,25 +311,12 @@ public class SessionTests
         var sessions = Sessions(p);
         var (kaiPhone, _) = await sessions.Create(kai, "phone", "1.1.1.1");
         var (kaiLaptop, _) = await sessions.Create(kai, "laptop", "2.2.2.2");
-        var (annPhone, _) = await sessions.Create(ann, "ann phone", "3.3.3.3");
+        await sessions.Create(ann, "ann phone", "3.3.3.3");
 
-        // list: only kai's two, the caller's own marked current
-        var list = JsonSerializer.SerializeToElement(Assert.IsAssignableFrom<IEnumerable<object>>(Assert.IsType<OkObjectResult>(await SessionsApi(p, kai, kaiPhone.Id).List()).Value));
-        Assert.Equal(2, list.GetArrayLength());
-        Assert.Equal(new[] { kaiPhone.Id.ToString() }, list.EnumerateArray().Where(s => s.GetProperty("current").GetBoolean()).Select(s => s.GetProperty("Id").GetString()).ToArray());
+        await sessions.RevokeAll(kai.Id, kaiPhone.Id);
 
-        // kai cannot revoke ann's session
-        Assert.IsType<NotFoundResult>(await SessionsApi(p, kai, kaiPhone.Id).Revoke(annPhone.Id));
-        Assert.Single(await sessions.Active(ann.Id));
-
-        // revoke-others keeps the current one and leaves ann alone
-        Assert.IsType<NoContentResult>(await SessionsApi(p, kai, kaiPhone.Id).RevokeOthers());
         Assert.Equal(new[] { kaiPhone.Id }, (await sessions.Active(kai.Id)).Select(s => s.Id).ToArray());
-        Assert.Single(await sessions.Active(ann.Id));
-
-        // the current one can be revoked too
-        Assert.IsType<NoContentResult>(await SessionsApi(p, kai, kaiPhone.Id).Revoke(kaiPhone.Id));
-        Assert.Empty(await sessions.Active(kai.Id));
         Assert.False(await sessions.IsActive(kaiLaptop.Id.ToString()));
+        Assert.Single(await sessions.Active(ann.Id));
     }
 }

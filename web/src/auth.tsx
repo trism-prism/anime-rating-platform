@@ -13,6 +13,7 @@ type Auth = {
   login: (s: SignedIn) => Promise<void>
   logout: () => Promise<void>
   switchTo: (userId: string) => Promise<boolean>
+  rename: (userName: string) => void // after the display name was changed on the server
   refresh: () => Promise<void>
 }
 
@@ -30,6 +31,13 @@ function loadAccounts(): Account[] {
   }
 }
 
+// written at once (not only by the effect below) for callers that reload the page right after
+function persist(accounts: Account[], activeId: string | null) {
+  localStorage.setItem('accounts', JSON.stringify(accounts))
+  if (activeId) localStorage.setItem('activeUser', activeId)
+  else localStorage.removeItem('activeUser')
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>(loadAccounts)
   const [activeId, setActiveId] = useState<string | null>(() => {
@@ -42,11 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(() => !!activeId)
 
-  useEffect(() => {
-    localStorage.setItem('accounts', JSON.stringify(accounts))
-    if (activeId) localStorage.setItem('activeUser', activeId)
-    else localStorage.removeItem('activeUser')
-  }, [accounts, activeId])
+  useEffect(() => persist(accounts, activeId), [accounts, activeId])
 
   // forget an account; if it was the active one, nobody is signed in until the caller picks another
   const removeAccount = useCallback((id: string) => {
@@ -109,24 +113,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(false)
     setLoading(true)
     setActiveId(userId)
+    persist(accounts, userId)
     refresh()
     return true
-  }, [removeAccount, refresh])
+  }, [accounts, removeAccount, refresh])
 
-  // signs out the active account only, then falls back to another one if there is one
+  // Signs out the active account only. The caller then reloads the site, which opens the next account if there
+  // is one (its access token is fetched on load), so only the stored choice is updated here.
   const logout = useCallback(async () => {
     const id = getActive()
     if (!id) return
     await api('/auth/logout', { method: 'POST', body: JSON.stringify({ userId: id }) }).catch(() => {})
+    const rest = accounts.filter((a) => a.userId !== id)
+    const next = rest[0]?.userId ?? null
     removeAccount(id)
-    const next = accounts.find((a) => a.userId !== id)
-    if (next) await switchTo(next.userId).catch(() => {})
-  }, [accounts, removeAccount, switchTo])
+    setActiveId(next)
+    persist(rest, next)
+  }, [accounts, removeAccount])
+
+  const rename = useCallback((userName: string) => {
+    setAccounts((all) => all.map((a) => (a.userId === getActive() ? { ...a, userName } : a)))
+  }, [])
 
   const user = accounts.find((a) => a.userId === activeId) ?? null
 
   return (
-    <AuthContext.Provider value={{ user, accounts, emailVerified, hasPassword, isAdmin, loading, login, logout, switchTo, refresh }}>
+    <AuthContext.Provider value={{ user, accounts, emailVerified, hasPassword, isAdmin, loading, login, logout, switchTo, rename, refresh }}>
       {children}
     </AuthContext.Provider>
   )

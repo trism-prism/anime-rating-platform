@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -57,11 +58,10 @@ public class AuthFlowTests
         var host = new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = env };
         var users = p.GetRequiredService<UserManager<AppUser>>();
         var db = p.GetRequiredService<AppDbContext>();
-        var events = new SecurityLog(db);
         return new AuthController(users,
             new EmailSender(config, NullLogger<EmailSender>.Instance, host, new HttpClient()),
-            new SessionService(db, users, config, host), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance)
-        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } }; // the lockout event reads the request
+            new SessionService(db, users, config, host), new CredentialCheck(users), new MemoryCache(new MemoryCacheOptions()), config, NullLogger<AuthController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
     }
 
     static async Task<AppUser> AddUser(ServiceProvider p)

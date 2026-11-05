@@ -9,20 +9,30 @@ export default function GoogleCallback() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const userId = params.get('userId')
-  const [error, setError] = useState(userId ? '' : 'Google sign-in failed. Try again or use your password.')
+  const [error, setError] = useState(userId ? '' : 'This Google sign-in link is not valid. Start again from the login page.')
   // a refresh token is single-use and StrictMode runs effects twice in dev
   const called = useRef(false)
 
   useEffect(() => {
     if (!userId || called.current) return
     called.current = true
-    refreshSession(userId)
-      .then(async (s) => {
-        if (!s) throw new Error('Google sign-in failed. Try again or use your password.')
-        await login(s) // throws at the 5-account limit
-        navigate('/', { replace: true })
-      })
-      .catch((err: Error) => setError(err.message))
+    async function finish(id: string) {
+      let s
+      try {
+        s = await refreshSession(id)
+      } catch {
+        return setError('Could not reach the server. Try again.')
+      }
+      // the cookie the API just set did not come back: blocked cookies, or a wrong cookie path or domain
+      if (!s) return setError('Google accepted you, but the session could not be started. Make sure cookies are allowed, then try again.')
+      try {
+        await login(s)
+      } catch (err) {
+        return setError((err as Error).message) // the account limit
+      }
+      navigate('/', { replace: true })
+    }
+    finish(userId)
   }, [userId, login, navigate])
 
   return (

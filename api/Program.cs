@@ -44,7 +44,6 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
 builder.Services.AddScoped<SessionService>();
-builder.Services.AddScoped<SecurityLog>();
 builder.Services.AddScoped<CredentialCheck>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>

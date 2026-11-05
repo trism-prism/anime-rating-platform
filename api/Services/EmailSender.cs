@@ -40,6 +40,13 @@ public class EmailSender
         await Send(user.Email!, "Reset your password", $"Reset your password: {link}");
     }
 
+    // the six-digit code for the second login step; the code is a secret, so only Send's Development fallback logs it
+    public async Task SendSignInCode(UserManager<AppUser> users, AppUser user)
+    {
+        var code = await users.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+        await Send(user.Email!, "Your sign-in code", $"Your sign-in code is {code}. It expires in a few minutes. If you did not try to log in, change your password.");
+    }
+
     // the link goes to the new address; the token only fits that address
     public async Task SendEmailChange(UserManager<AppUser> users, AppUser user, string newEmail)
     {

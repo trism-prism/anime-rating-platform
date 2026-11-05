@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using api.Controllers;
 using api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -29,10 +30,9 @@ public class LockoutTests
         var config = new ConfigurationBuilder().Build();
         var users = provider.GetRequiredService<UserManager<AppUser>>();
         var db = provider.GetRequiredService<AppDbContext>();
-        var events = new SecurityLog(db);
         var controller = new AuthController(users,
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance);
+            new SessionService(db, users, config, env), new CredentialCheck(users), new MemoryCache(new MemoryCacheOptions()), config, NullLogger<AuthController>.Instance);
 
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@b.com", "Passw0rd1!", null)));
@@ -57,10 +57,9 @@ public class LockoutTests
         var config = new ConfigurationBuilder().Build();
         var users = provider.GetRequiredService<UserManager<AppUser>>();
         var db = provider.GetRequiredService<AppDbContext>();
-        var events = new SecurityLog(db);
         var controller = new AuthController(users,
             new EmailSender(config, NullLogger<EmailSender>.Instance, env, new HttpClient()),
-            new SessionService(db, users, config, env), new CredentialCheck(users, events), events, config, NullLogger<AuthController>.Instance);
+            new SessionService(db, users, config, env), new CredentialCheck(users), new MemoryCache(new MemoryCacheOptions()), config, NullLogger<AuthController>.Instance);
 
         Assert.IsType<OkObjectResult>(await controller.Register(new RegisterRequest("kai@a.com", "Passw0rd1!", null)));
         var resend = Assert.IsType<ObjectResult>(await controller.Resend(new EmailRequest("kai@a.com")));
