@@ -10,6 +10,7 @@ public static class EmailCodes
     // the token purposes: a code made for one cannot be used for the other
     public const string Verify = "verify-email";
     public const string Reset = "reset-password";
+    public const string DeleteAccount = "delete-account";
 
     const int MaxTries = 5;
     static readonly TimeSpan Window = TimeSpan.FromMinutes(15);

@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import AniListImport from '../components/AniListImport'
 import EmailForm from '../components/EmailForm'
+import DeleteAccountForm from '../components/DeleteAccountForm'
 import ExportForm from '../components/ExportForm'
 import PasswordForm from '../components/PasswordForm'
 import UserNameForm from '../components/UserNameForm'
@@ -49,6 +50,13 @@ export default function Settings() {
 
           <h2>Export your data</h2>
           <ExportForm />
+        </>
+      )}
+
+      {!loading && (
+        <>
+          <h2>Delete account</h2>
+          <DeleteAccountForm />
         </>
       )}
     </div>
