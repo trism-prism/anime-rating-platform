@@ -83,7 +83,10 @@ public class AniListClient
         var entries = new List<AListEntry>();
         for (var chunk = 1; chunk <= maxChunks; chunk++)
         {
-            var data = (await Graphql(UserListQuery, new { name = userName, type, chunk })).GetProperty("MediaListCollection");
+            var root = await Graphql(UserListQuery, new { name = userName, type, chunk });
+            // a private list can come back as 200 with errors and no data
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("MediaListCollection", out var data) || data.ValueKind != JsonValueKind.Object)
+                throw new AniListUserNotFound();
             foreach (var list in data.GetProperty("lists").EnumerateArray())
                 entries.AddRange(list.GetProperty("entries").Deserialize<List<AListEntry>>(Json)!);
             if (!data.GetProperty("hasNextChunk").GetBoolean()) break;

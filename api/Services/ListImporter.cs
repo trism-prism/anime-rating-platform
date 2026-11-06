@@ -13,7 +13,7 @@ public record ListImportResult(int Added, int AlreadyOnList, int Unmatched);
 // all of it public; they can open it up from My list.
 public class ListImporter
 {
-    public const int MaxChunks = 10; // 500 entries each, per type: at most 10,000 entries a type
+    public const int MaxChunks = 10; // 500 entries each, per type: at most 5,000 entries a type
 
     readonly AppDbContext _db;
     readonly AniListClient _client;
