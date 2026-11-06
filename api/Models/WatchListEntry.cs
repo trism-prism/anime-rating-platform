@@ -13,4 +13,7 @@ public class WatchListEntry
     public int Progress { get; set; }
     // stored and editable now; nothing shows a user's list to others yet (custom lists with audiences come later)
     public Audience Audience { get; set; } = Audience.Public;
+    public DateOnly? StartedOn { get; set; }
+    public DateOnly? FinishedOn { get; set; }
+    public int RewatchCount { get; set; }
 }

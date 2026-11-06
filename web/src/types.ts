@@ -205,6 +205,9 @@ export interface WatchEntry {
   status: WatchStatus
   progress: number
   audience: Audience
+  startedOn: string | null
+  finishedOn: string | null
+  rewatchCount: number
 }
 
 // trending and rankings are per series; id is the series id
@@ -296,4 +299,68 @@ export interface ReportItem {
 export interface ReportPage {
   items: ReportItem[]
   nextCursor: number | null
+}
+
+export interface ListSummary {
+  id: number
+  name: string
+  audience?: Audience
+  itemCount: number
+}
+
+export interface ListItem {
+  itemId: number
+  titleId: number | null
+  seriesId: number
+  name: string
+  coverUrl: string | null
+}
+
+export interface ListPageData {
+  id: number
+  name: string
+  audience: Audience
+  userName: string
+  mine: boolean
+  items: ListItem[]
+}
+
+export interface StatsData {
+  statusCounts: Record<string, number>
+  ratingCount: number
+  averageScore: number | null
+  distribution: number[]
+  genres: { name: string; count: number }[]
+  formats: { name: string; count: number }[]
+  episodes: number
+  chapters: number
+  volumesRated: number
+}
+
+export interface YearStats {
+  year: number
+  finished: number
+  episodes: number
+  chapters: number
+  byMonth: number[]
+  genres: { name: string; count: number }[]
+  ratingCount: number
+  averageScore: number | null
+  topRated: { titleId: number; name: string; overall: number }[]
+}
+
+// titleId is set on a title page's list, seriesId alone on a series page's
+export interface AlsoRatedItem {
+  titleId?: number
+  seriesId: number
+  name: string
+  coverUrl: string | null
+  coRaters: number
+  average: number
+}
+
+export interface ListImportStatus {
+  running: boolean
+  result: { added: number; alreadyOnList: number; unmatched: number } | null
+  error: string | null
 }
