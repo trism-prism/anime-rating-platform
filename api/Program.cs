@@ -48,6 +48,7 @@ builder.Services.AddScoped<ListImporter>();
 builder.Services.AddSingleton<ListImportJob>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<CredentialCheck>();
+builder.Services.AddHostedService<RetentionService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
