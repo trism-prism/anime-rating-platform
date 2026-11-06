@@ -43,6 +43,10 @@ export default function Layout() {
       </main>
       <footer className="page muted">
         <NavLink to="/privacy">Privacy</NavLink>
+        <NavLink to="/terms">Terms</NavLink>
+        <NavLink to="/content-policy">Content policy</NavLink>
+        <NavLink to="/faq">FAQ</NavLink>
+        <NavLink to="/support">Support</NavLink>
       </footer>
     </>
   )

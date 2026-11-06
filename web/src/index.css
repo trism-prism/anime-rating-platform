@@ -282,3 +282,9 @@ dialog h3 { margin: 0 0 8px; }
 .profile-rating-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .profile-ratings li { align-items: flex-start; }
 .review-page { max-width: 720px; }
+
+.legal { max-width: 680px; margin: 0 auto; }
+.legal h2 { margin-top: 28px; }
+.legal li { margin: 4px 0; }
+.legal .hint { font-size: 0.85rem; }
+footer.page { display: flex; flex-wrap: wrap; gap: 16px; }
