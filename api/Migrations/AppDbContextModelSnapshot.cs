@@ -248,6 +248,76 @@ namespace api.Migrations
                     b.ToTable("Characters");
                 });
 
+            modelBuilder.Entity("api.Models.CustomList", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Id");
+
+                    b.ToTable("CustomLists");
+                });
+
+            modelBuilder.Entity("api.Models.CustomListItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ListId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TitleId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeriesId");
+
+                    b.HasIndex("TitleId");
+
+                    b.HasIndex("ListId", "SeriesId")
+                        .IsUnique()
+                        .HasFilter("\"SeriesId\" IS NOT NULL");
+
+                    b.HasIndex("ListId", "TitleId")
+                        .IsUnique()
+                        .HasFilter("\"TitleId\" IS NOT NULL");
+
+                    b.ToTable("CustomListItems", t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomListItems_OneTarget", "(\"TitleId\" IS NULL) <> (\"SeriesId\" IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("api.Models.Friendship", b =>
                 {
                     b.Property<int>("Id")
@@ -950,6 +1020,42 @@ namespace api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("api.Models.CustomList", b =>
+                {
+                    b.HasOne("api.Models.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("api.Models.CustomListItem", b =>
+                {
+                    b.HasOne("api.Models.CustomList", "List")
+                        .WithMany("Items")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("api.Models.Series", "Series")
+                        .WithMany()
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("api.Models.Title", "Title")
+                        .WithMany()
+                        .HasForeignKey("TitleId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("List");
+
+                    b.Navigation("Series");
+
+                    b.Navigation("Title");
+                });
+
             modelBuilder.Entity("api.Models.Friendship", b =>
                 {
                     b.HasOne("api.Models.AppUser", null)
@@ -1146,6 +1252,11 @@ namespace api.Migrations
                     b.Navigation("Title");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("api.Models.CustomList", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("api.Models.Series", b =>

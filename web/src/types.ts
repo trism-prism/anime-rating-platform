@@ -300,3 +300,27 @@ export interface ReportPage {
   items: ReportItem[]
   nextCursor: number | null
 }
+
+export interface ListSummary {
+  id: number
+  name: string
+  audience?: Audience
+  itemCount: number
+}
+
+export interface ListItem {
+  itemId: number
+  titleId: number | null
+  seriesId: number
+  name: string
+  coverUrl: string | null
+}
+
+export interface ListPageData {
+  id: number
+  name: string
+  audience: Audience
+  userName: string
+  mine: boolean
+  items: ListItem[]
+}

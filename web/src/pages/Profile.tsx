@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
 import FriendsSection from '../components/FriendsSection'
+import ProfileLists from '../components/ProfileLists'
 import ProfileRatings from '../components/ProfileRatings'
 import ReportButton from '../components/ReportButton'
 import type { Profile as ProfileData } from '../types'
@@ -114,6 +115,8 @@ function Profile({ username }: { username: string }) {
       {actionError && <p className="error" role="alert">{actionError}</p>}
 
       {state === 'Self' && <FriendsSection onChange={load} />}
+
+      <ProfileLists key={`l:${p.userName}:${p.viewerState}`} username={p.userName} />
 
       <ProfileRatings key={`${p.userName}:${p.viewerState}`}username={p.userName} />
 

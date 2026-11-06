@@ -4,6 +4,7 @@ import { api } from '../api'
 import ScoreBar from '../components/ScoreBar'
 import RateForm from '../components/RateForm'
 import ListForm from '../components/ListForm'
+import AddToList from '../components/AddToList'
 import Reviews from '../components/Reviews'
 import type { TitleDetail as Detail } from '../types'
 
@@ -111,6 +112,7 @@ export default function TitleDetail() {
 
       <h2>Your list</h2>
       <ListForm key={title.id} titleId={title.id} />
+      <AddToList key={title.id} titleId={title.id} />
 
 
       <h2>Characters</h2>
