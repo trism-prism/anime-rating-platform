@@ -18,6 +18,14 @@ public class TrackingPostgresTests
     }
 
     [Fact]
+    public async Task Recommendations_in_sql()
+    {
+        if (Admin == null) return;
+        await using var pg = await Migrated();
+        await RecommendationTests.AssertRecommendations(() => pg.Db());
+    }
+
+    [Fact]
     public async Task Stats_in_sql()
     {
         if (Admin == null) return;

@@ -348,3 +348,13 @@ export interface YearStats {
   averageScore: number | null
   topRated: { titleId: number; name: string; overall: number }[]
 }
+
+// titleId is set on a title page's list, seriesId alone on a series page's
+export interface AlsoRatedItem {
+  titleId?: number
+  seriesId: number
+  name: string
+  coverUrl: string | null
+  coRaters: number
+  average: number
+}
