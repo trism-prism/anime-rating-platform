@@ -17,24 +17,46 @@ public static class Retention
     public const int UnverifiedDays = 30, ReportDays = 365, NotificationDays = 90;
     const int AccountsPerRun = 100; // each goes through the full account deletion; the rest wait for tomorrow
 
-    public static async Task<RetentionCounts> Run(AppDbContext db, DateTime now)
+    // a step that fails is logged and skipped, so one bad row cannot stop the others (or tomorrow's run of the same step)
+    public static async Task<RetentionCounts> Run(AppDbContext db, DateTime now, ILogger? log = null)
     {
-        var sessions = await Purge(db, db.Sessions.Where(s => s.ExpiresAt < now || s.RevokedAt != null));
-
-        var cutoff = now.AddDays(-UnverifiedDays);
-        var stale = await db.Users.Where(u => !u.EmailConfirmed && u.CreatedAt < cutoff).OrderBy(u => u.CreatedAt).Select(u => u.Id).Take(AccountsPerRun).ToListAsync();
-        var accounts = 0;
-        foreach (var id in stale)
+        async Task<int> Step(string name, Func<Task<int>> work)
         {
-            if (await AccountDeletion.Delete(db, id)) accounts++;
-            db.ChangeTracker.Clear();
+            try { return await work(); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                db.ChangeTracker.Clear();
+                log?.LogError(ex.GetType().Name + " in retention step {Step}: {Message}", name, ex.Message);
+                return 0;
+            }
         }
 
+        var sessions = await Step("sessions", () => Purge(db, db.Sessions.Where(s => s.ExpiresAt < now || s.RevokedAt != null)));
+
+        var accounts = await Step("unverified accounts", async () =>
+        {
+            var cutoff = now.AddDays(-UnverifiedDays);
+            // an admin without a verified email is left alone: deleting the last admin would leave nobody to moderate or read support mail
+            var stale = await db.Users.Where(u => !u.EmailConfirmed && u.CreatedAt < cutoff && !db.UserRoles.Any(r => r.UserId == u.Id))
+                .OrderBy(u => u.CreatedAt).Select(u => u.Id).Take(AccountsPerRun).ToListAsync();
+            var n = 0;
+            foreach (var id in stale)
+            {
+                try { if (await AccountDeletion.Delete(db, id)) n++; }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    log?.LogError(ex.GetType().Name + " deleting unverified account {UserId}: {Message}", id, ex.Message);
+                }
+                db.ChangeTracker.Clear();
+            }
+            return n;
+        });
+
         var reportCutoff = now.AddDays(-ReportDays);
-        var reports = await Purge(db, db.Reports.Where(r => r.Status != ReportStatus.Open && r.ResolvedAt != null && r.ResolvedAt < reportCutoff));
+        var reports = await Step("reports", () => Purge(db, db.Reports.Where(r => r.Status != ReportStatus.Open && r.ResolvedAt != null && r.ResolvedAt < reportCutoff)));
 
         var notificationCutoff = now.AddDays(-NotificationDays);
-        var notifications = await Purge(db, db.Notifications.Where(n => n.CreatedAt < notificationCutoff));
+        var notifications = await Step("notifications", () => Purge(db, db.Notifications.Where(n => n.CreatedAt < notificationCutoff)));
         return new RetentionCounts(sessions, accounts, reports, notifications);
     }
 
@@ -89,7 +111,7 @@ public class RetentionService : BackgroundService
             log.LogInformation("Retention job skipped: another instance is running it.");
             return null;
         }
-        var c = await Retention.Run(db, DateTime.UtcNow);
+        var c = await Retention.Run(db, DateTime.UtcNow, log);
         log.LogInformation("Retention job removed {Sessions} sessions, {Accounts} unverified accounts, {Reports} settled reports, {Notifications} notifications.",
             c.Sessions, c.UnverifiedAccounts, c.Reports, c.Notifications);
         return c;

@@ -26,7 +26,8 @@ public class RetentionTests
         await Seed(open); // a b c d, all confirmed and created "now" by the clock, so the cutoffs below are far from them
         using (var db = open())
         {
-            db.Users.AddRange(Extra("old-unverified", 40, false), Extra("new-unverified", 5, false), Extra("old-verified", 400, true));
+            db.Users.AddRange(Extra("old-unverified", 40, false), Extra("new-unverified", 5, false), Extra("old-verified", 400, true), Extra("old-admin", 90, false));
+            db.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<string> { UserId = "old-admin", RoleId = "admin-role" }); // an admin who never verified is kept
             await db.SaveChangesAsync();
             foreach (var u in await db.Users.ToListAsync()) if (u.Id is "a" or "b" or "c" or "d") u.CreatedAt = Now.AddDays(-1);
             // the never-verified account rated title 1 once: its score must leave the total
@@ -54,7 +55,7 @@ public class RetentionTests
 
         using (var db = open())
         {
-            Assert.Equal(new[] { "a", "b", "c", "d", "new-unverified", "old-verified" }, (await db.Users.Select(u => u.Id).ToListAsync()).Order());
+            Assert.Equal(new[] { "a", "b", "c", "d", "new-unverified", "old-admin", "old-verified" }, (await db.Users.Select(u => u.Id).ToListAsync()).Order());
             Assert.Equal(1, await db.Sessions.CountAsync()); // the active one
             Assert.Equal(new[] { ReportStatus.Open, ReportStatus.Dismissed }, (await db.Reports.OrderBy(r => r.Id).Select(r => r.Status).ToListAsync()).OrderBy(s => s));
             Assert.Equal(1, await db.Notifications.CountAsync());
