@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace api.Controllers;
 
@@ -72,10 +73,15 @@ public class ReportsController : ControllerBase
         };
         _db.Reports.Add(report);
         try { await _db.SaveChangesAsync(); }
-        catch (DbUpdateException) // a double click filed it first (unique index), or the target's author is gone
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            _db.ChangeTracker.Clear();
+            _db.ChangeTracker.Clear(); // a double click filed it first (unique index)
             return Conflict(new { message = "You already reported this." });
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            _db.ChangeTracker.Clear(); // the target's author is gone
+            return NotFound();
         }
         return StatusCode(201, new { report.Id });
     }

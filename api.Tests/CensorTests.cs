@@ -12,6 +12,8 @@ public class CensorTests
     [InlineData("two kikes here", "two ***** here")] // plural
     [InlineData("retard, retarded!", "******, ********!")]
     [InlineData("(chink)", "(*****)")]
+    [InlineData("nigger2", "******2")] // digits do not shield a word
+    [InlineData("1faggot", "1******")]
     public void Slurs_become_asterisks_of_equal_length(string input, string expected)
     {
         Assert.Equal(expected, Censor.Mask(input));

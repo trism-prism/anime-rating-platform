@@ -5,7 +5,8 @@ namespace api.Services;
 
 // Masks slurs with asterisks of the same length, on write. Matches whole words only (so "raccoon" is safe), any case, with
 // repeated letters ("niggger") and common look-alikes (n1gger, f@ggot). A trailing "s" is covered ("kikes").
-// ponytail: no separators between letters (n.i.g.g.e.r) and no other alphabets; add when it shows up in real text.
+// ponytail: known gaps: no separators between letters (n.i.g.g.e.r), no zero-width/format characters inside a word, no fullwidth
+// letters, no other alphabets; add when it shows up in real text. Digits next to a word do not protect it ("nigger2" is masked).
 public static class Censor
 {
     static readonly Dictionary<char, string> Alike = new()
@@ -14,7 +15,7 @@ public static class Censor
     };
 
     static readonly Regex Slurs = new(
-        @"(?<![\p{L}\p{N}])(?:" + string.Join("|", SlurList.Words.Select(Pattern)) + @")s?(?![\p{L}\p{N}])",
+        @"(?<![\p{L}])(?:" + string.Join("|", SlurList.Words.Select(Pattern)) + @")s?(?![\p{L}])",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     // each distinct letter becomes a class that repeats; "gg" in the word collapses so "g+" covers any number of them
