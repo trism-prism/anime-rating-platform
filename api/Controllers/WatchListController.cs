@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace api.Controllers;
 
 public record WatchListRequest(string? Status, int Progress, string? Audience = null);
+public record WatchDatesRequest(DateOnly? StartedOn, DateOnly? FinishedOn, int RewatchCount);
 
 [ApiController]
 [Authorize]
@@ -28,7 +29,7 @@ public class WatchListController : ControllerBase
         var userId = UserId;
         var list = await _db.WatchList
             .Where(w => w.UserId == userId)
-            .Select(w => new { titleId = w.TitleId, seriesId = w.Title.SeriesId, seriesName = w.Title.Series.Name, name = w.Title.Name, coverUrl = w.Title.CoverUrl, type = w.Title.Type.ToString(), status = w.Status.ToString(), w.Progress, audience = w.Audience.ToString() })
+            .Select(w => new { titleId = w.TitleId, seriesId = w.Title.SeriesId, seriesName = w.Title.Series.Name, name = w.Title.Name, coverUrl = w.Title.CoverUrl, type = w.Title.Type.ToString(), status = w.Status.ToString(), w.Progress, audience = w.Audience.ToString(), w.StartedOn, w.FinishedOn, w.RewatchCount })
             .ToListAsync();
         return Ok(list);
     }
@@ -69,6 +70,23 @@ public class WatchListController : ControllerBase
         entry.Audience = audience;
         await _db.SaveChangesAsync();
         return Ok(new { audience = audience.ToString() });
+    }
+
+    // dates and rewatch count replace what was stored (null clears a date), so a status change never touches them
+    [HttpPut("{titleId}/dates")]
+    [EnableRateLimiting("list-write")]
+    public async Task<IActionResult> SetDates(int titleId, WatchDatesRequest req)
+    {
+        var problem = TrackingRules.CheckDates(req.StartedOn, req.FinishedOn, req.RewatchCount);
+        if (problem != null) return BadRequest(new { message = problem });
+        var userId = UserId;
+        var entry = await _db.WatchList.FirstOrDefaultAsync(w => w.UserId == userId && w.TitleId == titleId);
+        if (entry == null) return NotFound();
+        entry.StartedOn = req.StartedOn;
+        entry.FinishedOn = req.FinishedOn;
+        entry.RewatchCount = req.RewatchCount;
+        await _db.SaveChangesAsync();
+        return Ok(new { entry.StartedOn, entry.FinishedOn, entry.RewatchCount });
     }
 
     [HttpDelete("{titleId}")]

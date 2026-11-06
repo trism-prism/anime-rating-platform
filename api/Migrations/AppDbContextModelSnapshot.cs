@@ -866,8 +866,17 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("FinishedOn")
+                        .HasColumnType("date");
+
                     b.Property<int>("Progress")
                         .HasColumnType("integer");
+
+                    b.Property<int>("RewatchCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("StartedOn")
+                        .HasColumnType("date");
 
                     b.Property<string>("Status")
                         .IsRequired()

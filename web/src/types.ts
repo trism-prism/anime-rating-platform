@@ -205,6 +205,9 @@ export interface WatchEntry {
   status: WatchStatus
   progress: number
   audience: Audience
+  startedOn: string | null
+  finishedOn: string | null
+  rewatchCount: number
 }
 
 // trending and rankings are per series; id is the series id
