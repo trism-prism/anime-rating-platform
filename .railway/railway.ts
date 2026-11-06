@@ -3,7 +3,7 @@ import { defineRailway, github, project, service } from "railway/iac";
 export const partial = "anime-rating-platform";
 export default defineRailway(() => {
   const animeRatingPlatform = service("anime-rating-platform", {
-    source: github("trism-dev/anime-rating-platform", { branch: "main", checkSuites: true }),
+    source: github("trism-prism/anime-rating-platform", { branch: "main", checkSuites: true }),
     build: { buildCommand: "dotnet publish api/api.csproj -c Release -o out", buildEnvironment: "V3", builder: "NIXPACKS" },
     start: "cd out && dotnet api.dll",
     healthcheck: "/health",
