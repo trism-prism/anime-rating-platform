@@ -88,10 +88,11 @@ public class GoogleTests
     }
 
     // a browser coming back from Google with the cookie that start set
-    static (HttpContext Http, string State) Back(string state = "state123")
+    // terms: the age and Terms boxes were ticked on Register before the redirect to Google
+    static (HttpContext Http, string State) Back(string state = "state123", bool terms = true)
     {
         var http = new DefaultHttpContext();
-        http.Request.Headers.Cookie = $"g_oauth={state}.verifier456";
+        http.Request.Headers.Cookie = $"g_oauth={state}.verifier456" + (terms ? ".1" : "");
         return (http, state);
     }
 
@@ -209,6 +210,39 @@ public class GoogleTests
         // coming back later finds the same account
         Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("Sam@Example.com")));
         Assert.Single(users.Users);
+    }
+
+    [Fact]
+    public async Task A_new_google_account_needs_the_boxes_ticked_and_stores_the_acceptance()
+    {
+        using var p = Build();
+        var users = p.GetRequiredService<UserManager<AppUser>>();
+
+        // no tick (for example "Continue with Google" on the login page): refused, nothing created
+        var (bare, _) = Back(terms: false);
+        var r = (RedirectResult)await Make(p, new TokenHandler(IdToken("sam@example.com")), bare).Callback("code1", "state123");
+        Assert.Equal(Front + "/login?error=terms", r.Url);
+        Assert.Empty(users.Users);
+
+        // ticked on Register: created with the acceptance recorded
+        Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("sam@example.com")));
+        var user = Assert.Single(users.Users);
+        Assert.Equal(Terms.Version, user.TermsVersion);
+        Assert.InRange(user.TermsAcceptedAt!.Value, DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow.AddMinutes(1));
+
+        // signing in again without ticking is fine for an existing account
+        var (again, _) = Back(terms: false);
+        var back = (RedirectResult)await Make(p, new TokenHandler(IdToken("sam@example.com")), again).Callback("code1", "state123");
+        Assert.StartsWith(Front + "/auth/callback", back.Url);
+    }
+
+    [Fact]
+    public void Start_remembers_the_tick_in_the_cookie()
+    {
+        using var p = Build();
+        var http = new DefaultHttpContext();
+        Make(p, new TokenHandler(""), http).Start(terms: true);
+        Assert.EndsWith(".1", http.Response.Headers.SetCookie.ToString().Split('=', 2)[1].Split(';')[0]);
     }
 
     [Fact]

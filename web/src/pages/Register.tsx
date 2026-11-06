@@ -9,6 +9,8 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
+  const [age, setAge] = useState(false)
+  const [terms, setTerms] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -19,7 +21,7 @@ export default function Register() {
     try {
       await api('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password, userName: userName || null }),
+        body: JSON.stringify({ email, password, userName: userName || null, ageConfirmed: age, termsAccepted: terms }),
       })
       navigate('/login', { state: { note: 'Account created. Log in, then verify your email to write reviews.' } })
     } catch (err) {
@@ -40,9 +42,17 @@ export default function Register() {
       </label>
       <PasswordInput label="Password" value={password} onChange={setPassword} minLength={12} autoComplete="new-password" />
       <p className="muted hint">At least 12 characters. A passphrase works well. Passwords found in data breaches are refused.</p>
+      <label className="check">
+        <input type="checkbox" required checked={age} onChange={(e) => setAge(e.target.checked)} />
+        I am 13 years old or older
+      </label>
+      <label className="check">
+        <input type="checkbox" required checked={terms} onChange={(e) => setTerms(e.target.checked)} />
+        <span>I accept the <Link to="/terms" className="link">Terms of Service</Link> and the <Link to="/privacy" className="link">Privacy policy</Link></span>
+      </label>
       {error && <p className="error">{error}</p>}
       <button type="submit" disabled={busy}>Create account</button>
-      <GoogleLink />
+      <GoogleLink ticked={age && terms} />
       <p className="muted">Have an account? <Link to="/login" className="link">Login</Link></p>
     </form>
   )

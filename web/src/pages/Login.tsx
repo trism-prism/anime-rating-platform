@@ -8,6 +8,7 @@ import PasswordInput from '../components/PasswordInput'
 // ?error=... as set by the Google callback
 const GOOGLE_ERRORS: Record<string, string> = {
   google: 'Google sign-in failed. Try again or use your password.',
+  terms: 'No account uses that Google address yet. To create one, use Register and tick the age and Terms boxes first.',
 }
 
 export default function Login() {
