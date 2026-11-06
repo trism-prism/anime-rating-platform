@@ -324,3 +324,27 @@ export interface ListPageData {
   mine: boolean
   items: ListItem[]
 }
+
+export interface StatsData {
+  statusCounts: Record<string, number>
+  ratingCount: number
+  averageScore: number | null
+  distribution: number[]
+  genres: { name: string; count: number }[]
+  formats: { name: string; count: number }[]
+  episodes: number
+  chapters: number
+  volumesRated: number
+}
+
+export interface YearStats {
+  year: number
+  finished: number
+  episodes: number
+  chapters: number
+  byMonth: number[]
+  genres: { name: string; count: number }[]
+  ratingCount: number
+  averageScore: number | null
+  topRated: { titleId: number; name: string; overall: number }[]
+}

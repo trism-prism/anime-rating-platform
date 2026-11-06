@@ -122,6 +122,7 @@ export default function AvatarMenu() {
           {unverified && <Link to="/verify" state={{ from: pathname }} role="menuitem" onClick={() => setOpen(false)}>Verify email</Link>}
           <Link to={`/u/${encodeURIComponent(user.userName)}`} role="menuitem" onClick={() => setOpen(false)}>Profile</Link>
           <Link to="/lists" role="menuitem" onClick={() => setOpen(false)}>My lists</Link>
+          <Link to="/stats" role="menuitem" onClick={() => setOpen(false)}>Stats</Link>
           <Link to="/feed" role="menuitem" onClick={() => setOpen(false)}>Friends' activity</Link>
           <Link to="/settings" role="menuitem" onClick={() => setOpen(false)}>Settings</Link>
           <Link to="/settings/notifications" role="menuitem" onClick={() => setOpen(false)}>Notification preferences</Link>

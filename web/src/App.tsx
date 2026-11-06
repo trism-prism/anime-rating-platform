@@ -9,6 +9,7 @@ import Rankings from './pages/Rankings'
 import MyList from './pages/MyList'
 import MyLists from './pages/MyLists'
 import ListPage from './pages/ListPage'
+import Stats from './pages/Stats'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -38,6 +39,8 @@ export default function App() {
           <Route path="/my-list" element={<MyList />} />
           <Route path="/lists" element={<MyLists />} />
           <Route path="/lists/:id" element={<ListPage />} />
+          <Route path="/stats" element={<Stats />} />
+          <Route path="/stats/:year" element={<Stats />} />
           <Route path="/feed" element={<Feed />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
