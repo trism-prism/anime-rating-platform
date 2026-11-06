@@ -102,6 +102,27 @@ public static class SocialRules
         db.Notifications.RemoveRange(await db.Notifications.Where(n => n.Type == NotificationType.Reaction && n.SubjectId == ratingId).ToListAsync());
     }
 
+    // Admin removal, shared by the direct admin routes and the report queue; both stage the change and the caller saves.
+    // false: already gone. A review loses its text (the score stays); a reply is deleted.
+    public static async Task<bool> RemoveReviewText(AppDbContext db, int id)
+    {
+        var r = await db.Ratings.FirstOrDefaultAsync(x => x.Id == id && x.ReviewText != null);
+        if (r == null) return false;
+        r.ReviewText = null;
+        r.Spoiler = false;
+        await RemoveReviewNotifications(db, id); // they would point at a review that is gone
+        return true;
+    }
+
+    public static async Task<bool> RemoveReply(AppDbContext db, int id)
+    {
+        var reply = await db.Replies.FirstOrDefaultAsync(x => x.Id == id);
+        if (reply == null) return false;
+        db.Replies.Remove(reply);
+        await RemoveReplyNotifications(db, new[] { id });
+        return true;
+    }
+
     // when one blocks the other, the replies and reactions between them leave both bells
     public static async Task RemoveReviewNotificationsBetween(AppDbContext db, string a, string b)
     {

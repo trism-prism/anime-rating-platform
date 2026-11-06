@@ -23,6 +23,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<Reply> Replies => Set<Reply>();
     public DbSet<Reaction> Reactions => Set<Reaction>();
+    public DbSet<Report> Reports => Set<Report>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -111,6 +112,19 @@ public class AppDbContext : IdentityDbContext<AppUser>
             e.HasIndex(n => n.SubjectId); // cleanup when a friendship goes
             // one Reaction notification per reactor per review, enforced here so a double click can't make two
             e.HasIndex(n => new { n.UserId, n.ActorId, n.SubjectId }).IsUnique().HasFilter("\"Type\" = 'Reaction'");
+        });
+        b.Entity<Report>(e =>
+        {
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.ReporterId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.Target).HasConversion<string>();
+            e.Property(x => x.Reason).HasConversion<string>();
+            e.Property(x => x.Status).HasConversion<string>();
+            e.Property(x => x.Status).IsConcurrencyToken(); // dismiss and remove act only on a report that is still open
+            // one open report per reporter and target, enforced here so a double click can't file two
+            e.HasIndex(x => new { x.ReporterId, x.Target, x.TargetId, x.TargetUserId }).IsUnique().HasFilter("\"Status\" = 'Open'");
+            e.HasIndex(x => x.Id).HasFilter("\"Status\" = 'Open'"); // the admin queue
+            e.HasIndex(x => x.TargetUserId); // the cascade when an account goes
         });
         b.Entity<NotificationPreference>(e =>
         {
