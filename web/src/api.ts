@@ -27,12 +27,14 @@ export function setLostHandler(fn: (userId: string) => void) {
   onLost = fn
 }
 
-async function request<T>(path: string, options: RequestInit, bearer: string | null): Promise<T> {
+// file: a successful answer is a download, returned as a Blob instead of parsed JSON
+async function request<T>(path: string, options: RequestInit, bearer: string | null, file = false): Promise<T> {
   const headers = new Headers(options.headers)
   if (bearer) headers.set('Authorization', `Bearer ${bearer}`)
   if (options.body) headers.set('Content-Type', 'application/json')
 
   const res = await fetch(BASE + path, { ...options, headers })
+  if (file && res.ok) return (await res.blob()) as T
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     // the API sends either {message} or {errors:[...]}
@@ -75,7 +77,7 @@ async function renew(userId: string) {
   else if (activeUser === userId) token = s.accessToken
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, options: RequestInit = {}, file = false): Promise<T> {
   let user = activeUser
   const plain = path.startsWith('/auth/') // login and friends: a 401 there is just an answer
   if (user && !token && !plain) {
@@ -84,12 +86,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
   const used = token
   try {
-    return await request<T>(path, options, used)
+    return await request<T>(path, options, used, file)
   } catch (err) {
     if (!(err instanceof ApiError && err.status === 401 && user && !plain)) throw err
     // expired access token: refresh once (unless another call just did) and retry once
     if (token === used) await renew(user)
     if (!token) throw err
-    return request<T>(path, options, token)
+    return request<T>(path, options, token, file)
   }
 }

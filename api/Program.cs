@@ -110,6 +110,7 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("audience", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
     o.AddPolicy("list-write", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
     o.AddPolicy("anilist-import", ctx => SocialRules.PerUser(ctx, 1, TimeSpan.FromMinutes(10)));
+    o.AddPolicy("export", ctx => SocialRules.PerUser(ctx, 5, TimeSpan.FromHours(1)));
     o.AddPolicy("report", ctx => SocialRules.PerUser(ctx, 10, TimeSpan.FromHours(1)));
     o.AddPolicy("profile", ctx => SocialRules.PerUser(ctx, 60, TimeSpan.FromMinutes(1))); // per user, per IP when anonymous
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(

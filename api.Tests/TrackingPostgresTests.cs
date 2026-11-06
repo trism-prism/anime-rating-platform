@@ -26,6 +26,16 @@ public class TrackingPostgresTests
     }
 
     [Fact]
+    public async Task Export_in_sql()
+    {
+        if (Admin == null) return;
+        await using var pg = await Migrated();
+        var (c, _) = await ExportTests.Setup(b => b.UseNpgsql(pg.ConnectionString));
+        await ExportTests.AssertJson(c);
+        await ExportTests.AssertCsv(c);
+    }
+
+    [Fact]
     public async Task Stats_in_sql()
     {
         if (Admin == null) return;
