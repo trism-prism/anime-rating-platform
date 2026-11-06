@@ -87,7 +87,7 @@ export default function Browse() {
             {error} <button onClick={() => { setError(''); setTick((t) => t + 1) }}>Retry</button>
           </p>
         )}
-        {loading && !error && <p className="muted">Loading...</p>}
+        {loading && !error && <p className="muted">Loading</p>}
         {!loading && data.items.length === 0 && <p className="muted">No series found.</p>}
         {!loading && (
           <>
@@ -98,9 +98,9 @@ export default function Browse() {
             </div>
             <div className="pager">
               {data.next ? (
-                <button disabled={data.moreBusy} onClick={loadMore}>{data.moreBusy ? 'Loading...' : 'Load more'}</button>
+                <button disabled={data.moreBusy} onClick={loadMore}>{data.moreBusy ? 'Loading' : 'Load more'}</button>
               ) : (
-                data.items.length > 0 && <span className="muted">That's everything.</span>
+                data.items.length > 0 && <span className="muted">That's everything</span>
               )}
               {data.moreError && <span className="error">{data.moreError}</span>}
             </div>

@@ -71,7 +71,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
     try {
       await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review, audience, spoiler }) })
       setHasRating(true)
-      setMsg('Saved.')
+      setMsg('Saved')
       onChanged()
     } catch (err) {
       setError((err as Error).message)
@@ -91,7 +91,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
       setSpoiler(false)
       setAudience('Public')
       setHasRating(false)
-      setMsg('Rating deleted.')
+      setMsg('Rating deleted')
       onChanged()
     } catch (err) {
       setError((err as Error).message)

@@ -44,8 +44,8 @@ export default function SeriesPage() {
     return (
       <div aria-busy="true">
         <div className="detail">
-          <div className="cover skeleton" style={{ aspectRatio: '2 / 3' }} />
-          <div className="skeleton-text"><p className="muted">Loading...</p></div>
+          <div className="cover skeleton noimg" />
+          <div className="skeleton-text"><p className="muted">Loading</p></div>
         </div>
       </div>
     )
@@ -57,7 +57,7 @@ export default function SeriesPage() {
   return (
     <div>
       <div className="detail">
-        {s.coverUrl ? <img className="cover" src={s.coverUrl} alt="" /> : <div className="cover noimg" style={{ aspectRatio: '2 / 3' }} />}
+        {s.coverUrl ? <img className="cover" src={s.coverUrl} alt="" /> : <div className="cover noimg" />}
         <div>
           <h1>{s.name}</h1>
           <p className="muted">

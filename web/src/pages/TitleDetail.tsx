@@ -39,7 +39,7 @@ export default function TitleDetail() {
       </p>
     )
   }
-  if (!title || title.id !== Number(id)) return <p className="muted">Loading...</p>
+  if (!title || title.id !== Number(id)) return <p className="muted">Loading</p>
 
   const a = title.averages
   const volume = picked.titleId === title.id ? picked.volume : 0

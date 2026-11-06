@@ -35,7 +35,7 @@ export default function SearchBox({ onSubmit }: { onSubmit: (text: string) => vo
   const ready = q.length >= MIN_CHARS && result?.q === q
   const options = ready ? result.list : []
   const showPopup = open && q.length >= MIN_CHARS
-  const status = !ready ? 'Searching...' : result.failed ? 'Suggestions are unavailable.' : options.length === 0 ? 'No matching series.' : ''
+  const status = !ready ? 'Searching' : result.failed ? 'Suggestions are unavailable.' : options.length === 0 ? 'No matching series.' : ''
 
   function choose(s: Suggestion) {
     setOpen(false)

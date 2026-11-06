@@ -38,7 +38,7 @@ export default function GoogleCallback() {
   return (
     <div className="auth-form">
       <h1>Google sign-in</h1>
-      {error ? <p className="error" role="alert">{error}</p> : <p className="muted">Signing you in...</p>}
+      {error ? <p className="error" role="alert">{error}</p> : <p className="muted">Signing you in</p>}
       {error && <Link to="/login" className="link">Back to login</Link>}
     </div>
   )

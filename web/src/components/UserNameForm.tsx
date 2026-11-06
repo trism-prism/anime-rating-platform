@@ -19,7 +19,7 @@ export default function UserNameForm() {
       const r = await api<{ userName: string }>('/me/username', { method: 'PUT', body: JSON.stringify({ userName: name }) })
       rename(r.userName)
       setName(r.userName)
-      setMsg('Display name saved.')
+      setMsg('Display name saved')
     } catch (err) {
       setError((err as Error).message)
     } finally {

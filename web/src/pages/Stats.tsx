@@ -12,7 +12,7 @@ function Bars({ rows }: { rows: { label: string; value: number }[] }) {
       {rows.map((r) => (
         <div key={r.label} className="score-row">
           <span className="score-label">{r.label}</span>
-          <div className="bar"><div className="bar-fill" style={{ width: `${(r.value / max) * 100}%` }} /></div>
+          <div className="bar"><div className={r.value === max ? 'bar-fill lead' : 'bar-fill'} style={{ width: `${(r.value / max) * 100}%` }} /></div>
           <span className="score-value">{r.value}</span>
         </div>
       ))}
@@ -38,7 +38,7 @@ function Overall() {
   }, [])
 
   if (error) return <p className="error">{error}</p>
-  if (!s) return <p className="muted">Loading...</p>
+  if (!s) return <p className="muted">Loading</p>
   const thisYear = new Date().getFullYear()
 
   return (
@@ -78,7 +78,7 @@ function Year({ year }: { year: string }) {
   }, [year])
 
   if (error) return <p className="error">{error}</p>
-  if (!s) return <p className="muted">Loading...</p>
+  if (!s) return <p className="muted">Loading</p>
 
   return (
     <div>

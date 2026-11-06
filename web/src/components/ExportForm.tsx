@@ -24,7 +24,7 @@ export default function ExportForm() {
       a.click()
       URL.revokeObjectURL(url)
       setPassword('')
-      setMsg('Download started.')
+      setMsg('Download started')
     } catch (err) {
       setError((err as Error).message)
     } finally {
