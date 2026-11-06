@@ -41,7 +41,7 @@ export default function Rankings() {
         </select>
       </div>
       {error && <p className="error">{error}</p>}
-      {loading && !error && <p className="muted">Loading...</p>}
+      {loading && !error && <p className="muted">Loading</p>}
       {!loading && rows.list.length === 0 && <p className="muted">Not enough ratings yet.</p>}
       {!loading && (
         <ol className="rankings">

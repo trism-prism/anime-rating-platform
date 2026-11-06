@@ -29,7 +29,7 @@ export default function Trending() {
         ))}
       </div>
       {error && <p className="error">{error}</p>}
-      {loading && !error && <p className="muted">Loading...</p>}
+      {loading && !error && <p className="muted">Loading</p>}
       {!loading && items.list.length === 0 && <p className="muted">Nothing trending right now.</p>}
       {!loading && (
         <div className="grid">

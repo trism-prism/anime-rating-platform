@@ -54,7 +54,7 @@ export default function NotificationPreferences() {
       <h1>Notification preferences</h1>
       <p className="muted">Notify me when:</p>
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); load() }}>Retry</button></p>}
-      {!prefs && !error && <p className="muted">Loading...</p>}
+      {!prefs && !error && <p className="muted">Loading</p>}
       {prefs && (
         <ul className="prefs">
           {prefs.map((p) => (

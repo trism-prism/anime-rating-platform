@@ -73,7 +73,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
         {items?.map((r) => <ReviewCard key={r.id} review={r} showTitle={showTitle} onChange={update} />)}
       </div>
       {moreError && <p className="error" role="alert">{moreError} <button onClick={loadMore}>Retry</button></p>}
-      {items && next && !moreError && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more'}</button>}
+      {items && next && !moreError && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading' : 'Load more'}</button>}
     </section>
   )
 }

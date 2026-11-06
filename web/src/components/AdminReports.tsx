@@ -60,7 +60,7 @@ export default function AdminReports() {
       <h2 id="reports-title">Reports</h2>
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); loadFirst() }}>Retry</button></p>}
       {actionError && <p className="error" role="alert">{actionError}</p>}
-      {!items && !error && <p className="muted">Loading...</p>}
+      {!items && !error && <p className="muted">Loading</p>}
       {items && items.length === 0 && <p className="muted">No open reports.</p>}
       {items && items.length > 0 && (
         <ul className="people">
@@ -84,7 +84,7 @@ export default function AdminReports() {
           ))}
         </ul>
       )}
-      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more'}</button>}
+      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading' : 'Load more'}</button>}
     </section>
   )
 }

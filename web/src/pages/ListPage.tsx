@@ -24,7 +24,7 @@ function List({ id }: { id: string }) {
   }, [id])
 
   if (missing) return <div><h1>List not found</h1><p className="muted">It does not exist, or you can not see it.</p></div>
-  if (!data) return error ? <p className="error">{error}</p> : <p className="muted">Loading...</p>
+  if (!data) return error ? <p className="error">{error}</p> : <p className="muted">Loading</p>
 
   async function rename() {
     setError('')

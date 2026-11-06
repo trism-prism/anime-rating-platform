@@ -76,7 +76,7 @@ export default function MyList() {
         ))}
       </div>
       {!list && listError && <p className="error">{listError} <button onClick={() => { setListError(''); setTick((t) => t + 1) }}>Retry</button></p>}
-      {!list && !listError && <p className="muted">Loading...</p>}
+      {!list && !listError && <p className="muted">Loading</p>}
       {list && shown.length === 0 && <p className="muted">Nothing here yet. Add titles from their pages.</p>}
       {shown.map((e) => (
         <div key={e.titleId} className="list-row">
@@ -111,7 +111,7 @@ export default function MyList() {
 
       <h2>My ratings</h2>
       {!ratings && ratingsError && <p className="error">{ratingsError} <button onClick={() => { setRatingsError(''); setTick((t) => t + 1) }}>Retry</button></p>}
-      {!ratings && !ratingsError && <p className="muted">Loading...</p>}
+      {!ratings && !ratingsError && <p className="muted">Loading</p>}
       {ratings && ratings.length === 0 && <p className="muted">You haven't rated anything yet.</p>}
       {ratings && ratings.length > 0 && (
         <div className="table-scroll">

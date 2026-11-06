@@ -45,7 +45,7 @@ export default function ProfileRatings({ username }: { username: string }) {
     <section aria-labelledby="ratings-title">
       <h2 id="ratings-title">Ratings</h2>
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); loadFirst() }}>Retry</button></p>}
-      {!items && !error && <p className="muted">Loading...</p>}
+      {!items && !error && <p className="muted">Loading</p>}
       {items && items.length === 0 && <p className="muted">Nothing to show.</p>}
       {items && items.length > 0 && (
         <ul className="people profile-ratings">
@@ -66,7 +66,7 @@ export default function ProfileRatings({ username }: { username: string }) {
           ))}
         </ul>
       )}
-      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load more'}</button>}
+      {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading' : 'Load more'}</button>}
     </section>
   )
 }

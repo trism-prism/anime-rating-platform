@@ -61,7 +61,7 @@ export default function MyLists() {
         <button disabled={!name.trim()}>Create list</button>
       </form>
       {error && <p className="error">{error}</p>}
-      {!lists && !error && <p className="muted">Loading...</p>}
+      {!lists && !error && <p className="muted">Loading</p>}
       {lists && lists.length === 0 && <p className="muted">No lists yet.</p>}
       {lists?.map((l) => (
         <div key={l.id} className="list-row">
