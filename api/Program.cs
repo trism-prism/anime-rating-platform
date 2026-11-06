@@ -44,6 +44,8 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
 builder.Services.AddSingleton<ImportJob>();
+builder.Services.AddScoped<ListImporter>();
+builder.Services.AddSingleton<ListImportJob>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<CredentialCheck>();
 
@@ -107,6 +109,7 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("reaction", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
     o.AddPolicy("audience", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
     o.AddPolicy("list-write", ctx => SocialRules.PerUser(ctx, 120, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("anilist-import", ctx => SocialRules.PerUser(ctx, 1, TimeSpan.FromMinutes(10)));
     o.AddPolicy("report", ctx => SocialRules.PerUser(ctx, 10, TimeSpan.FromHours(1)));
     o.AddPolicy("profile", ctx => SocialRules.PerUser(ctx, 60, TimeSpan.FromMinutes(1))); // per user, per IP when anonymous
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(

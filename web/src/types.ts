@@ -358,3 +358,9 @@ export interface AlsoRatedItem {
   coRaters: number
   average: number
 }
+
+export interface ListImportStatus {
+  running: boolean
+  result: { added: number; alreadyOnList: number; unmatched: number } | null
+  error: string | null
+}
