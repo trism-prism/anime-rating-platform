@@ -4,6 +4,7 @@ import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import { timeAgo } from '../time'
 import type { ReplyItem, ReplyPage } from '../types'
+import ReportButton from './ReportButton'
 import Spoiler from './Spoiler'
 
 const MAX = 1000
@@ -107,6 +108,7 @@ export default function ReplyThread({ reviewId, reviewMine, onCount, onResync }:
               <div className="reply-head">
                 <Link to={`/u/${encodeURIComponent(r.userName)}`} className="link"><strong>{r.userName}</strong></Link>
                 <span className="muted"> · {timeAgo(r.createdAt)}</span>
+                {user && !r.mine && <span> <ReportButton path={`/replies/${r.id}/report`} what="reply" /></span>}
                 {r.canDelete && (
                   <button className="link-button reply-delete" disabled={deleting.includes(r.id)} onClick={() => remove(r)} aria-label={`Delete reply by ${r.userName}`}>
                     Delete

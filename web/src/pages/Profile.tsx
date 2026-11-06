@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
 import FriendsSection from '../components/FriendsSection'
 import ProfileRatings from '../components/ProfileRatings'
+import ReportButton from '../components/ReportButton'
 import type { Profile as ProfileData } from '../types'
 
 // keyed so another profile or another account starts from the loading state
@@ -105,6 +106,7 @@ function Profile({ username }: { username: string }) {
               {state === 'BlockedByViewer'
                 ? <button disabled={busy} onClick={() => run(call(`/blocks/${name}`, 'DELETE'))}>Unblock</button>
                 : <button disabled={busy} onClick={() => setConfirmBlock(true)}>Block</button>}
+              <ReportButton path={`/users/${name}/report`} what="profile" />
             </div>
           </details>
         </div>

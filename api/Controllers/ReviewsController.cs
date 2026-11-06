@@ -100,7 +100,7 @@ public class ReviewsController : ControllerBase
         var review = await ReviewRules.FindReview(_db, id, me, admin);
         if (review == null) return NotFound();
 
-        var reply = new Reply { RatingId = id, UserId = me, Body = text, Spoiler = body.Spoiler };
+        var reply = new Reply { RatingId = id, UserId = me, Body = Censor.Mask(text), Spoiler = body.Spoiler };
         // the reply and the author's notification are saved together or not at all
         try
         {

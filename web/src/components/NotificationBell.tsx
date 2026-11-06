@@ -27,8 +27,12 @@ const TEXT: Record<Notification['type'], string> = {
   FriendAccepted: 'accepted your friend request',
   Reply: 'replied to your review',
   Reaction: 'reacted to your review',
+  ReportOutcome: '',
 }
-const text = (n: Notification) => TEXT[n.type]
+// a report outcome has no other person: its actor is the reporter
+const line = (n: Notification) => n.type === 'ReportOutcome'
+  ? <>{n.outcome === 'Removed' ? 'The content you reported was removed.' : 'Your report was reviewed and dismissed.'}</>
+  : <><strong>{n.actor}</strong> {TEXT[n.type]}</>
 
 // bell with an unread badge and a dropdown of notifications; rendered only while someone is signed in
 export default function NotificationBell() {
@@ -121,6 +125,7 @@ export default function NotificationBell() {
       api(`/me/notifications/${n.id}/read`, { method: 'POST' }).catch(loadCount) // failed: take the real count back
     }
     setOpen(false)
+    if (n.type === 'ReportOutcome') return
     // replies and reactions lead to the review itself; friend notifications to the other person
     navigate(n.reviewId != null ? `/reviews/${n.reviewId}` : `/u/${encodeURIComponent(n.actor)}`)
   }
@@ -181,7 +186,7 @@ export default function NotificationBell() {
               {items.map((n) => (
                 <li key={n.id} className={n.read ? 'bell-item' : 'bell-item unread'}>
                   <button className="bell-main" onClick={() => openNotification(n)}>
-                    <span><strong>{n.actor}</strong> {text(n)}</span>
+                    <span>{line(n)}</span>
                     <span className="muted bell-time">{timeAgo(n.createdAt)}</span>
                   </button>
                   {n.actionable && (
