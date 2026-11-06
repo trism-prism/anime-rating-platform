@@ -116,7 +116,7 @@ button[type='submit'] { background: var(--accent); border-color: transparent; co
 button[type='submit']:hover:not(:disabled) { background: var(--accent-hover); border-color: transparent; }
 .search button[type='submit'] { background: var(--raised); border-color: var(--hairline); color: var(--text); font-weight: var(--fw); }
 .search button[type='submit']:hover:not(:disabled) { background: var(--raised-hover); border-color: var(--hairline-strong); }
-button.on { background: var(--raised-hover); border-color: var(--accent); }
+button.on { background: var(--raised-hover); border-color: var(--accent); color: var(--accent); }
 
 .nav {
   display: flex;
@@ -354,7 +354,9 @@ dialog h3 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 .prefs li { margin: var(--s-3) 0; }
 
 @media (max-width: 600px) {
-  .bell-panel { position: fixed; left: var(--s-3); right: var(--s-3); top: 108px; width: auto; }
+  .nav { position: relative; }
+  .bell { position: static; }
+  .bell-panel { position: absolute; top: calc(100% + var(--s-2)); left: var(--s-3); right: var(--s-3); width: auto; }
 }
 .subhead-row { justify-content: space-between; margin-top: var(--s-6); }
 .subhead-row .subhead { margin: 0; }

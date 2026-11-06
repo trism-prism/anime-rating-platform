@@ -25,7 +25,7 @@ export default function Trending() {
       <h1>Trending</h1>
       <div className="filters">
         {(['Anime', 'Manga'] as const).map((t) => (
-          <button key={t} className={type === t ? 'on' : ''} onClick={() => setType(t)}>{t}</button>
+          <button key={t} className={type === t ? 'on' : ''} aria-pressed={type === t} onClick={() => setType(t)}>{t}</button>
         ))}
       </div>
       {error && <p className="error">{error}</p>}

@@ -72,7 +72,7 @@ export default function MyList() {
       {error && <p className="error">{error}</p>}
       <div className="filters">
         {(['All', ...STATUSES] as const).map((s) => (
-          <button key={s} className={filter === s ? 'on' : ''} onClick={() => setFilter(s)}>{s}</button>
+          <button key={s} className={filter === s ? 'on' : ''} aria-pressed={filter === s} onClick={() => setFilter(s)}>{s}</button>
         ))}
       </div>
       {!list && listError && <p className="error">{listError} <button onClick={() => { setListError(''); setTick((t) => t + 1) }}>Retry</button></p>}
