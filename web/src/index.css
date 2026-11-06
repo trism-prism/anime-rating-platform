@@ -399,3 +399,6 @@ footer.page a { color: var(--text-muted); transition: color var(--t-fast) var(--
 footer.page a:hover { color: var(--text); }
 .hp { position: absolute; left: -10000px; height: 0; overflow: hidden; }
 .auth-form .check { flex-direction: row; align-items: flex-start; }
+/* roles arrive from the API in capitals; show them in sentence case */
+.characters .muted { text-transform: lowercase; }
+.characters .muted::first-letter { text-transform: uppercase; }
