@@ -28,6 +28,22 @@ public class SecurityHeadersTests
         Assert.False(Headers(https: false).ContainsKey("Strict-Transport-Security"));
     }
 
+    [Fact]
+    public void The_docs_page_gets_a_policy_that_lets_it_run_but_still_forbids_framing()
+    {
+        var ctx = new DefaultHttpContext();
+        ctx.Request.Path = "/docs/index.html";
+        SecurityHeaders.Apply(ctx);
+        var csp = ctx.Response.Headers["Content-Security-Policy"].ToString();
+        Assert.Contains("script-src 'self' 'unsafe-inline'", csp);
+        Assert.Contains("frame-ancestors 'none'", csp);
+
+        ctx = new DefaultHttpContext();
+        ctx.Request.Path = "/documents"; // only the /docs segment, not a prefix match
+        SecurityHeaders.Apply(ctx);
+        Assert.StartsWith("default-src 'none'", ctx.Response.Headers["Content-Security-Policy"].ToString());
+    }
+
     // the website's headers live in web/vercel.json; keep the API rewrite and the single-page fallback next to them
     [Fact]
     public void Vercel_config_has_headers_and_keeps_the_rewrites()

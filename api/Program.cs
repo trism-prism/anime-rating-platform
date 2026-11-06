@@ -40,6 +40,22 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 
 builder.Services.AddControllers();
 
+// API reference page at /docs. It lists routes and shapes only; nothing in it is a secret.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SwaggerDoc("v1", new() { Title = "AnimeRate API", Version = "v1" });
+    o.AddSecurityDefinition("Bearer", new()
+    {
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
+        Description = "The 15 minute access token from POST /auth/login."
+    });
+    o.AddSecurityRequirement(new()
+    {
+        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } }] = Array.Empty<string>()
+    });
+});
+
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
@@ -186,6 +202,13 @@ app.UseCors();
 app.UseAuthentication();
 app.UseRateLimiter(); // after authentication: the social policies are keyed by user id
 app.UseAuthorization();
+
+app.UseSwagger(o => o.RouteTemplate = "docs/{documentName}/openapi.json");
+app.UseSwaggerUI(o =>
+{
+    o.RoutePrefix = "docs";
+    o.SwaggerEndpoint("/docs/v1/openapi.json", "AnimeRate API v1");
+});
 
 app.MapControllers();
 app.MapGet("/health", () => "ok");
