@@ -176,6 +176,11 @@ using (var scope = app.Services.CreateScope())
 
 app.UseForwardedHeaders();
 if (app.Environment.IsDevelopment()) app.UseHttpsRedirection(); // in production Railway's proxy handles HTTPS
+app.Use((ctx, next) =>
+{
+    SecurityHeaders.Apply(ctx);
+    return next();
+});
 
 app.UseCors();
 app.UseAuthentication();
