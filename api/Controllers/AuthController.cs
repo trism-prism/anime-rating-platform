@@ -10,7 +10,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace api.Controllers;
 
-public record RegisterRequest(string Email, string Password, string? UserName);
+public record RegisterRequest(string Email, string Password, string? UserName, bool AgeConfirmed = false, bool TermsAccepted = false);
 public record EmailRequest(string Email);
 public record LoginRequest(string Email, string Password);
 public record UserIdRequest(string UserId);
@@ -46,10 +46,12 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest req)
     {
+        if (!req.AgeConfirmed || !req.TermsAccepted)
+            return BadRequest(new { message = "Confirm that you are 13 or older and accept the Terms of Service." });
         // default the public name to the email's local part so reviews don't show the email
         var name = req.UserName;
         if (string.IsNullOrWhiteSpace(name) || name.Contains('@')) name = await UserNames.FromEmail(_users, req.Email);
-        var user = new AppUser { Email = req.Email, UserName = name };
+        var user = new AppUser { Email = req.Email, UserName = name, TermsAcceptedAt = DateTime.UtcNow, TermsVersion = Terms.Version };
         var result = await _users.CreateAsync(user, req.Password);
         if (!result.Succeeded) return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 

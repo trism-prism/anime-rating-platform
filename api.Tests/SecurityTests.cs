@@ -170,7 +170,7 @@ public class SecurityTests
     {
         using var r = new Rig();
 
-        Ok<OkObjectResult>(await r.Auth().Register(new RegisterRequest("new@example.com", Pass, null)));
+        Ok<OkObjectResult>(await r.Auth().Register(new RegisterRequest("new@example.com", Pass, null, true, true)));
 
         Assert.Empty(r.Mail.Sent);
         Assert.False((await r.Users.FindByEmailAsync("new@example.com"))!.EmailConfirmed);

@@ -29,6 +29,10 @@ Set as environment variables (`__` for nesting) in production, or with `dotnet u
 More setup notes are added as features land.
 
 ## API
+The full route list with request and response shapes is served by the API itself at `/docs` (Swagger UI; the JSON is at `/docs/v1/openapi.json`). It lists routes only, no secrets. Security reports: see SECURITY.md.
+
+Compliance routes: `POST /support` `{name?, email, message, website}` emails the admins (works signed out; `website` is a honeypot that must stay empty; 5 an hour). `POST /me/delete` `{currentPassword}` or `{code}` deletes the account and its data; `POST /me/delete/code` emails the code to accounts without a password. `POST /auth/register` also needs `ageConfirmed` and `termsAccepted`.
+
 - `GET /titles?search=&type=&genre=&page=&pageSize=` paged list, most popular first
 - `GET /titles/{id}` title with characters, average scores and reviews
 - `POST /auth/login` log in; works before the email is verified and returns a 15 minute `accessToken` and `emailVerified`. A 30 day refresh token is set as an HttpOnly cookie `rt_<userId>`. A right password never asks for a code

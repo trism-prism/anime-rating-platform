@@ -30,6 +30,9 @@ public class EmailSender
     public Task SendResetCode(UserManager<AppUser> users, AppUser user) =>
         SendCode(users, user, EmailCodes.Reset, "Your password reset code", "Your password reset code is");
 
+    public Task SendDeleteCode(UserManager<AppUser> users, AppUser user) =>
+        SendCode(users, user, EmailCodes.DeleteAccount, "Your account deletion code", "Your code to delete your account is");
+
     // the code is a secret, so only Send's Development fallback may log it
     async Task SendCode(UserManager<AppUser> users, AppUser user, string purpose, string subject, string intro)
     {

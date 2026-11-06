@@ -21,6 +21,10 @@ import Admin from './pages/Admin'
 import Feed from './pages/Feed'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
+import ContentPolicy from './pages/ContentPolicy'
+import Faq from './pages/Faq'
+import Support from './pages/Support'
 import GoogleCallback from './pages/GoogleCallback'
 import { AuthProvider } from './auth'
 
@@ -52,6 +56,10 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/content-policy" element={<ContentPolicy />} />
+          <Route path="/faq" element={<Faq />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/auth/callback" element={<GoogleCallback />} />
           <Route path="*"element={<h1>Page not found</h1>} />
         </Route>

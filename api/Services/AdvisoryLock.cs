@@ -12,6 +12,8 @@ public sealed class AdvisoryLock : IAsyncDisposable
     public const long ImportKey = 0x616E696D6549;
     // anything that writes Titles.SeriesId or deletes a series: importer assignment, Refresh, admin Move and Merge
     public const long SeriesKey = 0x616E696D6553;
+    // the daily cleanup job: one instance at a time
+    public const long RetentionKey = 0x616E696D6552;
 
     readonly DbContext? _db;
     readonly long _key;

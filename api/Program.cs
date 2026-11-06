@@ -40,6 +40,22 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 
 builder.Services.AddControllers();
 
+// API reference page at /docs. It lists routes and shapes only; nothing in it is a secret.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SwaggerDoc("v1", new() { Title = "AnimeRate API", Version = "v1" });
+    o.AddSecurityDefinition("Bearer", new()
+    {
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
+        Description = "The 15 minute access token from POST /auth/login."
+    });
+    o.AddSecurityRequirement(new()
+    {
+        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } }] = Array.Empty<string>()
+    });
+});
+
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<AniListClient>();
 builder.Services.AddScoped<AniListImporter>();
@@ -48,6 +64,7 @@ builder.Services.AddScoped<ListImporter>();
 builder.Services.AddSingleton<ListImportJob>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<CredentialCheck>();
+builder.Services.AddHostedService<RetentionService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(connectionString));
@@ -112,6 +129,8 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("anilist-import", ctx => SocialRules.PerUser(ctx, 1, TimeSpan.FromMinutes(10)));
     o.AddPolicy("export", ctx => SocialRules.PerUser(ctx, 5, TimeSpan.FromHours(1)));
     o.AddPolicy("report", ctx => SocialRules.PerUser(ctx, 10, TimeSpan.FromHours(1)));
+    o.AddPolicy("account-delete", ctx => SocialRules.PerUser(ctx, 5, TimeSpan.FromHours(1)));
+    o.AddPolicy("support", ctx => SocialRules.PerUser(ctx, 5, TimeSpan.FromHours(1))); // per IP when signed out
     o.AddPolicy("profile", ctx => SocialRules.PerUser(ctx, 60, TimeSpan.FromMinutes(1))); // per user, per IP when anonymous
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -173,11 +192,23 @@ using (var scope = app.Services.CreateScope())
 
 app.UseForwardedHeaders();
 if (app.Environment.IsDevelopment()) app.UseHttpsRedirection(); // in production Railway's proxy handles HTTPS
+app.Use((ctx, next) =>
+{
+    SecurityHeaders.Apply(ctx);
+    return next();
+});
 
 app.UseCors();
 app.UseAuthentication();
 app.UseRateLimiter(); // after authentication: the social policies are keyed by user id
 app.UseAuthorization();
+
+app.UseSwagger(o => o.RouteTemplate = "docs/{documentName}/openapi.json");
+app.UseSwaggerUI(o =>
+{
+    o.RoutePrefix = "docs";
+    o.SwaggerEndpoint("/docs/v1/openapi.json", "AnimeRate API v1");
+});
 
 app.MapControllers();
 app.MapGet("/health", () => "ok");
