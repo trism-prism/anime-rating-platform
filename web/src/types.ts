@@ -243,13 +243,14 @@ export interface FriendsData {
 
 export interface Notification {
   id: number
-  type: 'FriendRequest' | 'FriendAccepted' | 'Reply' | 'Reaction'
+  type: 'FriendRequest' | 'FriendAccepted' | 'Reply' | 'Reaction' | 'ReportOutcome'
   actor: string
   createdAt: string
   read: boolean
   actionable: boolean // a friend request that can still be answered
   requestId: number | null
   reviewId: number | null // Reply and Reaction: the review it is about
+  outcome: 'Dismissed' | 'Removed' | null // ReportOutcome: what happened to the report
 }
 
 export interface NotificationPage {
@@ -260,4 +261,39 @@ export interface NotificationPage {
 export interface NotificationPref {
   type: string
   enabled: boolean
+}
+
+export interface FeedItem {
+  ratingId: number
+  userName: string
+  titleId: number
+  titleName: string
+  volume: number | null
+  overall: number
+  createdAt: string
+  hasReview: boolean
+  spoiler: boolean
+  snippet: string | null
+}
+
+export interface FeedPage {
+  items: FeedItem[]
+  nextCursor: number | null
+}
+
+export interface ReportItem {
+  id: number
+  target: 'Review' | 'Reply' | 'Profile'
+  targetId: number
+  reason: string
+  note: string | null
+  snapshot: string
+  createdAt: string
+  reporter: string
+  targetUser: string
+}
+
+export interface ReportPage {
+  items: ReportItem[]
+  nextCursor: number | null
 }
