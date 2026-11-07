@@ -163,6 +163,10 @@ namespace api.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Bio")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
@@ -875,6 +879,27 @@ namespace api.Migrations
                     b.ToTable("TitleRelations");
                 });
 
+            modelBuilder.Entity("api.Models.UserAvatar", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("Avatars");
+                });
+
             modelBuilder.Entity("api.Models.UserBlock", b =>
                 {
                     b.Property<int>("Id")
@@ -1227,6 +1252,15 @@ namespace api.Migrations
                     b.Navigation("Title");
 
                     b.Navigation("VoiceActor");
+                });
+
+            modelBuilder.Entity("api.Models.UserAvatar", b =>
+                {
+                    b.HasOne("api.Models.AppUser", null)
+                        .WithOne()
+                        .HasForeignKey("api.Models.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("api.Models.UserBlock", b =>

@@ -4,6 +4,7 @@ import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import { timeAgo } from '../time'
 import { DELETED_USER, REACTIONS, type ReactionKind, type ReactionState, type ReviewItem } from '../types'
+import Avatar from './Avatar'
 import ConfirmDialog from './ConfirmDialog'
 import ReplyThread from './ReplyThread'
 import ReportButton from './ReportButton'
@@ -72,6 +73,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
   return (
     <article className="review" id={`review-${id}`}>
       <div className="review-head">
+        <Avatar userName={review.userName} small />
         {review.userName === DELETED_USER ? <strong>{DELETED_USER}</strong> : <Link to={`/u/${encodeURIComponent(review.userName)}`} className="link"><strong>{review.userName}</strong></Link>}
         <span className="muted">
           {showTitle && <> · <Link to={`/titles/${review.titleId}`} className="link-quiet">{review.titleName}</Link></>}

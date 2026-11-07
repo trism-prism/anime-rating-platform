@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { timeAgo } from '../time'
 import type { Notification, NotificationPage } from '../types'
+import Avatar from './Avatar'
 
 const icon = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
 
@@ -186,7 +187,7 @@ export default function NotificationBell() {
               {items.map((n) => (
                 <li key={n.id} className={n.read ? 'bell-item' : 'bell-item unread'}>
                   <button className="bell-main" onClick={() => openNotification(n)}>
-                    <span>{line(n)}</span>
+                    <span className="who">{n.type !== 'ReportOutcome' && <Avatar userName={n.actor} small />}<span>{line(n)}</span></span>
                     <span className="muted bell-time">{timeAgo(n.createdAt)}</span>
                   </button>
                   {n.actionable && (

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { timeAgo } from '../time'
 import type { ReportItem, ReportPage } from '../types'
+import { refreshAvatars } from '../avatarVersion'
+import Avatar from './Avatar'
 
 // the open reports, oldest first, keyset paged; every action reloads the queue because removing content settles other reports too
 export default function AdminReports() {
@@ -55,6 +57,21 @@ export default function AdminReports() {
     }
   }
 
+  async function clearProfile(r: ReportItem, bio: boolean, picture: boolean) {
+    if (busy !== null) return
+    setBusy(r.id)
+    setActionError('')
+    try {
+      await api(`/admin/reports/${r.id}/clear-profile`, { method: 'POST', body: JSON.stringify({ bio, picture }) })
+      refreshAvatars() // the picture is gone for everyone, this tab too
+    } catch (e) {
+      setActionError((e as Error).message)
+    } finally {
+      setBusy(null)
+      loadFirst()
+    }
+  }
+
   return (
     <section aria-labelledby="reports-title">
       <h2 id="reports-title">Reports</h2>
@@ -72,13 +89,23 @@ export default function AdminReports() {
                   <Link to={`/u/${encodeURIComponent(r.targetUser)}`} className="link">{r.targetUser}</Link>
                   <span className="muted"> · reported by {r.reporter} · {timeAgo(r.createdAt)}</span>
                 </span>
-                <p className="review-text">{r.snapshot}</p>
+                {r.target === 'Profile'
+                  ? (
+                    <div className="who">
+                      <Avatar userName={r.targetUser} />
+                      <span>{r.bio ? <span className="bio">{r.bio}</span> : <span className="muted">No bio</span>}{!r.hasAvatar && <span className="muted"> · No picture</span>}</span>
+                    </div>
+                  )
+                  : <p className="review-text">{r.snapshot}</p>}
                 {r.note && <p className="muted">Note: {r.note}</p>}
                 {r.target === 'Review' && <Link to={`/reviews/${r.targetId}`} className="link">Open review</Link>}
               </div>
               <span className="row">
                 <button disabled={busy !== null} onClick={() => resolve(r, 'dismiss')}>Dismiss</button>
                 {r.target !== 'Profile' && <button disabled={busy !== null} onClick={() => resolve(r, 'remove')}>Remove content</button>}
+                {r.target === 'Profile' && r.bio && <button disabled={busy !== null} onClick={() => clearProfile(r, true, false)}>Clear bio</button>}
+                {r.target === 'Profile' && r.hasAvatar && <button disabled={busy !== null} onClick={() => clearProfile(r, false, true)}>Clear picture</button>}
+                {r.target === 'Profile' && r.bio && r.hasAvatar && <button disabled={busy !== null} onClick={() => clearProfile(r, true, true)}>Clear both</button>}
               </span>
             </li>
           ))}

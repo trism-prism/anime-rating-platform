@@ -6,6 +6,7 @@ import EmailForm from '../components/EmailForm'
 import DeleteAccountForm from '../components/DeleteAccountForm'
 import ExportForm from '../components/ExportForm'
 import PasswordForm from '../components/PasswordForm'
+import ProfileForm from '../components/ProfileForm'
 import UserNameForm from '../components/UserNameForm'
 
 export default function Settings() {
@@ -22,6 +23,9 @@ export default function Settings() {
 
       <h2>Display name</h2>
       <UserNameForm />
+
+      <h2>Profile</h2>
+      <ProfileForm />
 
       <AniListImport />
 
