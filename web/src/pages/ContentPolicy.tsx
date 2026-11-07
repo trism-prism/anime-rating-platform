@@ -9,7 +9,7 @@ export default function ContentPolicy() {
         people is not.
       </p>
 
-      <h2>What we remove</h2>
+      <h2>Removed content</h2>
       <ul>
         <li>Harassment, threats or bullying of a person or group.</li>
         <li>Hate: attacking people for who they are (race, religion, gender, sexuality, disability and similar).</li>

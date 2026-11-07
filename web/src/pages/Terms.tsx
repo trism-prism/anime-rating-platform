@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import Legal from '../components/Legal'
 
 // bump TERMS_VERSION in api/Services/Terms.cs together with this date when the text changes
-export const TERMS_UPDATED = '2026-11-06'
+export const TERMS_UPDATED = '2026-11-07'
 
 export default function Terms() {
   return (
@@ -45,7 +45,7 @@ export default function Terms() {
       <h2>Leaving</h2>
       <p>
         You can export your data and delete your account at any time in{' '}
-        <Link to="/settings" className="link">Settings</Link>. Deleting removes your personal data and anonymizes your ratings, reviews and replies
+        <Link to="/settings" className="link">Settings</Link>. Deleting removes your personal data and anonymizes your ratings, reviews, replies and reactions
         (they stay as "Deleted user"), as described in the <Link to="/privacy" className="link">privacy policy</Link>.
       </p>
 

@@ -10,13 +10,13 @@ export default function Faq() {
         You can rate without verifying, but writing reviews and replies and reporting need a
         verified email. Enter the 6-digit code we email you on the <Link to="/verify" className="link">Verify</Link> page.
       </p>
-      <h3>I forgot my password.</h3>
+      <h3>How do I reset my password?</h3>
       <p>
         Use <Link to="/forgot-password" className="link">Forgot password</Link> on the login page. A code is emailed to you.
         Accounts made with Google can add a password the same way.
       </p>
 
-      <h2>Who sees what</h2>
+      <h2>Audiences</h2>
       <p>
         You choose per rating, watch-list entry and custom list: <strong>Public</strong> (everyone,
         even signed out), <strong>Friends</strong> (your accepted friends) or <strong>Only me</strong>.

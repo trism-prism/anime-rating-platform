@@ -15,6 +15,7 @@ export default function Support() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    setDone('')
     setBusy(true)
     try {
       const r = await api<{ message: string }>('/support', { method: 'POST', body: JSON.stringify({ name, email, message, website }) })
@@ -33,7 +34,8 @@ export default function Support() {
       <p className="muted">
         Questions, bugs, a decision you disagree with, or a data request? Check the{' '}
         <Link to="/faq" className="link">FAQ</Link> first. You do not need an account. We use your
-        email only to reply.
+        email to reply to you. The message is emailed to the admins, as described in the{' '}
+        <Link to="/privacy" className="link">privacy policy</Link>.
       </p>
       <label>Name (optional)
         <input maxLength={100} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />

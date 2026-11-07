@@ -16,6 +16,7 @@ export default function Privacy() {
         <li><strong>Sign-ins:</strong> for each signed-in device, the browser description, the IP address it signed in from, when it was last used, and a hash of its sign-in token.</li>
         <li><strong>What you add:</strong> ratings, reviews, replies, reactions, your watch list with progress and dates, custom lists, and the audience you chose for each.</li>
         <li><strong>Social:</strong> friend requests and friendships, the users you blocked, your notifications and your notification preferences.</li>
+        <li><strong>Support form:</strong> your name (optional), email and message.</li>
         <li><strong>Reports:</strong> when you report something we store who reported it, the reason, your optional note, and a copy of the reported text. Admins read them.</li>
       </ul>
 
@@ -27,7 +28,7 @@ export default function Privacy() {
         can see anything in order to moderate it.
       </p>
 
-      <h2>What we use your information for</h2>
+      <h2>Uses of your information</h2>
       <ul>
         <li>Running the site: signing you in, showing your content to the people you chose, and sending notifications.</li>
         <li>Email: a 6-digit code to verify your email, a code if you reset your password or delete a Google-only account, a link if you change your email, and a notice when your account is deleted.</li>
@@ -38,8 +39,8 @@ export default function Privacy() {
       <h2>Cookies</h2>
       <p>
         We use only strictly necessary cookies, so there is no cookie banner. After you sign in, an
-        HttpOnly cookie (named rt_ followed by your account id) keeps you signed in for up to 30 days
-        of use. While you sign in with Google, a cookie lasting ten minutes protects the sign-in
+        HttpOnly cookie (named rt_ followed by your account id) keeps you signed in until it
+        expires (30 days after last use, 90 at most). While you sign in with Google, a cookie lasting ten minutes protects the sign-in
         from forgery. Your browser's local storage keeps the names and emails of the accounts signed
         in on this device so the account switcher works.
       </p>
