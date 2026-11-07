@@ -8,7 +8,7 @@ import PasswordInput from '../components/PasswordInput'
 // ?error=... as set by the Google callback
 const GOOGLE_ERRORS: Record<string, string> = {
   google: 'Google sign-in failed. Try again or use your password.',
-  terms: 'No account uses that Google address yet. To create one, use Register and tick the age and Terms boxes first.',
+  terms: 'Google sign-in needs the Continue with Google button on this page or on Register. Try again from there.',
 }
 
 export default function Login() {
@@ -50,7 +50,7 @@ export default function Login() {
       <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
       {(error || googleError) && <p className="error">{error || googleError}</p>}
       <button type="submit" disabled={busy}>Login</button>
-      <GoogleLink />
+      <GoogleLink notice />
       <p className="muted"><Link to="/forgot-password" className="link">Forgot password?</Link></p>
       <p className="muted">No account? <Link to="/register" className="link">Register</Link></p>
     </form>

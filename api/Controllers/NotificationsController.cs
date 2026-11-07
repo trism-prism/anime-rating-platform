@@ -34,7 +34,7 @@ public class NotificationsController : ControllerBase
             .Select(n => new
             {
                 n.Id, n.Type, n.SubjectId, n.CreatedAt,
-                actor = n.Actor.UserName,
+                actor = n.Actor.DeletedAt != null ? AppUser.DeletedName : n.Actor.UserName,
                 read = n.ReadAt != null,
                 // a request can be answered only while it is still pending
                 pending = n.Type == NotificationType.FriendRequest

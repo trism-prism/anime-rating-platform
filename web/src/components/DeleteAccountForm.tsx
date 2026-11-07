@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import ConfirmDialog from './ConfirmDialog'
 import PasswordInput from './PasswordInput'
 
-// delete the account and everything in it; asks for the password, or for an emailed code when the account has no password
+// delete the account (its ratings and reviews stay, anonymized); asks for the password, or for an emailed code when the account has no password
 export default function DeleteAccountForm() {
   const { hasPassword, logout } = useAuth()
   const [password, setPassword] = useState('')
@@ -53,7 +53,7 @@ export default function DeleteAccountForm() {
   return (
     <form className="settings-form" onSubmit={submit}>
       <p className="muted hint">
-        Deletes your account, ratings, reviews, replies, reactions, lists, friends, blocks, notifications and reports you filed. This cannot be undone.
+        Deletes your account, email, sign-ins, lists, watch list, friends, blocks and notifications. Only the month you joined is kept. Your ratings, reviews, replies, reactions and reports stay on the site under the name "Deleted user". This cannot be undone.
         Download your data above first if you want a copy.
       </p>
       {hasPassword ? (
@@ -71,7 +71,7 @@ export default function DeleteAccountForm() {
       {info && <p role="status">{info}</p>}
       <button type="submit" disabled={busy || !ready}>Delete my account</button>
       <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} onConfirm={remove} onCancel={() => setAsking(false)}>
-        <p>Everything you added is removed now and cannot be restored.</p>
+        <p>Your account and personal data are removed now and cannot be restored. Your ratings and reviews stay as "Deleted user".</p>
       </ConfirmDialog>
     </form>
   )

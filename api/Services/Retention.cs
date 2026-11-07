@@ -4,18 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Services;
 
-public record RetentionCounts(int Sessions, int UnverifiedAccounts, int Reports, int Notifications);
+public record RetentionCounts(int Sessions, int Reports, int Notifications);
 
 // What is kept and for how long (the privacy policy repeats these numbers):
 //  - sessions: until they expire or are signed out,
-//  - accounts whose email was never verified: 30 days,
 //  - reports once settled (dismissed or removed): 1 year,
 //  - notifications: 90 days.
 // The emailed 6-digit codes are not stored at all (they are derived from the account and expire on their own).
 public static class Retention
 {
-    public const int UnverifiedDays = 30, ReportDays = 365, NotificationDays = 90;
-    const int AccountsPerRun = 100; // each goes through the full account deletion; the rest wait for tomorrow
+    public const int ReportDays = 365, NotificationDays = 90;
 
     // a step that fails is logged and skipped, so one bad row cannot stop the others (or tomorrow's run of the same step)
     public static async Task<RetentionCounts> Run(AppDbContext db, DateTime now, ILogger? log = null)
@@ -33,31 +31,12 @@ public static class Retention
 
         var sessions = await Step("sessions", () => Purge(db, db.Sessions.Where(s => s.ExpiresAt < now || s.RevokedAt != null)));
 
-        var accounts = await Step("unverified accounts", async () =>
-        {
-            var cutoff = now.AddDays(-UnverifiedDays);
-            // an admin without a verified email is left alone: deleting the last admin would leave nobody to moderate or read support mail
-            var stale = await db.Users.Where(u => !u.EmailConfirmed && u.CreatedAt < cutoff && !db.UserRoles.Any(r => r.UserId == u.Id))
-                .OrderBy(u => u.CreatedAt).Select(u => u.Id).Take(AccountsPerRun).ToListAsync();
-            var n = 0;
-            foreach (var id in stale)
-            {
-                try { if (await AccountDeletion.Delete(db, id)) n++; }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    log?.LogError(ex.GetType().Name + " deleting unverified account {UserId}: {Message}", id, ex.Message);
-                }
-                db.ChangeTracker.Clear();
-            }
-            return n;
-        });
-
         var reportCutoff = now.AddDays(-ReportDays);
         var reports = await Step("reports", () => Purge(db, db.Reports.Where(r => r.Status != ReportStatus.Open && r.ResolvedAt != null && r.ResolvedAt < reportCutoff)));
 
         var notificationCutoff = now.AddDays(-NotificationDays);
         var notifications = await Step("notifications", () => Purge(db, db.Notifications.Where(n => n.CreatedAt < notificationCutoff)));
-        return new RetentionCounts(sessions, accounts, reports, notifications);
+        return new RetentionCounts(sessions, reports, notifications);
     }
 
     // one DELETE on Postgres; InMemory (the tests) has no ExecuteDelete
@@ -112,8 +91,8 @@ public class RetentionService : BackgroundService
             return null;
         }
         var c = await Retention.Run(db, DateTime.UtcNow, log);
-        log.LogInformation("Retention job removed {Sessions} sessions, {Accounts} unverified accounts, {Reports} settled reports, {Notifications} notifications.",
-            c.Sessions, c.UnverifiedAccounts, c.Reports, c.Notifications);
+        log.LogInformation("Retention job removed {Sessions} sessions, {Reports} settled reports, {Notifications} notifications.",
+            c.Sessions, c.Reports, c.Notifications);
         return c;
     }
 }

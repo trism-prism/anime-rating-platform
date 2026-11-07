@@ -24,17 +24,16 @@ public class DeletionTests
 
     static async Task Ok(Task<IActionResult> call) => Assert.InRange(Status(await call), 200, 299);
 
-    // every row that still points at the user
-    static async Task<int> Leftovers(AppDbContext db, string u) =>
-        await db.Users.CountAsync(x => x.Id == u) + await db.Ratings.CountAsync(x => x.UserId == u) + await db.Replies.CountAsync(x => x.UserId == u)
-        + await db.Reactions.CountAsync(x => x.UserId == u) + await db.WatchList.CountAsync(x => x.UserId == u) + await db.CustomLists.CountAsync(x => x.UserId == u)
+    // rows of the personal kind that must be gone for the user
+    static async Task<int> PersonalLeftovers(AppDbContext db, string u) =>
+        await db.WatchList.CountAsync(x => x.UserId == u) + await db.CustomLists.CountAsync(x => x.UserId == u)
         + await db.Friendships.CountAsync(x => x.UserLowId == u || x.UserHighId == u) + await db.UserBlocks.CountAsync(x => x.BlockerId == u || x.BlockedId == u)
         + await db.Notifications.CountAsync(x => x.UserId == u || x.ActorId == u) + await db.NotificationPreferences.CountAsync(x => x.UserId == u)
-        + await db.Sessions.CountAsync(x => x.UserId == u) + await db.Reports.CountAsync(x => x.ReporterId == u || x.TargetUserId == u)
-        + await db.UserRoles.CountAsync(x => x.UserId == u) + await db.UserLogins.CountAsync(x => x.UserId == u);
+        + await db.Sessions.CountAsync(x => x.UserId == u) + await db.UserRoles.CountAsync(x => x.UserId == u) + await db.UserLogins.CountAsync(x => x.UserId == u)
+        + await db.UserClaims.CountAsync(x => x.UserId == u) + await db.UserTokens.CountAsync(x => x.UserId == u);
 
     // users a alice (deleted), b Bob, c carol, d dave (admin); titles 1..3 in series 1
-    internal static async Task DeletesEverythingAndKeepsTheRest(Func<AppDbContext> open)
+    internal static async Task AnonymizesAndKeepsTheContent(Func<AppDbContext> open)
     {
         await Seed(open);
         // ratings through the real endpoint, so the title totals are real: T1 8+6+4, T2 10+2, T3 5 (alice only)
@@ -55,6 +54,7 @@ public class DeletionTests
 
         using (var db = open())
         {
+            (await db.Users.SingleAsync(x => x.Id == "a")).CreatedAt = new DateTime(2026, 3, 15, 9, 30, 0, DateTimeKind.Utc);
             // friendship a-b came from Seed; carol asked alice; alice blocked dave
             db.Friendships.Add(new Friendship { UserLowId = "a", UserHighId = "c", RequesterId = "c", Status = FriendStatus.Pending });
             await db.SaveChangesAsync();
@@ -75,48 +75,67 @@ public class DeletionTests
             db.Reports.Add(new Report { ReporterId = "c", Target = ReportTarget.Review, TargetId = a1, TargetUserId = "a", Reason = ReportReason.Spam, Snapshot = "alice on one" });
             db.Reports.Add(new Report { ReporterId = "a", Target = ReportTarget.Review, TargetId = b1, TargetUserId = "b", Reason = ReportReason.Spam, Snapshot = "bob on one" });
             db.Reports.Add(new Report { ReporterId = "c", Target = ReportTarget.Review, TargetId = b1, TargetUserId = "b", Reason = ReportReason.Hate, Snapshot = "bob on one" });
+            db.Reports.Add(new Report { ReporterId = "c", Target = ReportTarget.Profile, TargetId = 0, TargetUserId = "a", Reason = ReportReason.Spam, Snapshot = "Profile of alice" });
+            db.UserClaims.Add(new Microsoft.AspNetCore.Identity.IdentityUserClaim<string> { UserId = "a", ClaimType = "x", ClaimValue = "y" });
+            db.UserTokens.Add(new Microsoft.AspNetCore.Identity.IdentityUserToken<string> { UserId = "a", LoginProvider = "p", Name = "n", Value = "v" });
+            db.UserLogins.Add(new Microsoft.AspNetCore.Identity.IdentityUserLogin<string> { UserId = "a", LoginProvider = "Google", ProviderKey = "g-a" });
             await db.SaveChangesAsync();
         }
         using (var db = open())
         {
             Assert.Equal(5.67, RatingStats.SeriesAverage((await db.Titles.ToListAsync()).Select(t => (t.RatingCount, t.RatingSum))));
-            Assert.True(await Leftovers(db, "a") > 0);
+            Assert.True(await PersonalLeftovers(db, "a") > 0);
         }
 
         using (var db = open()) Assert.True(await AccountDeletion.Delete(db, "a"));
+        using (var db = open()) Assert.False(await AccountDeletion.Delete(db, "a")); // already deleted
 
         using (var db = open())
         {
-            Assert.Equal(0, await Leftovers(db, "a"));
-            // title totals and the series average are what they would be had alice never rated
+            Assert.Equal(0, await PersonalLeftovers(db, "a"));
+            // the tombstone: no personal data, cannot sign in, locked
+            var gone = await db.Users.SingleAsync(x => x.Id == "a");
+            Assert.NotNull(gone.DeletedAt);
+            Assert.Null(gone.Email); Assert.Null(gone.NormalizedEmail); Assert.Null(gone.PasswordHash); Assert.False(gone.EmailConfirmed);
+            Assert.DoesNotContain("alice", gone.UserName!, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), gone.CreatedAt); // only the month joined is kept
+            Assert.True(gone.LockoutEnd > DateTimeOffset.UtcNow.AddYears(100));
+            // everything alice wrote is still there and the totals did not move
             var titles = await db.Titles.OrderBy(t => t.Id).ToListAsync();
-            Assert.Equal(new[] { (2, 10.0), (1, 2.0), (0, 0.0) }, titles.Select(t => (t.RatingCount, t.RatingSum)));
-            Assert.Equal(3.5, RatingStats.SeriesAverage(titles.Select(t => (t.RatingCount, t.RatingSum))));
-            // the reactions alice left are off the other reviews' counters; carol's Funny stays
+            Assert.Equal(new[] { (3, 18.0), (2, 12.0), (1, 5.0) }, titles.Select(t => (t.RatingCount, t.RatingSum)));
+            Assert.Equal(5.67, RatingStats.SeriesAverage(titles.Select(t => (t.RatingCount, t.RatingSum))));
+            Assert.Equal(3, await db.Ratings.CountAsync(r => r.UserId == "a"));
+            Assert.Equal(2, await db.Replies.CountAsync());
+            Assert.Equal(4, await db.Reactions.CountAsync());
             var bobs = await db.Ratings.SingleAsync(r => r.Id == b1);
-            Assert.Equal((0, 0, 1, 0), (bobs.HelpfulCount, bobs.UnhelpfulCount, bobs.FunnyCount, bobs.Score));
-            var carols = await db.Ratings.SingleAsync(r => r.Id == c1);
-            Assert.Equal((0, 0, 0, 0), (carols.HelpfulCount, carols.UnhelpfulCount, carols.FunnyCount, carols.Score));
-            // alice's reviews took bob's reply with them; bob's and carol's own data is all there
-            Assert.Empty(await db.Replies.ToListAsync());
-            Assert.Equal(2, await db.Ratings.CountAsync(r => r.UserId == "b"));
-            Assert.Equal(1, await db.Ratings.CountAsync(r => r.UserId == "c"));
-            Assert.Equal(1, await db.CustomLists.CountAsync(l => l.UserId == "b"));
-            Assert.Equal(1, await db.CustomListItems.CountAsync());
-            Assert.Equal(1, await db.WatchList.CountAsync(w => w.UserId == "b"));
-            Assert.Equal(1, await db.Sessions.CountAsync(s => s.UserId == "b"));
-            Assert.Equal(1, await db.NotificationPreferences.CountAsync(p => p.UserId == "b"));
-            Assert.True(await db.Users.AnyAsync(u => u.Id == "d"));
-            // only carol's report on bob's review survives; bob keeps the bell entry for carol's reaction, none for alice's reply or reaction
-            Assert.Equal("c", (await db.Reports.SingleAsync()).ReporterId);
-            var bell = await db.Notifications.Where(n => n.UserId == "b").ToListAsync();
-            var one = Assert.Single(bell);
+            Assert.Equal((1, 0, 1, 1), (bobs.HelpfulCount, bobs.UnhelpfulCount, bobs.FunnyCount, bobs.Score));
+            // reports stay (filed by alice, or about her content); only the one about her profile goes
+            Assert.Equal(3, await db.Reports.CountAsync());
+            Assert.Equal(1, await db.Reports.CountAsync(r => r.ReporterId == "a")); // the report she filed stays
+            Assert.Equal(0, await db.Reports.CountAsync(r => r.Target == ReportTarget.Profile));
+            // bob keeps the bell entry for carol's reaction, none from alice
+            var one = Assert.Single(await db.Notifications.Where(n => n.UserId == "b").ToListAsync());
             Assert.Equal((NotificationType.Reaction, "c", b1), (one.Type, one.ActorId, one.SubjectId));
+            // other people's data is untouched
+            Assert.Equal(1, await db.CustomLists.CountAsync(l => l.UserId == "b"));
+            Assert.Equal(1, await db.Sessions.CountAsync(x => x.UserId == "b"));
+            Assert.True(await db.Users.AnyAsync(u => u.Id == "d"));
+        }
+
+        // every place a name shows reads "Deleted user", and her profile is gone
+        using (var db = open())
+        {
+            var reviews = Json(await Call(open, "b", c => c.ForTitle(1, null, null))).GetProperty("items").EnumerateArray().ToList();
+            Assert.Contains(reviews, r => r.GetProperty("id").GetInt32() == a1 && r.GetProperty("userName").GetString() == AppUser.DeletedName);
+            var replies = Json(await Call(open, "b", c => c.Replies(b1, null))).GetProperty("items").EnumerateArray().ToList();
+            Assert.Equal(AppUser.DeletedName, Assert.Single(replies).GetProperty("userName").GetString());
+            Assert.Equal(404, Status(await Profiles(db, "b").Get("alice")));
+            Assert.Equal(404, Status(await Profiles(db, "b").Get("deleted-a")));
         }
     }
 
     [Fact]
-    public async Task Deletion_removes_everything_it_owns_and_keeps_the_rest() => await DeletesEverythingAndKeepsTheRest(Mem());
+    public async Task Deletion_anonymizes_the_account_and_keeps_its_content() => await AnonymizesAndKeepsTheContent(Mem());
 
     [Fact]
     public async Task Deleting_an_unknown_account_does_nothing()
@@ -125,7 +144,7 @@ public class DeletionTests
         await Seed(open);
         using var db = open();
         Assert.False(await AccountDeletion.Delete(db, "nobody"));
-        Assert.Equal(4, await db.Users.CountAsync());
+        Assert.Equal(4, await db.Users.CountAsync(u => u.DeletedAt == null));
     }
 
     // ---- the controller ----
@@ -146,7 +165,8 @@ public class DeletionTests
         Assert.Empty(h.Mails);
 
         Assert.Equal(204, Status(await Controller(h, kai).Delete(new DeleteAccountRequest("Passw0rd1!", null))));
-        Assert.Null(await h.Users.FindByIdAsync(kai.Id));
+        Assert.NotNull((await h.Users.FindByIdAsync(kai.Id))!.DeletedAt);
+        Assert.Null(await h.Users.FindByEmailAsync("kai@example.com")); // cannot sign in with it any more
         Assert.NotNull(await h.Users.FindByIdAsync(other.Id));
         var mail = Assert.Single(h.Mails);
         Assert.Equal("kai@example.com", mail.To);
@@ -167,7 +187,7 @@ public class DeletionTests
         Assert.Equal(429, Status(await Controller(h, sam).SendCode())); // one a minute
         var code = Regex.Match(Assert.Single(h.Mails).Body, @"is (\d+)\.").Groups[1].Value;
         Assert.Equal(204, Status(await Controller(h, sam).Delete(new DeleteAccountRequest(null, code))));
-        Assert.Null(await h.Users.FindByIdAsync(sam.Id));
+        Assert.NotNull((await h.Users.FindByIdAsync(sam.Id))!.DeletedAt);
     }
 
     [Fact]

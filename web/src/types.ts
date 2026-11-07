@@ -1,3 +1,6 @@
+// what the API sends as the name of a deleted account; it has no profile to link to
+export const DELETED_USER = 'Deleted user'
+
 export type TitleType = 'Anime' | 'Manga'
 
 export interface SeriesSummary {

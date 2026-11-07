@@ -1,3 +1,4 @@
+using api.Data;
 using api.Models;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,8 +15,13 @@ namespace api.Controllers;
 public class AdminController : ControllerBase
 {
     readonly UserManager<AppUser> _users;
+    readonly AppDbContext _db;
 
-    public AdminController(UserManager<AppUser> users) => _users = users;
+    public AdminController(UserManager<AppUser> users, AppDbContext db)
+    {
+        _users = users;
+        _db = db;
+    }
 
     // the import takes minutes, so it runs in the background; poll GET /admin/import
     [HttpPost("import")]
@@ -30,7 +36,7 @@ public class AdminController : ControllerBase
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
         page = Math.Max(page, 1);
-        var q = _users.Users;
+        var q = _users.Users.Where(u => u.DeletedAt == null); // deleted accounts have no email or login to manage
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
@@ -53,7 +59,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> Promote(string id)
     {
         var user = await _users.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null || user.DeletedAt != null) return NotFound();
         if (!await _users.IsInRoleAsync(user, "Admin")) await _users.AddToRoleAsync(user, "Admin");
         return NoContent();
     }
@@ -62,7 +68,8 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> Demote(string id)
     {
         var user = await _users.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null || user.DeletedAt != null) return NotFound();
+        await using var gate = await AdvisoryLock.Wait(_db, AdvisoryLock.AdminKey); // two demotions must not both pass the count
         if (!await _users.IsInRoleAsync(user, "Admin")) return NoContent();
         if ((await _users.GetUsersInRoleAsync("Admin")).Count <= 1)
             return BadRequest(new { message = "Cannot remove the last admin." });
