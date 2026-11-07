@@ -8,6 +8,7 @@ export default function ListForm({ titleId }: { titleId: number }) {
   const [status, setStatus] = useState<WatchStatus>('Planning')
   const [progress, setProgress] = useState(0)
   const [inList, setInList] = useState(false)
+  const [loaded, setLoaded] = useState(false) // stored progress is known, so Save can't overwrite it
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
@@ -17,12 +18,14 @@ export default function ListForm({ titleId }: { titleId: number }) {
     api<WatchEntry[]>('/me/watchlist')
       .then((list) => {
         const e = list.find((x) => x.titleId === titleId)
-        if (stale || !e) return
+        if (stale) return
+        setLoaded(true)
+        if (!e) return
         setStatus(e.status)
         setProgress(e.progress)
         setInList(true)
       })
-      .catch(() => {})
+      .catch((err: Error) => !stale && setError(err.message))
     return () => {
       stale = true
     }
@@ -44,10 +47,10 @@ export default function ListForm({ titleId }: { titleId: number }) {
 
   return (
     <div className="row">
-      <select value={status} onChange={(e) => setStatus(e.target.value as WatchStatus)}>
+      <select aria-label="Watch status" value={status} onChange={(e) => setStatus(e.target.value as WatchStatus)}>
         {STATUSES.map((s) => <option key={s}>{s}</option>)}
       </select>
-      <button onClick={save}>{inList ? 'Update list' : 'Add to my list'}</button>
+      <button onClick={save} disabled={!loaded}>{inList ? 'Update list' : 'Add to my list'}</button>
       {msg && <span className="muted">{msg}</span>}
       {error && <span className="error">{error}</span>}
     </div>

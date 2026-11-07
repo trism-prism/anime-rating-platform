@@ -58,7 +58,7 @@ export default function MyLists() {
       <form className="row" onSubmit={create}>
         <input value={name} maxLength={60} placeholder="New list name" aria-label="New list name" onChange={(e) => setName(e.target.value)} />
         <AudienceSelect label="Visibility of the new list" value={audience} onChange={setAudience} />
-        <button disabled={!name.trim()}>Create list</button>
+        <button type="submit" disabled={!name.trim()}>Create list</button>
       </form>
       {error && <p className="error">{error}</p>}
       {!lists && !error && <p className="muted">Loading</p>}

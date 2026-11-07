@@ -83,7 +83,7 @@ export default function MyList() {
           <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
           <Link to={`/series/${e.seriesId}`} className="muted link-quiet">{e.seriesName}</Link>
           <span className="muted">{e.type}</span>
-          <select value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus)}>
+          <select aria-label={`Status of ${e.name}`} value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus)}>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
           <AudienceSelect
