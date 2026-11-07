@@ -31,9 +31,9 @@ export default function Support() {
     <form className="auth-form" onSubmit={submit}>
       <h1>Support</h1>
       <p className="muted">
-        Questions, bugs, a decision you disagree with, or a data request? Read the{' '}
-        <Link to="/faq" className="link">FAQ</Link> first, then write to us here. You do not need an account.
-        We use your email only to answer and do not keep the message.
+        Questions, bugs, a decision you disagree with, or a data request? Check the{' '}
+        <Link to="/faq" className="link">FAQ</Link> first. You do not need an account. We use your
+        email only to reply.
       </p>
       <label>Name (optional)
         <input maxLength={100} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
