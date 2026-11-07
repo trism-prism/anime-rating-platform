@@ -54,16 +54,23 @@ public class ProfilesController : ControllerBase
 
     // The picture as an image (public, like the profile; an <img> can't send a token so blocks don't apply). 404 when there is none
     // or the account is gone: the web client then shows the initial-letter avatar. no-cache + ETag: always revalidated, a 304 costs no bytes.
-    // ponytail: no rate limit (a page shows many avatars); the bytes are read before the ETag check, add a UpdatedAt-only query if it hurts.
+    // The bytes are only read when the ETag doesn't match.
+    [EnableRateLimiting("avatar-read")]
     [HttpGet("users/{username}/avatar")]
     public async Task<IActionResult> Avatar(string username)
     {
         if (!SocialRules.ValidUserName(username)) return NotFound();
         var normalized = username.ToUpperInvariant();
-        var a = await _db.Avatars.FirstOrDefaultAsync(x => _db.Users.Any(u => u.Id == x.UserId && u.NormalizedUserName == normalized && u.DeletedAt == null));
-        if (a == null) return NotFound();
+        var meta = await _db.Avatars.Where(x => _db.Users.Any(u => u.Id == x.UserId && u.NormalizedUserName == normalized && u.DeletedAt == null))
+            .Select(x => new { x.UserId, x.ContentType, x.UpdatedAt }).FirstOrDefaultAsync();
+        if (meta == null) return NotFound();
+
+        var etag = $"\"{meta.UpdatedAt.Ticks}\"";
         Response.Headers.CacheControl = "public, no-cache";
-        return File(a.Data, a.ContentType, null, new Microsoft.Net.Http.Headers.EntityTagHeaderValue($"\"{a.UpdatedAt.Ticks}\""));
+        Response.Headers.ETag = etag;
+        if (Request.Headers.IfNoneMatch.Contains(etag)) return StatusCode(304);
+        var data = await _db.Avatars.Where(x => x.UserId == meta.UserId).Select(x => x.Data).FirstOrDefaultAsync();
+        return data == null ? NotFound() : File(data, meta.ContentType);
     }
 
     // keyset by rating id, newest first, 20 per page. The viewer rule decides which ratings show (a block either way shows none);

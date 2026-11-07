@@ -99,7 +99,7 @@ export default function ProfileForm() {
             {hasAvatar && <button type="button" disabled={busy} onClick={remove}>Remove picture</button>}
           </div>
         </div>
-        <p className="muted hint">Optional. A png, jpeg or webp image up to 2 MB, cropped to a square.</p>
+        <p className="muted hint">Optional. A png, jpeg or webp image up to 2 MB, cropped to a square. Your picture is public: anyone can load it, including people you have blocked.</p>
         {picMsg && <p role="status">{picMsg}</p>}
       </div>
 

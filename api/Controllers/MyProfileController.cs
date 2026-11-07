@@ -14,7 +14,6 @@ public record BioRequest(string? Bio);
 // Your own bio and profile picture. Everyone reads them through the profile routes.
 [ApiController]
 [Authorize]
-[EnableRateLimiting("profile-edit")]
 [Route("me")]
 public class MyProfileController : ControllerBase
 {
@@ -26,6 +25,7 @@ public class MyProfileController : ControllerBase
 
     // empty clears it; slurs are masked like reviews
     [HttpPut("bio")]
+    [EnableRateLimiting("bio-write")]
     public async Task<IActionResult> SetBio(BioRequest body)
     {
         var bio = body.Bio?.Trim();
@@ -39,6 +39,7 @@ public class MyProfileController : ControllerBase
 
     // the raw image bytes as the body (the web client sends a 256x256 square); the type comes from the bytes, not the header
     [HttpPut("avatar")]
+    [EnableRateLimiting("avatar-write")]
     [RequestSizeLimit(Avatars.MaxBytes)]
     public async Task<IActionResult> SetAvatar()
     {
@@ -51,16 +52,35 @@ public class MyProfileController : ControllerBase
 
         var me = Me;
         if (!await _db.Users.AnyAsync(u => u.Id == me && u.DeletedAt == null)) return NotFound();
+        try { await Store(me, data, type); }
+        catch (DbUpdateException)
+        {
+            // two first uploads raced (primary key): the row exists now, so this one is an update
+            _db.ChangeTracker.Clear();
+            await Store(me, data, type);
+        }
+        // the account may have been deleted since the check above, after its cleanup ran: don't leave a picture behind
+        if (!await _db.Users.AnyAsync(u => u.Id == me && u.DeletedAt == null))
+        {
+            _db.Avatars.RemoveRange(await _db.Avatars.Where(a => a.UserId == me).ToListAsync());
+            await _db.SaveChangesAsync();
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    async Task Store(string me, byte[] data, string type)
+    {
         var row = await _db.Avatars.FirstOrDefaultAsync(a => a.UserId == me);
         if (row == null) _db.Avatars.Add(row = new UserAvatar { UserId = me });
         row.Data = data;
         row.ContentType = type;
         row.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        return NoContent();
     }
 
     [HttpDelete("avatar")]
+    [EnableRateLimiting("avatar-write")]
     public async Task<IActionResult> RemoveAvatar()
     {
         var me = Me;

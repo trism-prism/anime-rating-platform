@@ -116,7 +116,18 @@ public class ProfileTests
 
         var file = (FileContentResult)await Pic(open, "ALICE"); // the name lookup ignores case
         Assert.Equal(Png, file.FileContents);
-        Assert.NotNull(file.EntityTag);
+        Assert.Equal(404, Status(await Pic(open, "carol"))); // no picture
+        // a matching If-None-Match gets a 304 with no body; a stale one gets the picture
+        string Etag(AppDbContext db) => $"\"{db.Avatars.AsNoTracking().Single().UpdatedAt.Ticks}\"";
+        using (var db = open())
+        {
+            var c = As(new ProfilesController(db), null);
+            c.Request.Headers.IfNoneMatch = Etag(db);
+            Assert.Equal(304, Status(await c.Avatar("alice")));
+            Assert.Equal(Etag(db), c.Response.Headers.ETag.ToString());
+            c.Request.Headers.IfNoneMatch = "\"1\"";
+            Assert.IsType<FileContentResult>(await c.Avatar("alice"));
+        }
         Assert.True(Json(await Profile(open, "c", "alice")).GetProperty("hasAvatar").GetBoolean());
 
         await Mine(open, "a", c => c.RemoveAvatar());
