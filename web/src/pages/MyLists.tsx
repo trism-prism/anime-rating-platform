@@ -57,7 +57,7 @@ export default function MyLists() {
       <h1>My lists</h1>
       <form className="row" onSubmit={create}>
         <input value={name} maxLength={60} placeholder="New list name" aria-label="New list name" onChange={(e) => setName(e.target.value)} />
-        <AudienceSelect label="Who can see the new list" value={audience} onChange={setAudience} />
+        <AudienceSelect label="Visibility of the new list" value={audience} onChange={setAudience} />
         <button disabled={!name.trim()}>Create list</button>
       </form>
       {error && <p className="error">{error}</p>}
@@ -67,7 +67,7 @@ export default function MyLists() {
         <div key={l.id} className="list-row">
           <Link to={`/lists/${l.id}`} className="list-name">{l.name}</Link>
           <span className="muted">{l.itemCount} {l.itemCount === 1 ? 'item' : 'items'}</span>
-          <AudienceSelect label={`Who can see ${l.name}`} value={l.audience ?? 'Public'} onChange={(a) => changeAudience(l, a)} />
+          <AudienceSelect label={`Visibility of ${l.name}`} value={l.audience ?? 'Public'} onChange={(a) => changeAudience(l, a)} />
           <button onClick={() => remove(l)}>Delete</button>
         </div>
       ))}

@@ -110,6 +110,17 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 input[type='checkbox'], input[type='radio'], input[type='range'] { accent-color: var(--accent); }
 button { cursor: pointer; }
 button:hover:not(:disabled) { background: var(--raised-hover); border-color: var(--hairline-strong); }
+select {
+  appearance: none;
+  padding-right: var(--s-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23aca69c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.5l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--s-2) center;
+  cursor: pointer;
+}
+select option { background: var(--card); color: var(--text); }
+input:not([type='checkbox'], [type='radio'], [type='range']):hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled) { border-color: var(--hairline-strong); }
+input:not([type='checkbox'], [type='radio'], [type='range']):focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 button:disabled, input:disabled, select:disabled { opacity: 0.45; cursor: default; }
 /* the main action of a form */
 button[type='submit'] { background: var(--accent); border-color: transparent; color: var(--accent-ink); font-weight: var(--fw-medium); }

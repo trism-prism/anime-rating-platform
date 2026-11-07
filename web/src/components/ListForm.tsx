@@ -47,14 +47,6 @@ export default function ListForm({ titleId }: { titleId: number }) {
       <select value={status} onChange={(e) => setStatus(e.target.value as WatchStatus)}>
         {STATUSES.map((s) => <option key={s}>{s}</option>)}
       </select>
-      <input
-        type="number"
-        min={0}
-        className="num"
-        aria-label="Progress"
-        value={progress}
-        onChange={(e) => setProgress(Math.max(0, Number(e.target.value) || 0))}
-      />
       <button onClick={save}>{inList ? 'Update list' : 'Add to my list'}</button>
       {msg && <span className="muted">{msg}</span>}
       {error && <span className="error">{error}</span>}

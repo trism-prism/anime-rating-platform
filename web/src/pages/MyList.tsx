@@ -26,11 +26,11 @@ export default function MyList() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  async function update(e: WatchEntry, status: WatchStatus, progress: number) {
+  async function update(e: WatchEntry, status: WatchStatus) {
     setError('')
     try {
-      await api(`/me/watchlist/${e.titleId}`, { method: 'PUT', body: JSON.stringify({ status, progress }) })
-      setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, status, progress } : x)))
+      await api(`/me/watchlist/${e.titleId}`, { method: 'PUT', body: JSON.stringify({ status, progress: e.progress }) })
+      setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, status } : x)))
     } catch (err) {
       setError((err as Error).message)
     }
@@ -83,29 +83,18 @@ export default function MyList() {
           <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
           <Link to={`/series/${e.seriesId}`} className="muted link-quiet">{e.seriesName}</Link>
           <span className="muted">{e.type}</span>
-          <select value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus, e.progress)}>
+          <select value={e.status} onChange={(ev) => update(e, ev.target.value as WatchStatus)}>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
           <AudienceSelect
-            label={`Who can see ${e.name} on your list`}
+            label={`Visibility of ${e.name}`}
             value={e.audience}
             disabled={changing.includes(`w-${e.titleId}`)}
             onChange={(a) => changeAudience(`w-${e.titleId}`, `/me/watchlist/${e.titleId}/audience`, a,
               () => setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, audience: a } : x))))}
           />
-          <input
-            type="number"
-            min={0}
-            className="num"
-            aria-label="Progress"
-            defaultValue={e.progress}
-            onBlur={(ev) => {
-              const p = Math.max(0, Number(ev.target.value) || 0)
-              if (p !== e.progress) update(e, e.status, p)
-            }}
-          />
           <button onClick={() => remove(e)}>Remove</button>
-          <WatchDates key={`${e.titleId}-${e.startedOn}-${e.finishedOn}-${e.rewatchCount}`} entry={e} onSaved={(n) => setList((l) => l && l.map((x) => (x.titleId === n.titleId ? n : x)))} />
+          <WatchDates key={`${e.titleId}-${e.startedOn}-${e.finishedOn}`} entry={e} onSaved={(n) => setList((l) => l && l.map((x) => (x.titleId === n.titleId ? n : x)))} />
         </div>
       ))}
 
@@ -117,7 +106,7 @@ export default function MyList() {
         <div className="table-scroll">
         <table className="table">
           <thead>
-            <tr><th>Title</th><th>Story</th><th>Art</th><th>Chars</th><th>Fun</th><th>Overall</th><th>Who can see</th></tr>
+            <tr><th>Title</th><th>Story</th><th>Art</th><th>Chars</th><th>Fun</th><th>Overall</th><th>Visibility</th></tr>
           </thead>
           <tbody>
             {ratings.map((r) => (
@@ -127,7 +116,7 @@ export default function MyList() {
                 <td><strong>{r.overall}</strong></td>
                 <td>
                   <AudienceSelect
-                    label={`Who can see your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}
+                    label={`Visibility of your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}
                     value={r.audience}
                     disabled={changing.includes(`r-${r.titleId}-${r.volume ?? 0}`)}
                     onChange={(a) => changeAudience(`r-${r.titleId}-${r.volume ?? 0}`,
