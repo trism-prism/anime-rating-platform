@@ -44,7 +44,6 @@ export default function App() {
           <Route path="/lists" element={<MyLists />} />
           <Route path="/lists/:id" element={<ListPage />} />
           <Route path="/stats" element={<Stats />} />
-          <Route path="/stats/:year" element={<Stats />} />
           <Route path="/feed" element={<Feed />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -61,7 +60,7 @@ export default function App() {
           <Route path="/faq" element={<Faq />} />
           <Route path="/support" element={<Support />} />
           <Route path="/auth/callback" element={<GoogleCallback />} />
-          <Route path="*"element={<h1>Page not found</h1>} />
+          <Route path="*" element={<h1>Page not found</h1>} />
         </Route>
       </Routes>
     </BrowserRouter>

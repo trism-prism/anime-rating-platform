@@ -128,25 +128,6 @@ export interface ReplyPage {
   nextCursor: number | null
 }
 
-export interface ProfileRating {
-  ratingId: number
-  titleId: number
-  titleName: string
-  seriesId: number
-  seriesName: string
-  volume: number | null
-  overall: number
-  createdAt: string
-  hasReview: boolean
-  spoiler: boolean
-  snippet: string | null
-}
-
-export interface ProfileRatingPage {
-  items: ProfileRating[]
-  nextCursor: number | null
-}
-
 export interface VolumeAverage {
   volume: number
   average: number
@@ -338,22 +319,9 @@ export interface StatsData {
   averageScore: number | null
   distribution: number[]
   genres: { name: string; count: number }[]
-  formats: { name: string; count: number }[]
   episodes: number
   chapters: number
   volumesRated: number
-}
-
-export interface YearStats {
-  year: number
-  finished: number
-  episodes: number
-  chapters: number
-  byMonth: number[]
-  genres: { name: string; count: number }[]
-  ratingCount: number
-  averageScore: number | null
-  topRated: { titleId: number; name: string; overall: number }[]
 }
 
 // titleId is set on a title page's list, seriesId alone on a series page's
