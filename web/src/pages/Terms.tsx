@@ -50,8 +50,8 @@ export default function Terms() {
       <h2>Leaving</h2>
       <p>
         You can export your data and delete your account at any time in{' '}
-        <Link to="/settings" className="link">Settings</Link>. Deleting removes your data as
-        described in the <Link to="/privacy" className="link">privacy policy</Link>.
+        <Link to="/settings" className="link">Settings</Link>. Deleting removes your personal data and anonymizes your ratings, reviews and replies
+        (they stay as "Deleted user"), as described in the <Link to="/privacy" className="link">privacy policy</Link>.
       </p>
 
       <h2>Anime and manga information</h2>

@@ -62,9 +62,8 @@ export default function Privacy() {
 
       <h2>How long we keep it</h2>
       <ul>
-        <li>Your account and content: until you delete your account.</li>
+        <li>Your account and personal data: until you delete your account. Your ratings, reviews, replies, reactions and the reports you filed are kept after that without your name, as "Deleted user".</li>
         <li>Sessions: until they expire (30 days after last use, 90 at most) or you sign out, then they are deleted.</li>
-        <li>Accounts whose email was never verified: deleted 30 days after they were made, with everything in them.</li>
         <li>Reports: settled reports are deleted after one year. Open reports stay until an admin settles them.</li>
         <li>Notifications: deleted after 90 days.</li>
         <li>Emailed codes are not stored; they expire within minutes.</li>
@@ -74,7 +73,7 @@ export default function Privacy() {
       <h2>Your choices</h2>
       <ul>
         <li><strong>Download your data</strong> in <Link to="/settings" className="link">Settings</Link>: ratings, reviews, list entries and custom lists as JSON or CSV.</li>
-        <li><strong>Delete your account</strong> in Settings. It removes your account, ratings, reviews, replies, reactions, lists, friends, blocks, notifications, sessions and the reports you filed. Totals such as averages are recalculated without you. Reports about your content are deleted with it.</li>
+        <li><strong>Delete your account</strong> in Settings. It removes your email, password hash, Google link, sessions, lists, watch list, friends, blocks, notifications and settings, and your name. Your ratings, reviews, replies, reactions and the reports you filed stay without any link to you, shown as "Deleted user", so averages and counts do not change. Reviews set to Friends or Only me stay hidden from everyone but admins.</li>
         <li><strong>Change</strong> your display name, password, email, audiences and notification preferences at any time.</li>
         <li><strong>Ask</strong> through the <Link to="/support" className="link">support form</Link> if you want anything else done with your data.</li>
       </ul>

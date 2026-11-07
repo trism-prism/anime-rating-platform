@@ -88,7 +88,7 @@ public class GoogleTests
     }
 
     // a browser coming back from Google with the cookie that start set
-    // terms: the age and Terms boxes were ticked on Register before the redirect to Google
+    // terms: the age and Terms were accepted (Register boxes or the Login notice) before the redirect to Google
     static (HttpContext Http, string State) Back(string state = "state123", bool terms = true)
     {
         var http = new DefaultHttpContext();
@@ -213,18 +213,18 @@ public class GoogleTests
     }
 
     [Fact]
-    public async Task A_new_google_account_needs_the_boxes_ticked_and_stores_the_acceptance()
+    public async Task A_new_google_account_needs_the_notice_accepted_and_stores_the_acceptance()
     {
         using var p = Build();
         var users = p.GetRequiredService<UserManager<AppUser>>();
 
-        // no tick (for example "Continue with Google" on the login page): refused, nothing created
+        // no acceptance (a hand-made link without terms=true): refused, nothing created
         var (bare, _) = Back(terms: false);
         var r = (RedirectResult)await Make(p, new TokenHandler(IdToken("sam@example.com")), bare).Callback("code1", "state123");
         Assert.Equal(Front + "/login?error=terms", r.Url);
         Assert.Empty(users.Users);
 
-        // ticked on Register: created with the acceptance recorded
+        // from Register (boxes ticked) or Login (notice next to the button): created with the acceptance recorded
         Assert.StartsWith(Front + "/auth/callback", await Callback(p, IdToken("sam@example.com")));
         var user = Assert.Single(users.Users);
         Assert.Equal(Terms.Version, user.TermsVersion);

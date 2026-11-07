@@ -30,7 +30,7 @@ public class AdminController : ControllerBase
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
         page = Math.Max(page, 1);
-        var q = _users.Users;
+        var q = _users.Users.Where(u => u.DeletedAt == null); // deleted accounts have no email or login to manage
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();

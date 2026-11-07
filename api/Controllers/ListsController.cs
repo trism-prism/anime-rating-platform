@@ -137,7 +137,7 @@ public class ListsController : ControllerBase
         if (SocialRules.ExpiredToken(Request, User)) return Unauthorized();
         var viewer = User.FindFirst("sub")?.Value;
         var list = await _db.CustomLists.Where(l => l.Id == id).VisibleTo(_db, viewer)
-            .Select(l => new { l.Id, l.Name, Audience = l.Audience.ToString(), userName = l.User.UserName, mine = l.UserId == viewer }).FirstOrDefaultAsync();
+            .Select(l => new { l.Id, l.Name, Audience = l.Audience.ToString(), userName = l.User.DeletedAt != null ? AppUser.DeletedName : l.User.UserName, mine = l.UserId == viewer }).FirstOrDefaultAsync();
         if (list == null) return NotFound();
 
         var items = await _db.CustomListItems.Where(i => i.ListId == id).OrderBy(i => i.Id)

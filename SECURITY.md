@@ -30,7 +30,7 @@ Please include what you found, the steps to reproduce it, and what an attacker c
 - Every route that returns a review, reply or list goes through one visibility rule (audience, friendships, blocks); user ids are always read from the signed token, never from the request.
 - Security headers: a Content-Security-Policy, HSTS, `X-Content-Type-Options`, a Referrer-Policy, a Permissions-Policy and `frame-ancestors 'none'` on the API (set in `api/Program.cs`) and on the website (`web/vercel.json`). The website has no inline scripts.
 - Secrets live in environment variables, not in the repository, and logs avoid codes, links and tokens.
-- A daily job removes expired sessions, unverified accounts after 30 days, settled reports after a year and old notifications. Users can export and delete their own data.
+- A daily job removes expired sessions, settled reports after a year and old notifications. Users can export and delete their own data.
 
 ## Known limits
 

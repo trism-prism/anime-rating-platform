@@ -11,7 +11,7 @@ namespace api.Controllers;
 
 public record DeleteAccountRequest(string? CurrentPassword, string? Code);
 
-// Deleting your own account. Like export it needs the current password; an account that signs in with Google only has no
+// Deleting your own account (it is anonymized, see AccountDeletion). Like export it needs the current password; an account that signs in with Google only has no
 // password, so it asks for a fresh code emailed to the account address instead (the same pattern as verifying the email).
 [ApiController]
 [Authorize]
@@ -91,7 +91,7 @@ public class DeleteAccountController : ControllerBase
 
         if (!string.IsNullOrEmpty(email))
         {
-            try { await _email.Send(email, "Your account was deleted", "Your AnimeRate account and the data in it were deleted. If this was not you, contact support right away."); }
+            try { await _email.Send(email, "Your account was deleted", "Your AnimeRate account was deleted. Your ratings and reviews stay on the site as \"Deleted user\". If this was not you, contact support right away."); }
             catch (Exception ex) { _log.LogError(ex.GetType().Name + " sending the deletion notice for user {UserId}", user.Id); }
         }
         return NoContent();
