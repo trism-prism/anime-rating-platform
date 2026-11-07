@@ -73,7 +73,7 @@ export default function Privacy() {
       <h2>Your choices</h2>
       <ul>
         <li><strong>Download your data</strong> in <Link to="/settings" className="link">Settings</Link>: ratings, reviews, list entries and custom lists as JSON or CSV.</li>
-        <li><strong>Delete your account</strong> in Settings. It removes your email, password hash, Google link, sessions, lists, watch list, friends, blocks, notifications and settings, and your name. Your ratings, reviews, replies, reactions and the reports you filed stay without any link to you, shown as "Deleted user", so averages and counts do not change. Reviews set to Friends or Only me stay hidden from everyone but admins.</li>
+        <li><strong>Delete your account</strong> in Settings. It removes your email, password hash, Google link, sessions, lists, watch list, friends, blocks, notifications and settings, and your name. Your ratings, reviews, replies, reactions and the reports you filed stay without your name or email, shown as "Deleted user", so averages and counts do not change. Reviews set to Friends or Only me stay hidden from everyone but admins.</li>
         <li><strong>Change</strong> your display name, password, email, audiences and notification preferences at any time.</li>
         <li><strong>Ask</strong> through the <Link to="/support" className="link">support form</Link> if you want anything else done with your data.</li>
       </ul>

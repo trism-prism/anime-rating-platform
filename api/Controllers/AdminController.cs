@@ -53,7 +53,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> Promote(string id)
     {
         var user = await _users.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null || user.DeletedAt != null) return NotFound();
         if (!await _users.IsInRoleAsync(user, "Admin")) await _users.AddToRoleAsync(user, "Admin");
         return NoContent();
     }
@@ -62,7 +62,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> Demote(string id)
     {
         var user = await _users.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null || user.DeletedAt != null) return NotFound();
         if (!await _users.IsInRoleAsync(user, "Admin")) return NoContent();
         if ((await _users.GetUsersInRoleAsync("Admin")).Count <= 1)
             return BadRequest(new { message = "Cannot remove the last admin." });

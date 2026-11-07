@@ -7,7 +7,19 @@ namespace api.Services;
 public static class AccountDeletion
 {
     // false when there is no such account (or it is already deleted)
-    public static async Task<bool> Delete(AppDbContext db, string u)
+    public static async Task<bool> Delete(AppDbContext db, string userId)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try { return await Anonymize(db, userId); }
+            catch (DbUpdateConcurrencyException) when (attempt < 4)
+            {
+                db.ChangeTracker.Clear(); // a friend request or report changed under us (the transaction rolled back): start over
+            }
+        }
+    }
+
+    static async Task<bool> Anonymize(AppDbContext db, string u)
     {
         await using var tx = db.Database.IsRelational() ? await db.Database.BeginTransactionAsync() : null; // InMemory (tests) has none
         var user = await db.Users.FirstOrDefaultAsync(x => x.Id == u && x.DeletedAt == null);
@@ -15,7 +27,10 @@ public static class AccountDeletion
 
         await SocialRules.RemoveMany(db, await db.Friendships.Where(f => f.UserLowId == u || f.UserHighId == u).ToListAsync());
         db.Notifications.RemoveRange(await db.Notifications.Where(n => n.UserId == u || n.ActorId == u).ToListAsync());
-        db.Reports.RemoveRange(await db.Reports.Where(r => r.TargetUserId == u && r.Target == ReportTarget.Profile).ToListAsync());
+        var profileReports = await db.Reports.Where(r => r.TargetUserId == u && r.Target == ReportTarget.Profile).ToListAsync();
+        var profileReportIds = profileReports.Select(r => (int?)r.Id).ToList();
+        db.Notifications.RemoveRange(await db.Notifications.Where(n => n.Type == NotificationType.ReportOutcome && profileReportIds.Contains(n.SubjectId)).ToListAsync());
+        db.Reports.RemoveRange(profileReports);
 
         var listIds = await db.CustomLists.Where(l => l.UserId == u).Select(l => l.Id).ToListAsync();
         db.CustomListItems.RemoveRange(await db.CustomListItems.Where(i => listIds.Contains(i.ListId)).ToListAsync());
