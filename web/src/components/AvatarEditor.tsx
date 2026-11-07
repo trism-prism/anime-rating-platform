@@ -10,14 +10,17 @@ const SIZE = 256
 
 // center-crop to a square and scale to 256x256, so what is stored is small whatever was chosen
 async function square(file: File): Promise<Blob> {
-  const img = await createImageBitmap(file)
-  const side = Math.min(img.width, img.height)
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = SIZE
-  canvas.getContext('2d')!.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE)
-  img.close()
-  // webp, or png where the browser can't write webp; the API looks at the bytes either way
-  return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('Could not read that image.'))), 'image/webp', 0.9))
+  const img = await createImageBitmap(file).catch(() => { throw new Error('Could not read that image.') })
+  try {
+    const side = Math.min(img.width, img.height)
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = SIZE
+    canvas.getContext('2d')!.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE)
+    // webp, or png where the browser can't write webp; the API looks at the bytes either way
+    return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('Could not read that image.'))), 'image/webp', 0.9))
+  } finally {
+    img.close()
+  }
 }
 
 // your own picture, large; the pencil (on hover or focus) opens a dialog to choose, preview, save or remove it

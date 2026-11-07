@@ -34,7 +34,7 @@ function Overall() {
     api<StatsData>('/me/stats').then(setS).catch((e: Error) => setError(e.message))
   }, [])
 
-  if (error) return <p className="error">{error}</p>
+  if (error) return <p className="error" role="alert">{error}</p>
   if (!s) return <p className="muted">Loading</p>
 
   return (

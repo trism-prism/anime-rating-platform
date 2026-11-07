@@ -51,27 +51,29 @@ export default function DeleteAccountForm() {
 
   const ready = hasPassword ? !!password : !!code
   return (
-    <form className="settings-form" onSubmit={submit}>
-      <p className="muted hint">
-        This cannot be undone. Download your data above first if you want a copy.
-      </p>
-      {hasPassword ? (
-        <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
-      ) : (
-        <>
-          <p className="muted hint">This account has no password, so we email you a code to confirm.</p>
-          <button type="button" onClick={sendCode} disabled={busy}>{sent ? 'Send a new code' : 'Email me a code'}</button>
-          <label>Code
-            <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
-          </label>
+    <>
+      <form className="settings-form" onSubmit={submit}>
+        <p className="muted hint">
+          This cannot be undone. Download your data above first if you want a copy.
+        </p>
+        {hasPassword ? (
+          <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
+        ) : (
+          <>
+            <p className="muted hint">This account has no password, so we email you a code to confirm.</p>
+            <button type="button" onClick={sendCode} disabled={busy}>{sent ? 'Send a new code' : 'Email me a code'}</button>
+            <label>Code
+              <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+            </label>
         </>
       )}
       {error && <p className="error" role="alert">{error}</p>}
       {info && <p role="status">{info}</p>}
       <button type="submit" disabled={busy || !ready}>Delete my account</button>
-      <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} onConfirm={remove} onCancel={() => setAsking(false)}>
-        <p>This cannot be undone.</p>
-      </ConfirmDialog>
     </form>
+    <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} onConfirm={remove} onCancel={() => setAsking(false)}>
+      <p>This cannot be undone.</p>
+    </ConfirmDialog>
+    </>
   )
 }

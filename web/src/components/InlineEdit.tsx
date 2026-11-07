@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 export const Pencil = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -19,6 +19,16 @@ export default function InlineEdit({ label, value, display, field, hint, onSave 
   const [draft, setDraft] = useState(value)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const edit = useRef<HTMLButtonElement>(null)
+  const form = useRef<HTMLFormElement>(null)
+  const was = useRef(false)
+
+  // focus the field when editing starts, the Edit button when it ends
+  useEffect(() => {
+    if (editing) form.current?.querySelector<HTMLElement>('input, textarea')?.focus()
+    else if (was.current) edit.current?.focus()
+    was.current = editing
+  }, [editing])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -38,12 +48,12 @@ export default function InlineEdit({ label, value, display, field, hint, onSave 
     return (
       <div className="inline-edit">
         {display}
-        <button type="button" className="edit-pencil" aria-label={`Edit ${label}`} onClick={() => { setDraft(value); setError(''); setEditing(true) }}><Pencil /></button>
+        <button ref={edit} type="button" className="edit-pencil" aria-label={`Edit ${label}`} onClick={() => { setDraft(value); setError(''); setEditing(true) }}><Pencil /></button>
       </div>
     )
   }
   return (
-    <form className="settings-form" onSubmit={submit}>
+    <form ref={form} className="settings-form" onSubmit={submit}>
       <label>{label}{field(draft, setDraft)}</label>
       <p className="muted hint">{hint(draft)}</p>
       {error && <p className="error" role="alert">{error}</p>}

@@ -101,7 +101,7 @@ function Profile({ username }: { username: string }) {
           field={(v, set) => <textarea rows={4} maxLength={300} value={v} onChange={(e) => set(e.target.value)} />}
           onSave={async (v) => {
             await api('/me/bio', { method: 'PUT', body: JSON.stringify({ bio: v }) })
-            await load()
+            load() // best-effort: a failed reload must not replace the page
           }} />
       ) : p.bio && <p className="bio">{p.bio}</p>}
 
