@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import type { FriendsData } from '../types'
+import Avatar from './Avatar'
 import ConfirmDialog from './ConfirmDialog'
 
 const profile = (name: string) => `/u/${encodeURIComponent(name)}`
+const Who = ({ name }: { name: string }) => <span className="who"><Avatar userName={name} small /><Link to={profile(name)} className="link">{name}</Link></span>
 
 // shown on your own profile: friends, pending requests both ways, and add-by-username
 export default function FriendsSection({ onChange }: { onChange: () => void }) {
@@ -78,7 +80,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
               <ul className="people">
                 {data.incoming.map((r) => (
                   <li key={r.requestId}>
-                    <Link to={profile(r.userName)} className="link">{r.userName}</Link>
+                    <Who name={r.userName} />
                     <span className="row">
                       <button disabled={busy} onClick={() => post(`/friends/requests/${r.requestId}/accept`)}>Accept</button>
                       <button disabled={busy} onClick={() => post(`/friends/requests/${r.requestId}/decline`)}>Decline</button>
@@ -94,7 +96,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
               <ul className="people">
                 {data.outgoing.map((r) => (
                   <li key={r.requestId}>
-                    <Link to={profile(r.userName)} className="link">{r.userName}</Link>
+                    <Who name={r.userName} />
                     <button disabled={busy} onClick={() => run(() => api(`/friends/requests/${r.requestId}`, { method: 'DELETE' }))}>Cancel</button>
                   </li>
                 ))}
@@ -107,7 +109,7 @@ export default function FriendsSection({ onChange }: { onChange: () => void }) {
           ) : (
             <ul className="people">
               {data.friends.map((f) => (
-                <li key={f.userName}><Link to={profile(f.userName)} className="link">{f.userName}</Link></li>
+                <li key={f.userName}><Who name={f.userName} /></li>
               ))}
             </ul>
           )}

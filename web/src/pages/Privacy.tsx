@@ -12,7 +12,7 @@ export default function Privacy() {
 
       <h2>What we store</h2>
       <ul>
-        <li><strong>Account:</strong> your email address, display name, the date you joined, and a hash of your password (never the password itself). If you sign in with Google we store the Google account id and the email Google gives us, and no password.</li>
+        <li><strong>Account:</strong> your email address, display name, an optional bio and profile picture if you add them, the date you joined, and a hash of your password (never the password itself). If you sign in with Google we store the Google account id and the email Google gives us, and no password.</li>
         <li><strong>Sign-up:</strong> that you confirmed you are 13 or older and accepted the Terms, with the time and the version of the Terms.</li>
         <li><strong>Sign-ins:</strong> for each device that is signed in, a session with the browser description, the IP address it signed in from, when it was last used, and a hash of its sign-in token.</li>
         <li><strong>What you add:</strong> ratings (four scores and the overall), reviews and their spoiler marks, replies, reactions, your watch list with progress and dates, custom lists, and the audience you chose for each.</li>

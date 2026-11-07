@@ -48,7 +48,22 @@ public class ProfilesController : ControllerBase
             }
         }
 
-        return Ok(new { userName = user.UserName, joinedAt = user.CreatedAt, friendCount, viewerState = state, requestId });
+        var hasAvatar = await _db.Avatars.AnyAsync(a => a.UserId == user.Id);
+        return Ok(new { userName = user.UserName, joinedAt = user.CreatedAt, friendCount, viewerState = state, requestId, bio = user.Bio, hasAvatar });
+    }
+
+    // The picture as an image (public, like the profile; an <img> can't send a token so blocks don't apply). 404 when there is none
+    // or the account is gone: the web client then shows the initial-letter avatar. no-cache + ETag: always revalidated, a 304 costs no bytes.
+    // ponytail: no rate limit (a page shows many avatars); the bytes are read before the ETag check, add a UpdatedAt-only query if it hurts.
+    [HttpGet("users/{username}/avatar")]
+    public async Task<IActionResult> Avatar(string username)
+    {
+        if (!SocialRules.ValidUserName(username)) return NotFound();
+        var normalized = username.ToUpperInvariant();
+        var a = await _db.Avatars.FirstOrDefaultAsync(x => _db.Users.Any(u => u.Id == x.UserId && u.NormalizedUserName == normalized && u.DeletedAt == null));
+        if (a == null) return NotFound();
+        Response.Headers.CacheControl = "public, no-cache";
+        return File(a.Data, a.ContentType, null, new Microsoft.Net.Http.Headers.EntityTagHeaderValue($"\"{a.UpdatedAt.Ticks}\""));
     }
 
     // keyset by rating id, newest first, 20 per page. The viewer rule decides which ratings show (a block either way shows none);
