@@ -53,8 +53,7 @@ export default function DeleteAccountForm() {
   return (
     <form className="settings-form" onSubmit={submit}>
       <p className="muted hint">
-        Deletes your account, email, sign-ins, lists, watch list, friends, blocks and notifications. Only the month you joined is kept. Your ratings, reviews, replies, reactions and reports stay on the site under the name "Deleted user". This cannot be undone.
-        Download your data above first if you want a copy.
+        This cannot be undone. Download your data above first if you want a copy.
       </p>
       {hasPassword ? (
         <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
@@ -71,7 +70,7 @@ export default function DeleteAccountForm() {
       {info && <p role="status">{info}</p>}
       <button type="submit" disabled={busy || !ready}>Delete my account</button>
       <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} onConfirm={remove} onCancel={() => setAsking(false)}>
-        <p>Your account and personal data are removed now and cannot be restored. Your ratings and reviews stay as "Deleted user".</p>
+        <p>This cannot be undone.</p>
       </ConfirmDialog>
     </form>
   )

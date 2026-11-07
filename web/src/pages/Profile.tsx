@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
-import FriendsSection from '../components/FriendsSection'
+import AvatarEditor from '../components/AvatarEditor'
+import InlineEdit from '../components/InlineEdit'
 import ProfileLists from '../components/ProfileLists'
-import ProfileRatings from '../components/ProfileRatings'
 import ReportButton from '../components/ReportButton'
 import type { Profile as ProfileData } from '../types'
 
@@ -18,6 +18,8 @@ export default function ProfilePage() {
 }
 
 function Profile({ username }: { username: string }) {
+  const { rename } = useAuth()
+  const navigate = useNavigate()
   const [p, setP] = useState<ProfileData | null>(null)
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState('')
@@ -73,16 +75,35 @@ function Profile({ username }: { username: string }) {
   return (
     <div className="profile">
       <div className="profile-head">
-        <span className="profile-avatar"><Avatar userName={p.userName} /></span>
+        {state === 'Self'
+          ? <AvatarEditor userName={p.userName} hasAvatar={p.hasAvatar} onChange={load} />
+          : <span className="profile-avatar"><Avatar userName={p.userName} /></span>}
         <div>
-          <h1>{p.userName}</h1>
+          {state === 'Self' ? (
+            <InlineEdit label="Display name" value={p.userName} display={<h1>{p.userName}</h1>}
+              hint={() => '3 to 30 letters, digits, . _ -'}
+              field={(v, set) => <input required minLength={3} maxLength={30} pattern="[A-Za-z0-9._\-]+" autoComplete="off" value={v} onChange={(e) => set(e.target.value)} />}
+              onSave={async (v) => {
+                const r = await api<{ userName: string }>('/me/username', { method: 'PUT', body: JSON.stringify({ userName: v }) })
+                rename(r.userName)
+                navigate(`/u/${encodeURIComponent(r.userName)}`, { replace: true })
+              }} />
+          ) : <h1>{p.userName}</h1>}
           <p className="muted">
             Joined {new Date(p.joinedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })} · {p.friendCount} {p.friendCount === 1 ? 'friend' : 'friends'}
           </p>
         </div>
       </div>
 
-      {p.bio && <p className="bio">{p.bio}</p>}
+      {state === 'Self' ? (
+        <InlineEdit label="Bio" value={p.bio ?? ''} display={p.bio ? <p className="bio">{p.bio}</p> : <p className="muted">No bio yet</p>}
+          hint={(v) => `${v.length}/300`}
+          field={(v, set) => <textarea rows={4} maxLength={300} value={v} onChange={(e) => set(e.target.value)} />}
+          onSave={async (v) => {
+            await api('/me/bio', { method: 'PUT', body: JSON.stringify({ bio: v }) })
+            await load()
+          }} />
+      ) : p.bio && <p className="bio">{p.bio}</p>}
 
       {state === null && <p><Link to="/login" className="link">Log in</Link> to add friends.</p>}
       {state && state !== 'Self' && (
@@ -116,11 +137,7 @@ function Profile({ username }: { username: string }) {
       )}
       {actionError && <p className="error" role="alert">{actionError}</p>}
 
-      {state === 'Self' && <FriendsSection onChange={load} />}
-
       <ProfileLists key={`l:${p.userName}:${p.viewerState}`} username={p.userName} />
-
-      <ProfileRatings key={`${p.userName}:${p.viewerState}`}username={p.userName} />
 
       <ConfirmDialog open={confirmBlock} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}
         onConfirm={() => run(call(`/blocks/${name}`, 'PUT'))} onCancel={() => setConfirmBlock(false)}>

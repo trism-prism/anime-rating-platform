@@ -123,7 +123,7 @@ export default function AvatarMenu() {
           <Link to={`/u/${encodeURIComponent(user.userName)}`} role="menuitem" onClick={() => setOpen(false)}>Profile</Link>
           <Link to="/lists" role="menuitem" onClick={() => setOpen(false)}>My lists</Link>
           <Link to="/stats" role="menuitem" onClick={() => setOpen(false)}>Stats</Link>
-          <Link to="/feed" role="menuitem" onClick={() => setOpen(false)}>Friends' activity</Link>
+          <Link to="/feed" role="menuitem" onClick={() => setOpen(false)}>Friends</Link>
           <Link to="/settings" role="menuitem" onClick={() => setOpen(false)}>Settings</Link>
           <Link to="/settings/notifications" role="menuitem" onClick={() => setOpen(false)}>Notification preferences</Link>
           {isAdmin && <Link to="/admin" role="menuitem" onClick={() => setOpen(false)}>Admin</Link>}
@@ -150,9 +150,6 @@ export default function AvatarMenu() {
               </Link>
             </div>
           )}
-          <Link to="/support" role="menuitem" onClick={() => setOpen(false)}>Support</Link>
-          <Link to="/terms" role="menuitem" onClick={() => setOpen(false)}>Terms of Service</Link>
-          <Link to="/faq" role="menuitem" onClick={() => setOpen(false)}>FAQ</Link>
           <button role="menuitem" onClick={doLogout}>Log out</button>
         </div>
       )}

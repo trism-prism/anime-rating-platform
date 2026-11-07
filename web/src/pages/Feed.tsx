@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import { timeAgo } from '../time'
 import type { FeedItem, FeedPage } from '../types'
 import Avatar from '../components/Avatar'
+import FriendsSection from '../components/FriendsSection'
 
 // recent ratings and reviews by friends; the API applies each rating's audience, keyset paged
 export default function Feed() {
@@ -47,12 +48,15 @@ export default function Feed() {
   if (!user) return <Navigate to="/login" replace />
 
   return (
-    <section aria-labelledby="feed-title">
-      <h1 id="feed-title">Friends' activity</h1>
+    <div>
+      <h1>Friends</h1>
+      <FriendsSection />
+      <section aria-labelledby="feed-title">
+      <h2 id="feed-title">Activity</h2>
       {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); loadFirst() }}>Retry</button></p>}
       {!items && !error && <p className="muted">Loading</p>}
       {items && items.length === 0 && (
-        <p className="muted">Nothing yet. When your friends rate or review something it shows up here. <Link to={`/u/${encodeURIComponent(user.userName)}`} className="link">Find friends</Link></p>
+        <p className="muted">Nothing yet. When your friends rate or review something it shows up here.</p>
       )}
       {items && items.length > 0 && (
         <ul className="people profile-ratings">
@@ -75,6 +79,7 @@ export default function Feed() {
         </ul>
       )}
       {next !== null && <button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading' : 'Load more'}</button>}
-    </section>
+      </section>
+    </div>
   )
 }
