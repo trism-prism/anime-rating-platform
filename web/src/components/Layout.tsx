@@ -15,10 +15,11 @@ export default function Layout() {
     <>
       <nav className="nav">
         <NavLink to="/" end className="brand">AnimeRate</NavLink>
+        <span className="spacer" />
+        <NavLink to="/" end>Home</NavLink>
         <NavLink to="/trending">Trending</NavLink>
         <NavLink to="/rankings">Rankings</NavLink>
         <NavLink to="/my-list">My List</NavLink>
-        <span className="spacer" />
         {user ? (
           <>
             <NotificationBell />
