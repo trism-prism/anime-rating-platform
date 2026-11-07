@@ -4,5 +4,5 @@ namespace api.Services;
 // Accounts made before the sign-up checkboxes have no acceptance stored and are covered by "using the site after a change".
 public static class Terms
 {
-    public const string Version = "2026-11-06";
+    public const string Version = "2026-11-07";
 }
