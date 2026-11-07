@@ -29,7 +29,8 @@ public class DeletionTests
         await db.WatchList.CountAsync(x => x.UserId == u) + await db.CustomLists.CountAsync(x => x.UserId == u)
         + await db.Friendships.CountAsync(x => x.UserLowId == u || x.UserHighId == u) + await db.UserBlocks.CountAsync(x => x.BlockerId == u || x.BlockedId == u)
         + await db.Notifications.CountAsync(x => x.UserId == u || x.ActorId == u) + await db.NotificationPreferences.CountAsync(x => x.UserId == u)
-        + await db.Sessions.CountAsync(x => x.UserId == u) + await db.UserRoles.CountAsync(x => x.UserId == u) + await db.UserLogins.CountAsync(x => x.UserId == u);
+        + await db.Sessions.CountAsync(x => x.UserId == u) + await db.UserRoles.CountAsync(x => x.UserId == u) + await db.UserLogins.CountAsync(x => x.UserId == u)
+        + await db.UserClaims.CountAsync(x => x.UserId == u) + await db.UserTokens.CountAsync(x => x.UserId == u);
 
     // users a alice (deleted), b Bob, c carol, d dave (admin); titles 1..3 in series 1
     internal static async Task AnonymizesAndKeepsTheContent(Func<AppDbContext> open)
@@ -53,6 +54,7 @@ public class DeletionTests
 
         using (var db = open())
         {
+            (await db.Users.SingleAsync(x => x.Id == "a")).CreatedAt = new DateTime(2026, 3, 15, 9, 30, 0, DateTimeKind.Utc);
             // friendship a-b came from Seed; carol asked alice; alice blocked dave
             db.Friendships.Add(new Friendship { UserLowId = "a", UserHighId = "c", RequesterId = "c", Status = FriendStatus.Pending });
             await db.SaveChangesAsync();
@@ -74,6 +76,8 @@ public class DeletionTests
             db.Reports.Add(new Report { ReporterId = "a", Target = ReportTarget.Review, TargetId = b1, TargetUserId = "b", Reason = ReportReason.Spam, Snapshot = "bob on one" });
             db.Reports.Add(new Report { ReporterId = "c", Target = ReportTarget.Review, TargetId = b1, TargetUserId = "b", Reason = ReportReason.Hate, Snapshot = "bob on one" });
             db.Reports.Add(new Report { ReporterId = "c", Target = ReportTarget.Profile, TargetId = 0, TargetUserId = "a", Reason = ReportReason.Spam, Snapshot = "Profile of alice" });
+            db.UserClaims.Add(new Microsoft.AspNetCore.Identity.IdentityUserClaim<string> { UserId = "a", ClaimType = "x", ClaimValue = "y" });
+            db.UserTokens.Add(new Microsoft.AspNetCore.Identity.IdentityUserToken<string> { UserId = "a", LoginProvider = "p", Name = "n", Value = "v" });
             db.UserLogins.Add(new Microsoft.AspNetCore.Identity.IdentityUserLogin<string> { UserId = "a", LoginProvider = "Google", ProviderKey = "g-a" });
             await db.SaveChangesAsync();
         }
@@ -94,6 +98,7 @@ public class DeletionTests
             Assert.NotNull(gone.DeletedAt);
             Assert.Null(gone.Email); Assert.Null(gone.NormalizedEmail); Assert.Null(gone.PasswordHash); Assert.False(gone.EmailConfirmed);
             Assert.DoesNotContain("alice", gone.UserName!, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), gone.CreatedAt); // only the month joined is kept
             Assert.True(gone.LockoutEnd > DateTimeOffset.UtcNow.AddYears(100));
             // everything alice wrote is still there and the totals did not move
             var titles = await db.Titles.OrderBy(t => t.Id).ToListAsync();
@@ -106,6 +111,7 @@ public class DeletionTests
             Assert.Equal((1, 0, 1, 1), (bobs.HelpfulCount, bobs.UnhelpfulCount, bobs.FunnyCount, bobs.Score));
             // reports stay (filed by alice, or about her content); only the one about her profile goes
             Assert.Equal(3, await db.Reports.CountAsync());
+            Assert.Equal(1, await db.Reports.CountAsync(r => r.ReporterId == "a")); // the report she filed stays
             Assert.Equal(0, await db.Reports.CountAsync(r => r.Target == ReportTarget.Profile));
             // bob keeps the bell entry for carol's reaction, none from alice
             var one = Assert.Single(await db.Notifications.Where(n => n.UserId == "b").ToListAsync());

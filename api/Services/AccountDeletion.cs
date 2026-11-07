@@ -52,6 +52,7 @@ public static class AccountDeletion
         user.PhoneNumber = null; user.PhoneNumberConfirmed = false; user.TwoFactorEnabled = false;
         user.LockoutEnabled = true; user.LockoutEnd = DateTimeOffset.MaxValue; user.AccessFailedCount = 0;
         user.TermsAcceptedAt = null; user.TermsVersion = null;
+        user.CreatedAt = new DateTime(user.CreatedAt.Year, user.CreatedAt.Month, 1, 0, 0, 0, DateTimeKind.Utc); // only the month joined is kept
         user.DeletedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();

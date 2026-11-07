@@ -81,12 +81,14 @@ public class DeleteAccountController : ControllerBase
             EmailCodes.Clear(_cache, key);
         }
 
-        // without an admin nobody receives support messages or can moderate
-        if (await _users.IsInRoleAsync(user, "Admin") && (await _users.GetUsersInRoleAsync("Admin")).Count <= 1)
-            return Conflict(new { message = "You are the only admin. Make someone else an admin first." });
-
+        // without an admin nobody receives support messages or can moderate; the lock keeps two admins from both passing the count
         var email = user.Email;
-        if (!await AccountDeletion.Delete(_db, user.Id)) return Unauthorized();
+        await using (await AdvisoryLock.Wait(_db, AdvisoryLock.AdminKey))
+        {
+            if (await _users.IsInRoleAsync(user, "Admin") && (await _users.GetUsersInRoleAsync("Admin")).Count <= 1)
+                return Conflict(new { message = "You are the only admin. Make someone else an admin first." });
+            if (!await AccountDeletion.Delete(_db, user.Id)) return Unauthorized();
+        }
         _sessions.DeleteCookie(Response, user.Id);
 
         if (!string.IsNullOrEmpty(email))

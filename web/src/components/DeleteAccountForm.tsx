@@ -53,7 +53,7 @@ export default function DeleteAccountForm() {
   return (
     <form className="settings-form" onSubmit={submit}>
       <p className="muted hint">
-        Deletes your account, email, sign-ins, lists, watch list, friends, blocks and notifications. Your ratings, reviews, replies, reactions and reports stay on the site under the name "Deleted user". This cannot be undone.
+        Deletes your account, email, sign-ins, lists, watch list, friends, blocks and notifications. Only the month you joined is kept. Your ratings, reviews, replies, reactions and reports stay on the site under the name "Deleted user". This cannot be undone.
         Download your data above first if you want a copy.
       </p>
       {hasPassword ? (
