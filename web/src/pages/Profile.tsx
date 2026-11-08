@@ -8,7 +8,8 @@ import AvatarEditor from '../components/AvatarEditor'
 import InlineEdit from '../components/InlineEdit'
 import ProfileOverview from '../components/ProfileOverview'
 import ProfileLists from '../components/ProfileLists'
-import ReportButton from '../components/ReportButton'
+import MoreMenu from '../components/MoreMenu'
+import { ReportDialog } from '../components/ReportButton'
 import { plural } from '../format'
 import { refreshPending } from '../pendingRequests'
 import { useTitle } from '../useTitle'
@@ -29,7 +30,9 @@ function Profile({ username }: { username: string }) {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [confirmBlock, setConfirmBlock] = useState(false)
+  const [confirm, setConfirm] = useState<'block' | 'unfriend' | null>(null)
+  const [reporting, setReporting] = useState(false)
+  const [reported, setReported] = useState(false)
   const [tick, setTick] = useState(0)
   useTitle(p?.userName ?? username)
 
@@ -55,7 +58,7 @@ function Profile({ username }: { username: string }) {
       await load() // it may have changed on the other side (cancelled, accepted): show what is really there
     } finally {
       setBusy(false)
-      setConfirmBlock(false)
+      setConfirm(null)
     }
   }
 
@@ -128,17 +131,15 @@ function Profile({ username }: { username: string }) {
               <button disabled={busy} onClick={() => run(call(`${reqPath}/decline`, 'POST'))}>Decline</button>
             </>
           )}
-          {state === 'Friends' && <button disabled={busy} onClick={() => run(call(`/friends/${name}`, 'DELETE'))}>Unfriend</button>}
+          {state === 'Friends' && <span className="muted">Friends</span>}
           {state === 'BlockedByViewer' && <span className="muted">You blocked this user</span>}
-          <details className="more" key={state}>
-            <summary>More</summary>
-            <div className="more-menu">
-              {state === 'BlockedByViewer'
-                ? <button disabled={busy} onClick={() => run(call(`/blocks/${name}`, 'DELETE'))}>Unblock</button>
-                : <button disabled={busy} onClick={() => setConfirmBlock(true)}>Block</button>}
-              <ReportButton path={`/users/${name}/report`} what="profile" />
-            </div>
-          </details>
+          <MoreMenu disabled={busy} items={[
+            ...(state === 'Friends' ? [{ label: 'Unfriend', onSelect: () => setConfirm('unfriend') }] : []),
+            state === 'BlockedByViewer'
+              ? { label: 'Unblock', onSelect: () => run(call(`/blocks/${name}`, 'DELETE')) }
+              : { label: 'Block', onSelect: () => setConfirm('block') },
+            { label: reported ? 'Reported' : 'Report', disabled: reported, onSelect: () => setReporting(true) },
+          ]} />
         </div>
       )}
       {actionError && <p className="error" role="alert">{actionError}</p>}
@@ -146,10 +147,16 @@ function Profile({ username }: { username: string }) {
       <ProfileOverview key={`o:${p.userName}:${p.viewerState}`} username={p.userName} />
       <ProfileLists key={`l:${p.userName}:${p.viewerState}`} username={p.userName} />
 
-      <ConfirmDialog open={confirmBlock} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}
-        onConfirm={() => run(call(`/blocks/${name}`, 'PUT'))} onCancel={() => setConfirmBlock(false)}>
+      <ConfirmDialog open={confirm === 'block'} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}
+        onConfirm={() => run(call(`/blocks/${name}`, 'PUT'))} onCancel={() => setConfirm(null)}>
         <p>They won't be told. Any friendship or request between you ends, and they can no longer find your profile or send requests.</p>
       </ConfirmDialog>
+      <ConfirmDialog open={confirm === 'unfriend'} title={`Unfriend ${p.userName}?`} confirmLabel="Unfriend" busy={busy}
+        onConfirm={() => run(call(`/friends/${name}`, 'DELETE'))} onCancel={() => setConfirm(null)}>
+        <p>You can send a new request later.</p>
+      </ConfirmDialog>
+      <ReportDialog path={`/users/${name}/report`} what="profile" open={reporting} onClose={() => setReporting(false)}
+        onSent={() => { setReporting(false); setReported(true) }} />
     </div>
   )
 }

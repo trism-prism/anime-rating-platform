@@ -246,6 +246,8 @@ export interface Notification {
   actionable: boolean // a friend request that can still be answered
   requestId: number | null
   reviewId: number | null // Reply and Reaction: the review it is about
+  titleName?: string | null // Reply and Reaction: the title that review is of
+  contentType?: 'Review' | 'Reply' | 'Profile' | null // ReportOutcome: what was reported
   outcome: 'Dismissed' | 'Removed' | null // ReportOutcome: what happened to the report
 }
 

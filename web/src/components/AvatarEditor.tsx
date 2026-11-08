@@ -2,6 +2,7 @@ import { useId, useRef, useState, type ChangeEvent } from 'react'
 import { api } from '../api'
 import { refreshAvatars } from '../avatarVersion'
 import Avatar from './Avatar'
+import ConfirmDialog from './ConfirmDialog'
 import { Pencil } from './InlineEdit'
 
 const TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -34,6 +35,7 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
   const [blob, setBlob] = useState<Blob | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const [preview, setPreview] = useState('')
 
   function clear() {
@@ -84,7 +86,10 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
   }
 
   const save = () => blob && run(() => api('/me/avatar', { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type } }))
-  const remove = () => run(() => api('/me/avatar', { method: 'DELETE' }))
+  const remove = async () => {
+    await run(() => api('/me/avatar', { method: 'DELETE' }))
+    setConfirmRemove(false)
+  }
 
   return (
     <>
@@ -103,13 +108,14 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
         </div>
         <p className="muted hint">Square pictures work best, ideally 256 x 256 px or larger. Keep your subject centered.</p>
         <p className="muted hint">Pictures are public, including to people you&apos;ve blocked.</p>
+        {hasAvatar && <p><button type="button" className="link-button" disabled={busy} onClick={() => setConfirmRemove(true)}>Remove picture</button></p>}
         {error && <p className="error" role="alert">{error}</p>}
         <div className="row row-end">
-          {hasAvatar && <button type="button" disabled={busy} onClick={remove}>Remove</button>}
           <button type="button" disabled={busy} onClick={() => dialog.current?.close()}>Cancel</button>
           <button type="button" className="on" disabled={busy || !blob} onClick={save}>{busy ? 'Working' : 'Save'}</button>
         </div>
       </dialog>
+      <ConfirmDialog open={confirmRemove} title="Remove your profile picture?" confirmLabel="Remove" busy={busy} onConfirm={remove} onCancel={() => setConfirmRemove(false)} />
     </>
   )
 }

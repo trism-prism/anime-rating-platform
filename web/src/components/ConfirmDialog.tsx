@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 export default function ConfirmDialog({ open, title, children, confirmLabel, busy, onConfirm, onCancel }: {
   open: boolean
   title: string
-  children: ReactNode
+  children?: ReactNode
   confirmLabel: string
   busy: boolean
   onConfirm: () => void
