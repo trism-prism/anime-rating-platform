@@ -1,7 +1,9 @@
 // Reads the two token blocks of src/index.css (dark in :root, light in :root[data-theme='light']) and checks WCAG contrast.
 // Also fails when a colour literal sits outside those blocks, or when public/theme-init.js disagrees with --bg.
 // Run: npm run check:contrast. The pairs here are the ones listed in STYLE.md.
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const root = new URL('../', import.meta.url)
 const css = readFileSync(new URL('src/index.css', root), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
@@ -90,17 +92,35 @@ for (const name of Object.keys(dark)) {
 
 // no colour literal outside the two token blocks
 const outside = (css.slice(0, darkBlock.start) + css.slice(darkBlock.end, lightBlock.start) + css.slice(lightBlock.end))
-for (const m of outside.matchAll(/#[0-9a-fA-F]{3,8}\b(?![\w-])|\brgba?\(|\bhsla?\(/g)) {
+const NAMED = 'white|black|red|green|blue|yellow|orange|purple|pink|gray|grey|silver|maroon|navy|teal|aqua|cyan|magenta|lime|olive|fuchsia|brown|gold|ivory|beige|tan|coral|salmon|crimson|indigo|violet'
+const literal = new RegExp(`#[0-9a-fA-F]{3,8}\\b(?![\\w-])|\\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix)\\(|(?<![\\w#.-])(?:${NAMED})(?![\\w-])`, 'g')
+for (const m of outside.matchAll(literal)) {
   const line = outside.slice(0, m.index).split('\n').length
   fail++
   console.error(`FAIL colour literal outside the token blocks: ${m[0]} (near line ${line} of the css without the token blocks)`)
 }
 
-// the pre-paint script repeats --bg for the browser bar
-const init = readFileSync(new URL('public/theme-init.js', root), 'utf8')
-for (const t of [dark, light]) {
-  if (!init.toLowerCase().includes(t['--bg'].toLowerCase())) { fail++; console.error(`FAIL public/theme-init.js does not contain --bg ${t['--bg']}`) }
+// no colour literals in components either (inline styles, svg attributes)
+function walk(dir) {
+  return readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? walk(p) : p.endsWith('.tsx') ? [p] : [] })
 }
+const attr = /\b(?:style|fill|stroke|color|stopColor)\s*=\s*(?:\{\{[^}]*\}\}|"[^"]*"|'[^']*')/g
+for (const file of walk(fileURLToPath(new URL('src/', root)))) {
+  for (const m of readFileSync(file, 'utf8').matchAll(attr)) {
+    if (/#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix)\(/.test(m[0])) { fail++; console.error(`FAIL colour literal in ${file}: ${m[0]}`) }
+  }
+}
+
+// the pre-paint script and index.html repeat --bg for the browser bar; they must equal the tokens exactly
+const init = readFileSync(new URL('public/theme-init.js', root), 'utf8')
+const html = readFileSync(new URL('index.html', root), 'utf8')
+const initBgs = [...init.matchAll(/'(#[0-9a-fA-F]{6})'/g)].map((m) => m[1].toLowerCase())
+for (const want of [dark['--bg'], light['--bg']]) {
+  if (!initBgs.includes(want.toLowerCase())) { fail++; console.error(`FAIL public/theme-init.js has no exact ${want} (found ${initBgs.join(', ') || 'none'})`) }
+}
+if (initBgs.length !== 2) { fail++; console.error(`FAIL public/theme-init.js should hold exactly two colours, found ${initBgs.length}`) }
+const metaColor = /<meta\s+name="theme-color"\s+content="([^"]*)"/.exec(html)?.[1]
+if (metaColor?.toLowerCase() !== dark['--bg'].toLowerCase()) { fail++; console.error(`FAIL index.html theme-color is ${metaColor}, dark --bg is ${dark['--bg']}`) }
 
 if (fail) { console.error(`${fail} problem(s)`); process.exit(1) }
 console.log('contrast ok')

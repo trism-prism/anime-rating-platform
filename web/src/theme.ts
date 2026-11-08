@@ -31,6 +31,12 @@ function apply() {
   if (bg) document.querySelector('meta[name=theme-color]')?.setAttribute('content', bg)
 }
 
+// module scope so React sees one stable function
+function subscribe(cb: () => void) {
+  listeners.add(cb)
+  return () => { listeners.delete(cb) }
+}
+
 function set(next: Theme) {
   current = next
   apply()
@@ -52,7 +58,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function useTheme(): [Theme, (t: Theme) => void] {
-  const theme = useSyncExternalStore((cb) => { listeners.add(cb); return () => { listeners.delete(cb) } }, () => current)
+  const theme = useSyncExternalStore(subscribe, () => current)
   return [theme, setTheme]
 }
 

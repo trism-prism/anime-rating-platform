@@ -750,4 +750,7 @@ a.button:hover { background: var(--raised-hover); border-color: var(--hairline-s
   .switch:checked { background: Highlight; border-color: Highlight; }
   .switch:checked::before { background: HighlightText; }
   .switch:focus-visible { outline: 2px solid Highlight; }
+  .segmented button[aria-checked='true'] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .select-button::after { background: ButtonText; }
+  .select-list li[aria-selected='true'] { outline: 2px solid Highlight; outline-offset: -2px; }
 }
