@@ -6,12 +6,13 @@ import Select from '../components/Select'
 import type { RankingRow } from '../types'
 import { score } from '../format'
 import { useTitle } from '../useTitle'
+import pageMeta from '../pageMeta.json'
 
 const CATEGORY_OPTIONS = ['overall', 'story', 'art', 'characters', 'enjoyment'].map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }))
 const TYPES = [{ value: '', label: 'Anime and manga' }, { value: 'Anime', label: 'Anime' }, { value: 'Manga', label: 'Manga' }]
 
 export default function Rankings() {
-  useTitle('Rankings')
+  useTitle(pageMeta['/rankings'].title)
   const [category, setCategory] = useState('overall')
   const [type, setType] = useState('')
   const [rows, setRows] = useState<{ key: string; list: RankingRow[] } | null>(null)

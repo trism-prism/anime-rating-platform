@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import Legal from '../components/Legal'
+import pageMeta from '../pageMeta.json'
 
 export default function Privacy() {
   return (
-    <Legal title="Privacy policy" updated="2026-11-07">
+    <Legal title={pageMeta['/privacy'].title} updated="2026-11-07">
       <p>
         AnimeRate is a hobby and portfolio project run by one person. It keeps only what it needs to
         work. We do not sell your data, we show no ads, and we use no tracking or analytics.
