@@ -1,34 +1,81 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import AudienceSelect from '../components/AudienceSelect'
 import ConfirmDialog from '../components/ConfirmDialog'
 import CreateListDialog from '../components/CreateListDialog'
-import { score } from '../format'
+import MyListRow, { type ListRow } from '../components/MyListRow'
 import Select from '../components/Select'
-import WatchDates from '../components/WatchDates'
-import { STATUSES, STATUS_OPTIONS, type Audience, type ListSummary, type MyRating, type WatchEntry, type WatchStatus } from '../types'
+import { plural } from '../format'
+import { STATUSES, type Audience, type ListSummary, type MyRating, type WatchEntry, type WatchStatus } from '../types'
 import { useTitle } from '../useTitle'
+
+const PAGE = 30 // rows shown before "Show more"
+
+// the chips; "Unlisted" is a title you rated that is not on your list
+type Filter = 'All' | WatchStatus | 'Unlisted'
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: 'All', label: 'All' },
+  ...STATUSES.map((s) => ({ value: s, label: s })),
+  { value: 'Unlisted', label: 'Not on list' },
+]
+const SORTS = [
+  { value: 'recent', label: 'Recently rated' },
+  { value: 'title', label: 'Title' },
+  { value: 'score', label: 'Score' },
+]
+
+// one row per title: list entry, its rating and its volume ratings joined by title
+function buildRows(list: WatchEntry[], ratings: MyRating[]): ListRow[] {
+  const rows = new Map<number, ListRow>()
+  for (const e of list) {
+    rows.set(e.titleId, { titleId: e.titleId, seriesId: e.seriesId, name: e.name, seriesName: e.seriesName !== e.name ? e.seriesName : null, coverUrl: e.coverUrl, entry: e, rating: null, volumes: [] })
+  }
+  for (const r of ratings) {
+    let row = rows.get(r.titleId)
+    if (!row) {
+      row = { titleId: r.titleId, seriesId: r.seriesId, name: r.titleName, seriesName: null, coverUrl: r.coverUrl, entry: null, rating: null, volumes: [] }
+      rows.set(r.titleId, row)
+    }
+    if (r.volume == null) row.rating = r
+    else row.volumes.push(r)
+  }
+  for (const row of rows.values()) row.volumes.sort((a, b) => (a.volume ?? 0) - (b.volume ?? 0))
+  return [...rows.values()]
+}
+
+const statusOf = (r: ListRow): Filter => r.entry?.status ?? 'Unlisted'
+const ratedAt = (r: ListRow) => [r.rating?.createdAt, ...r.volumes.map((v) => v.createdAt)].filter(Boolean).sort().pop() ?? ''
+const byName = (a: ListRow, b: ListRow) => a.name.localeCompare(b.name)
 
 export default function MyList() {
   useTitle('My List')
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
   const [lists, setLists] = useState<ListSummary[] | null>(null)
   const [listsError, setListsError] = useState('')
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<ListSummary | null>(null) // list awaiting delete confirmation
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [removing, setRemoving] = useState<ListRow | null>(null) // title awaiting remove confirmation
+  const [removeBusy, setRemoveBusy] = useState(false)
   const [list, setList] = useState<WatchEntry[] | null>(null)
   const [ratings, setRatings] = useState<MyRating[] | null>(null)
-  const [filter, setFilter] = useState<WatchStatus | 'All'>('All')
   const [error, setError] = useState('')
+  const [rowErrors, setRowErrors] = useState<Record<number, string>>({})
   const [listError, setListError] = useState('')
   const [ratingsError, setRatingsError] = useState('')
   const [tick, setTick] = useState(0) // bump to retry loading
-  const inFlight = useRef(new Set<string>()) // audience changes being saved, readable at once (state lags a fast double change)
+  const [limit, setLimit] = useState(PAGE)
+  const [pinned, setPinned] = useState<Set<number>>(new Set()) // changed rows stay in the view until the filters change
+  const inFlight = useRef(new Set<string>()) // changes being saved, readable at once (state lags a fast double change)
+  const queuedStatus = useRef(new Map<number, WatchStatus>()) // a status picked while the last one is still saving
   const [changing, setChanging] = useState<string[]>([])
+  const listRef = useRef<HTMLUListElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const focusFrom = useRef<number | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -37,44 +84,121 @@ export default function MyList() {
     api<MyRating[]>('/me/ratings').then((r) => { setRatings(r); setRatingsError('') }).catch((e: Error) => setRatingsError(e.message))
   }, [user, tick])
 
+  // filters live in the URL, so back and refresh keep them
+  const status = FILTERS.find((f) => f.value.toLowerCase() === params.get('status'))?.value ?? 'All'
+  const query = params.get('q') ?? ''
+  const sort = SORTS.find((s) => s.value === params.get('sort'))?.value ?? 'recent'
+
+  function setFilters(next: { status?: Filter; q?: string; sort?: string }) {
+    const p = new URLSearchParams(params)
+    const set = (key: string, value: string, fallback: string) => (value === fallback ? p.delete(key) : p.set(key, value))
+    if (next.status !== undefined) set('status', next.status.toLowerCase(), 'all')
+    if (next.q !== undefined) set('q', next.q, '')
+    if (next.sort !== undefined) set('sort', next.sort, 'recent')
+    setParams(p, { replace: true })
+    setLimit(PAGE)
+    setPinned(new Set())
+  }
+
+  const rows = useMemo(() => buildRows(list ?? [], ratings ?? []), [list, ratings])
+  const q = query.trim().toLowerCase()
+  const matches = rows.filter((r) => !q || r.name.toLowerCase().includes(q) || (r.seriesName ?? '').toLowerCase().includes(q))
+  const count = (f: Filter) => (f === 'All' ? matches.length : matches.filter((r) => statusOf(r) === f).length)
+  const visible = matches.filter((r) => status === 'All' || statusOf(r) === status || pinned.has(r.titleId)).sort((a, b) => {
+    if (sort === 'title') return byName(a, b)
+    if (sort === 'score') return (b.rating?.overall ?? -1) - (a.rating?.overall ?? -1) || byName(a, b)
+    return ratedAt(b).localeCompare(ratedAt(a)) || byName(a, b)
+  })
+  const shown = visible.slice(0, limit)
+
+  // after "Show more", focus the first new row, so the keyboard does not start over at the top
+  useEffect(() => {
+    if (focusFrom.current == null) return
+    listRef.current?.children[focusFrom.current]?.querySelector<HTMLElement>('a')?.focus()
+    focusFrom.current = null
+  }, [limit])
+
   if (!user) return <Navigate to="/login" replace />
 
-  async function update(e: WatchEntry, status: WatchStatus) {
-    setError('')
+  const setRowError = (id: number, message: string) => setRowErrors((r) => {
+    const n = { ...r }
+    if (message) n[id] = message
+    else delete n[id]
+    return n
+  })
+  const pin = (id: number) => setPinned((p) => new Set(p).add(id))
+  const begin = (key: string) => { inFlight.current.add(key); setChanging([...inFlight.current]) }
+  const end = (key: string) => { inFlight.current.delete(key); setChanging([...inFlight.current]) }
+  const busy = (key: string) => changing.includes(key)
+  const reloadList = () => api<WatchEntry[]>('/me/watchlist').then(setList).catch(() => {})
+
+  // optimistic: the row changes at once; one request per row at a time, a pick made meanwhile is sent after it;
+  // on failure the list is loaded again, so the select shows what the server has
+  async function changeStatus(row: ListRow, next: WatchStatus) {
+    const id = row.titleId
+    const key = `s-${id}`
+    setRowError(id, '')
+    pin(id)
+    if (row.entry) setList((l) => l && l.map((x) => (x.titleId === id ? { ...x, status: next } : x)))
+    if (inFlight.current.has(key)) { queuedStatus.current.set(id, next); return }
+    begin(key)
+    let pick: WatchStatus | undefined = next
     try {
-      await api(`/me/watchlist/${e.titleId}`, { method: 'PUT', body: JSON.stringify({ status, progress: e.progress }) })
-      setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, status } : x)))
+      while (pick) {
+        await api(`/me/watchlist/${id}`, { method: 'PUT', body: JSON.stringify({ status: pick, progress: row.entry?.progress ?? 0 }) })
+        pick = queuedStatus.current.get(id)
+        queuedStatus.current.delete(id)
+      }
+      if (!row.entry) await reloadList() // a new entry: the list sends its cover, series and type
     } catch (err) {
-      setError((err as Error).message)
+      queuedStatus.current.delete(id)
+      setRowError(id, (err as Error).message)
+      await reloadList()
+    } finally {
+      end(key)
     }
   }
 
   // one change at a time per row; on failure the lists are loaded again, so the select shows what the server has
-  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void, extra: object = {}) {
+  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void, fail: (message: string) => void, extra: object = {}) {
     if (inFlight.current.has(key)) return
-    inFlight.current.add(key)
-    setChanging([...inFlight.current])
-    setError('')
+    begin(key)
     try {
       await api(path, { method: 'PUT', body: JSON.stringify({ ...extra, audience }) })
       apply()
     } catch (err) {
-      setError((err as Error).message)
+      fail((err as Error).message)
       setTick((t) => t + 1)
     } finally {
-      inFlight.current.delete(key)
-      setChanging([...inFlight.current])
+      end(key)
     }
   }
 
-  async function remove(e: WatchEntry) {
-    setError('')
+  async function remove() {
+    const row = removing
+    if (!row) return
+    const at = visible.findIndex((r) => r.titleId === row.titleId)
+    const neighbours = [visible[at + 1], visible[at - 1]].filter(Boolean).map((r) => r.titleId)
+    setRowError(row.titleId, '')
+    setRemoveBusy(true)
     try {
-      await api(`/me/watchlist/${e.titleId}`, { method: 'DELETE' })
-      setList((l) => l && l.filter((x) => x.titleId !== e.titleId))
+      await api(`/me/watchlist/${row.titleId}`, { method: 'DELETE' })
+      pin(row.titleId)
+      setList((l) => l && l.filter((x) => x.titleId !== row.titleId))
     } catch (err) {
-      setError((err as Error).message)
+      setRowError(row.titleId, (err as Error).message)
+    } finally {
+      setRemoveBusy(false)
+      setRemoving(null)
     }
+    // the dialog gives focus back to a button that may be gone: put it on the row, or its neighbour
+    window.setTimeout(() => {
+      for (const id of [row.titleId, ...neighbours]) {
+        const link = document.querySelector<HTMLElement>(`[data-row="${id}"] a`)
+        if (link) return link.focus()
+      }
+      searchRef.current?.focus()
+    }, 60)
   }
 
   async function removeList() {
@@ -93,38 +217,67 @@ export default function MyList() {
     }
   }
 
-  const shown = list?.filter((x) => filter === 'All' || x.status === filter) ?? []
+  const ready = list !== null && (ratings !== null || ratingsError !== '')
 
   return (
     <div>
       <h1>My List</h1>
-      {error && <p className="error">{error}</p>}
-      <div className="filters">
-        {(['All', ...STATUSES] as const).map((s) => (
-          <button key={s} className={filter === s ? 'on' : ''} aria-pressed={filter === s} onClick={() => setFilter(s)}>{s}</button>
-        ))}
-      </div>
+      {error && <p className="error" role="alert">{error}</p>}
       {!list && listError && <p className="error">{listError} <button onClick={() => { setListError(''); setTick((t) => t + 1) }}>Retry</button></p>}
       {!list && !listError && <p className="muted">Loading</p>}
-      {list && list.length === 0 && <p className="muted">Add anime from <Link to="/" className="link">Browse</Link>.</p>}
-      {list && list.length > 0 && shown.length === 0 && <p className="muted">Nothing with this status.</p>}
-      {shown.map((e) => (
-        <div key={e.titleId} className="list-row">
-          <Link to={`/titles/${e.titleId}`} className="list-name">{e.name}</Link>
-          <Link to={`/series/${e.seriesId}`} className="muted link-quiet">{e.seriesName}</Link>
-          <span className="muted">{e.type}</span>
-          <Select label={`Status of ${e.name}`} value={e.status} options={STATUS_OPTIONS} onChange={(v) => update(e, v as WatchStatus)} />
-          <AudienceSelect
-            label={`Visibility of ${e.name}`}
-            value={e.audience}
-            disabled={changing.includes(`w-${e.titleId}`)}
-            onChange={(a) => changeAudience(`w-${e.titleId}`, `/me/watchlist/${e.titleId}/audience`, a,
-              () => setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, audience: a } : x))))}
-          />
-          <button onClick={() => remove(e)}>Remove</button>
-          <WatchDates key={`${e.titleId}-${e.startedOn}-${e.finishedOn}`} entry={e} onSaved={(n) => setList((l) => l && l.map((x) => (x.titleId === n.titleId ? n : x)))} />
+      {list && !ratings && ratingsError && <p className="error">Your ratings did not load: {ratingsError} <button onClick={() => { setRatingsError(''); setTick((t) => t + 1) }}>Retry</button></p>}
+      {ready && rows.length === 0 && (
+        <div className="mylist-empty">
+          <p className="muted">Nothing on your list yet. Add anime and manga from Browse.</p>
+          <Link to="/" className="button">Browse titles</Link>
         </div>
-      ))}
+      )}
+      {ready && rows.length > 0 && (
+        <>
+          <div className="mylist-tools">
+            <input ref={searchRef} type="search" className="mylist-search" aria-label="Search your list" placeholder="Search your list" value={query}
+              onChange={(e) => setFilters({ q: e.target.value })} />
+            <Select label="Sort by" value={sort} options={SORTS} onChange={(v) => setFilters({ sort: v })} />
+          </div>
+          <div className="mylist-chips" role="group" aria-label="Filter by status">
+            {FILTERS.filter((f) => f.value !== 'Unlisted' || count('Unlisted') > 0 || status === 'Unlisted').map((f) => (
+              <button key={f.value} type="button" className={status === f.value ? 'on' : ''} aria-pressed={status === f.value} onClick={() => setFilters({ status: f.value })}>
+                {f.label} <span className="num count">{count(f.value)}</span>
+              </button>
+            ))}
+          </div>
+          {visible.length === 0 && (
+            <p className="muted">No titles match. <button type="button" className="link-button" onClick={() => setFilters({ status: 'All', q: '' })}>Clear filters</button></p>
+          )}
+          <ul className="mylist" ref={listRef}>
+            {shown.map((r) => (
+              <MyListRow key={r.titleId} row={r} busy={busy} error={rowErrors[r.titleId] ?? ''}
+                onStatus={changeStatus}
+                onEntryAudience={(e, a) => changeAudience(`w-${e.titleId}`, `/me/watchlist/${e.titleId}/audience`, a,
+                  () => setList((l) => l && l.map((x) => (x.titleId === e.titleId ? { ...x, audience: a } : x))), (m) => setRowError(e.titleId, m))}
+                onRatingAudience={(rt, a) => changeAudience(`r-${rt.titleId}-${rt.volume ?? 0}`,
+                  `/titles/${rt.titleId}/rating/audience${rt.volume == null ? '' : `?volume=${rt.volume}`}`, a,
+                  () => setRatings((all) => all && all.map((x) => (x.titleId === rt.titleId && x.volume === rt.volume ? { ...x, audience: a } : x))), (m) => setRowError(rt.titleId, m))}
+                onDates={(id, startedOn, finishedOn) => setList((l) => l && l.map((x) => (x.titleId === id ? { ...x, startedOn, finishedOn } : x)))}
+                onDatesError={setRowError}
+                onRemove={setRemoving} />
+            ))}
+          </ul>
+          {visible.length > PAGE && (
+            <div className="mylist-more">
+              <p className="muted" role="status">Showing <span className="num">{shown.length}</span> of <span className="num">{visible.length}</span></p>
+              {shown.length < visible.length && (
+                <button type="button" onClick={() => { focusFrom.current = shown.length; setLimit(shown.length + PAGE) }}>Show more</button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      <ConfirmDialog open={removing !== null} title={`Remove "${removing?.name ?? ''}" from your list?`} confirmLabel="Remove" busy={removeBusy}
+        onConfirm={remove} onCancel={() => setRemoving(null)}>
+        <p>Its status and dates are cleared. Your rating stays.</p>
+      </ConfirmDialog>
 
       <div className="row reviews-head">
         <h2>Custom lists</h2>
@@ -134,52 +287,21 @@ export default function MyList() {
       {!lists && !listsError && <p className="muted">Loading</p>}
       {lists && lists.length === 0 && <p className="muted">No lists yet.</p>}
       {lists?.map((l) => (
-        <div key={l.id} className="list-row">
-          <Link to={`/lists/${l.id}`} className="list-name">{l.name}</Link>
-          <span className="muted"><span className="num">{l.itemCount}</span> {l.itemCount === 1 ? 'item' : 'items'}</span>
+        <div key={l.id} className="list-row mylist-list">
+          <div className="mylist-list-name">
+            <Link to={`/lists/${l.id}`} className="list-name">{l.name}</Link>
+            <span className="muted">{plural(l.itemCount, 'item')}</span>
+          </div>
           <AudienceSelect label={`Visibility of ${l.name}`} value={l.audience ?? 'Public'} disabled={changing.includes(`l-${l.id}`)}
-            onChange={(a) => changeAudience(`l-${l.id}`, `/me/lists/${l.id}`, a, () => setLists((all) => all && all.map((x) => (x.id === l.id ? { ...x, audience: a } : x))), { name: l.name })} />
+            onChange={(a) => changeAudience(`l-${l.id}`, `/me/lists/${l.id}`, a, () => setLists((all) => all && all.map((x) => (x.id === l.id ? { ...x, audience: a } : x))), setError, { name: l.name })} />
           <button onClick={() => setDeleting(l)}>Delete</button>
         </div>
       ))}
       <ConfirmDialog open={deleting !== null} title={`Delete "${deleting?.name ?? ''}"?`} confirmLabel="Delete list" busy={deleteBusy}
         onConfirm={removeList} onCancel={() => setDeleting(null)}>
-        <p>The list and its {deleting?.itemCount ?? 0} {deleting?.itemCount === 1 ? 'item' : 'items'} are removed. The titles themselves stay in the catalogue.</p>
+        <p>The list and its {plural(deleting?.itemCount ?? 0, 'item')} are removed. The titles themselves stay in the catalogue.</p>
       </ConfirmDialog>
       <CreateListDialog open={creating} onClose={() => setCreating(false)} onCreated={(l) => { setCreating(false); navigate(`/lists/${l.id}`) }} />
-
-      <h2>My ratings</h2>
-      {!ratings && ratingsError && <p className="error">{ratingsError} <button onClick={() => { setRatingsError(''); setTick((t) => t + 1) }}>Retry</button></p>}
-      {!ratings && !ratingsError && <p className="muted">Loading</p>}
-      {ratings && ratings.length === 0 && <p className="muted">You haven't rated anything yet.</p>}
-      {ratings && ratings.length > 0 && (
-        <div className="table-scroll">
-        <table className="table">
-          <thead>
-            <tr><th>Title</th><th>Story</th><th>Art</th><th>Characters</th><th>Enjoyment</th><th>Overall</th><th>Visibility</th></tr>
-          </thead>
-          <tbody>
-            {ratings.map((r) => (
-              <tr key={`${r.titleId}-${r.volume ?? 0}`}>
-                <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
-                <td className="num">{r.story}</td><td className="num">{r.art}</td><td className="num">{r.characters}</td><td className="num">{r.enjoyment}</td>
-                <td className="num"><strong>{score(r.overall)}</strong></td>
-                <td>
-                  <AudienceSelect
-                    label={`Visibility of your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}
-                    value={r.audience}
-                    disabled={changing.includes(`r-${r.titleId}-${r.volume ?? 0}`)}
-                    onChange={(a) => changeAudience(`r-${r.titleId}-${r.volume ?? 0}`,
-                      `/titles/${r.titleId}/rating/audience${r.volume == null ? '' : `?volume=${r.volume}`}`, a,
-                      () => setRatings((l) => l && l.map((x) => (x.titleId === r.titleId && x.volume === r.volume ? { ...x, audience: a } : x))))}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
     </div>
   )
 }
