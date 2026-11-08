@@ -27,7 +27,7 @@ export default function ExportForm() {
       a.href = url
       a.download = format === 'json' ? 'anime-platform-export.json' : 'anime-platform-export.zip'
       a.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 1000) // some browsers read the blob after click()
       setPassword('')
       setMsg('Download started')
     } catch (err) {
@@ -52,7 +52,7 @@ export default function ExportForm() {
       <p className="muted hint">Up to 5 downloads an hour.</p>
       {error && <p className="error" role="alert">{error}</p>}
       {msg && <p role="status">{msg}</p>}
-      <div><button type="submit" className="btn-secondary" disabled={busy || !password}>{busy ? 'Preparing' : 'Download my data'}</button></div>
+      <div><button type="submit" className="btn-primary" disabled={busy || !password}>{busy ? 'Preparing' : 'Download my data'}</button></div>
     </form>
   )
 }

@@ -63,15 +63,15 @@ export default function DeleteAccountForm() {
             <label>Code
               <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
             </label>
-        </>
-      )}
-      {error && <p className="error" role="alert">{error}</p>}
-      {info && <p role="status">{info}</p>}
-      <div><button type="submit" className="btn-danger" disabled={busy || !ready}>Delete my account</button></div>
-    </form>
-    <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} danger onConfirm={remove} onCancel={() => setAsking(false)}>
-      <p>Your ratings and reviews stay, without your name. This cannot be undone.</p>
-    </ConfirmDialog>
+          </>
+        )}
+        {error && <p className="error" role="alert">{error}</p>}
+        {info && <p role="status">{info}</p>}
+        <div><button type="submit" className="btn-danger" disabled={busy || !ready}>Delete my account</button></div>
+      </form>
+      <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} danger onConfirm={remove} onCancel={() => setAsking(false)}>
+        <p>Your ratings and reviews stay, without your name. This cannot be undone.</p>
+      </ConfirmDialog>
     </>
   )
 }

@@ -80,7 +80,7 @@ export default function Admin() {
       <h2>Users</h2>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setPage(1); setQuery(search) }}>
         <input placeholder="Search display name or email" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button type="submit">Search</button>
+        <button type="submit" className="btn-secondary">Search</button>
       </form>
       {error && <p className="error">{error}</p>}
       <div className="table-scroll">

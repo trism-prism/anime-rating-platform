@@ -29,54 +29,60 @@ export default function Settings() {
         </nav>
 
         <div className="settings-cards">
-          {loading ? null : !hasPassword ? (
-            <section className="settings-card" id="account" aria-labelledby="h-signin">
-              <h2 id="h-signin">Sign-in</h2>
-              <p className="card-desc">This account signs in with Google. To add a password, use Forgot password on the login page.</p>
-            </section>
-          ) : (
-            <>
-              <section className="settings-card" id="account" aria-labelledby="h-email">
-                <h2 id="h-email">Email</h2>
-                <p className="card-desc">
-                  {user.email}{' '}
-                  <span className={emailVerified ? 'badge ok' : 'badge'}>{emailVerified ? 'Verified' : 'Not verified'}</span>
-                </p>
-                {!emailVerified && (
+          <div id="account">
+            {loading ? null : !hasPassword ? (
+              <section className="settings-card" aria-labelledby="h-signin">
+                <h2 id="h-signin">Sign-in</h2>
+                <p className="card-desc">This account signs in with Google. To add a password, use Forgot password on the login page.</p>
+              </section>
+            ) : (
+              <>
+                <section className="settings-card" aria-labelledby="h-email">
+                  <h2 id="h-email">Email</h2>
                   <p className="card-desc">
-                    Verified accounts can write reviews.{' '}
-                    <Link to="/verify" state={{ from: '/settings' }} className="link">Verify your email</Link>
+                    {user.email}{' '}
+                    <span className={emailVerified ? 'badge ok' : 'badge'}>{emailVerified ? 'Verified' : 'Not verified'}</span>
                   </p>
-                )}
-                <EmailForm onChanged={refresh} />
-              </section>
+                  {!emailVerified && (
+                    <p className="card-desc">
+                      Verified accounts can write reviews.{' '}
+                      <Link to="/verify" state={{ from: '/settings' }} className="link">Verify your email</Link>
+                    </p>
+                  )}
+                  <EmailForm onChanged={refresh} />
+                </section>
 
-              <section className="settings-card" aria-labelledby="h-password">
-                <h2 id="h-password">Password</h2>
-                <p className="card-desc">Change the password you sign in with.</p>
-                <PasswordForm onChanged={refresh} />
-              </section>
-            </>
-          )}
+                <section className="settings-card" aria-labelledby="h-password">
+                  <h2 id="h-password">Password</h2>
+                  <p className="card-desc">Change the password you sign in with.</p>
+                  <PasswordForm onChanged={refresh} />
+                </section>
+              </>
+            )}
+          </div>
 
-          <section className="settings-card" id="import-export" aria-labelledby="h-import">
-            <AniListImport />
-          </section>
-
-          {!loading && hasPassword && (
-            <section className="settings-card" aria-labelledby="h-export">
-              <h2 id="h-export">Export your data</h2>
-              <p className="card-desc">Your ratings, reviews, list entries and custom lists, with dates.</p>
-              <ExportForm />
+          <div id="import-export">
+            <section className="settings-card" aria-labelledby="h-import">
+              <AniListImport />
             </section>
-          )}
 
-          {!loading && (
-            <section className="settings-card danger-card" id="danger" aria-labelledby="h-delete">
-              <h2 id="h-delete">Delete account</h2>
-              <DeleteAccountForm />
-            </section>
-          )}
+            {!loading && hasPassword && (
+              <section className="settings-card" aria-labelledby="h-export">
+                <h2 id="h-export">Export your data</h2>
+                <p className="card-desc">Your ratings, reviews, list entries and custom lists, with dates.</p>
+                <ExportForm />
+              </section>
+            )}
+          </div>
+
+          <div id="danger">
+            {!loading && (
+              <section className="settings-card danger-card" aria-labelledby="h-delete">
+                <h2 id="h-delete">Delete account</h2>
+                <DeleteAccountForm />
+              </section>
+            )}
+          </div>
         </div>
       </div>
     </div>

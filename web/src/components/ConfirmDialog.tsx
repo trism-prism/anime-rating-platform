@@ -33,7 +33,7 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
       <div>{children}</div>
       <div className="row row-end">
         <button type="button" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="button" onClick={onConfirm} disabled={busy} className={danger ? 'btn-danger filled' : 'on'}>{busy ? 'Working' : confirmLabel}</button>
+        <button type="button" onClick={onConfirm} disabled={busy} className={danger ? 'btn-danger filled' : 'btn-primary'}>{busy ? 'Working' : confirmLabel}</button>
       </div>
     </dialog>
   )
