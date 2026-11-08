@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { score } from '../format'
 import type { ProfileOverview as Overview } from '../types'
+import Cover from './Cover'
 
 // top rated titles, top genres by average score and the rating count, of the ratings the viewer may see
 export default function ProfileOverview({ username }: { username: string }) {
@@ -26,7 +27,7 @@ export default function ProfileOverview({ username }: { username: string }) {
           <ol className="overview-titles">
             {o.topTitles.map((t) => (
               <li key={t.ratingId}>
-                {t.coverUrl ? <img src={t.coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
+                <Cover src={t.coverUrl} name={t.titleName} />
                 <div className="overview-main">
                   <Link to={`/series/${t.seriesId}`} className="link">{t.titleName}</Link>
                   {t.hasReview && (

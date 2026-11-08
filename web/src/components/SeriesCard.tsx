@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
 import { score } from '../format'
+import Cover from './Cover'
 import type { TitleType } from '../types'
 
-type Props = { id: number; name: string; coverUrl: string | null; type: TitleType; average: number | null; ratingCount?: number }
+type Props = { id: number; name: string; coverUrl: string | null; type: TitleType; average: number | null; ratingCount?: number; eager?: boolean }
 
-export default function SeriesCard({ id, name, coverUrl, type, average, ratingCount }: Props) {
+export default function SeriesCard({ id, name, coverUrl, type, average, ratingCount, eager }: Props) {
   return (
     <Link to={`/series/${id}`} className="card">
       {average != null && <span className="score-chip" aria-hidden="true">{score(average)}</span>}
-      {coverUrl ? <img src={coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
+      <Cover src={coverUrl} name={name} eager={eager} className="card-cover" />
       <div className="card-body">
         <div className="card-name" title={name}>{name}</div>
         <div className="muted">{type}</div>

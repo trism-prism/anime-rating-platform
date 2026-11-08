@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { plural, score } from '../format'
 import { STATUS_OPTIONS, type Audience, type MyRating, type WatchEntry, type WatchStatus } from '../types'
 import AudienceSelect from './AudienceSelect'
+import Cover from './Cover'
 import Select from './Select'
 import WatchDates from './WatchDates'
 
@@ -41,7 +42,7 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
   return (
     <li className="mylist-row" data-row={row.titleId}>
       <div className="mylist-main">
-        <div className="mylist-thumb">{row.coverUrl ? <img src={row.coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}</div>
+        <div className="mylist-thumb"><Cover src={row.coverUrl} name={row.name} /></div>
         <div className="mylist-text">
           <Link to={`/titles/${row.titleId}`} className="list-name">{row.name}</Link>
           <div className="mylist-meta">

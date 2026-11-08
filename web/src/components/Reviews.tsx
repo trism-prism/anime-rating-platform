@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { useAuth } from '../auth'
 import type { ReviewItem, ReviewPage } from '../types'
 import ReviewCard from './ReviewCard'
 import Select from './Select'
@@ -9,6 +11,7 @@ const SORTS = [{ value: 'helpful', label: 'Most helpful' }, { value: 'newest', l
 
 // the Reviews section of a title or series page: path is "/titles/5" or "/series/3"; `refresh` changes when the page's own ratings did
 export default function Reviews({ path, showTitle, refresh = 0 }: { path: string; showTitle: boolean; refresh?: number }) {
+  const { user } = useAuth()
   const [sort, setSort] = useState<Sort>('helpful')
   const [items, setItems] = useState<ReviewItem[] | null>(null)
   const [next, setNext] = useState<string | null>(null)
@@ -65,9 +68,10 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
           <Select label="Sort" value={sort} options={SORTS} onChange={(v) => pick(v as Sort)} />
         </label>
       </div>
+      {!user && items && items.length > 0 && <p className="muted"><Link to="/login" className="link">Log in</Link> to react to reviews.</p>}
       <div className="reviews" aria-busy={!items && !error}>
         {error && <p className="error" role="alert">{error} <button onClick={retry}>Retry</button></p>}
-        {!items && !error && <div className="skeleton review-skeleton" aria-label="Loading reviews" />}
+        {!items && !error && <div className="skeleton review-skeleton" role="status"><span className="sr-only">Loading reviews</span></div>}
         {items && items.length === 0 && <p className="muted">No reviews yet.</p>}
         {items?.map((r) => <ReviewCard key={r.id} review={r} showTitle={showTitle} onChange={update} />)}
       </div>
