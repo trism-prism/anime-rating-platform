@@ -44,13 +44,13 @@ export default function MyList() {
   }
 
   // one change at a time per row; on failure the lists are loaded again, so the select shows what the server has
-  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void) {
+  async function changeAudience(key: string, path: string, audience: Audience, apply: () => void, extra: object = {}) {
     if (inFlight.current.has(key)) return
     inFlight.current.add(key)
     setChanging([...inFlight.current])
     setError('')
     try {
-      await api(path, { method: 'PUT', body: JSON.stringify({ audience }) })
+      await api(path, { method: 'PUT', body: JSON.stringify({ ...extra, audience }) })
       apply()
     } catch (err) {
       setError((err as Error).message)
@@ -66,16 +66,6 @@ export default function MyList() {
     try {
       await api(`/me/watchlist/${e.titleId}`, { method: 'DELETE' })
       setList((l) => l && l.filter((x) => x.titleId !== e.titleId))
-    } catch (err) {
-      setError((err as Error).message)
-    }
-  }
-
-  async function changeListAudience(l: ListSummary, a: Audience) {
-    setError('')
-    try {
-      await api(`/me/lists/${l.id}`, { method: 'PUT', body: JSON.stringify({ name: l.name, audience: a }) })
-      setLists((all) => all && all.map((x) => (x.id === l.id ? { ...x, audience: a } : x)))
     } catch (err) {
       setError((err as Error).message)
     }
@@ -135,7 +125,8 @@ export default function MyList() {
         <div key={l.id} className="list-row">
           <Link to={`/lists/${l.id}`} className="list-name">{l.name}</Link>
           <span className="muted"><span className="num">{l.itemCount}</span> {l.itemCount === 1 ? 'item' : 'items'}</span>
-          <AudienceSelect label={`Visibility of ${l.name}`} value={l.audience ?? 'Public'} onChange={(a) => changeListAudience(l, a)} />
+          <AudienceSelect label={`Visibility of ${l.name}`} value={l.audience ?? 'Public'} disabled={changing.includes(`l-${l.id}`)}
+            onChange={(a) => changeAudience(`l-${l.id}`, `/me/lists/${l.id}`, a, () => setLists((all) => all && all.map((x) => (x.id === l.id ? { ...x, audience: a } : x))), { name: l.name })} />
           <button onClick={() => removeList(l)}>Delete</button>
         </div>
       ))}
@@ -155,8 +146,8 @@ export default function MyList() {
             {ratings.map((r) => (
               <tr key={`${r.titleId}-${r.volume ?? 0}`}>
                 <td><Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>{r.volume != null && <span className="muted"> · Vol {r.volume}</span>}<span className="muted"> · <Link to={`/series/${r.seriesId}`} className="link-quiet">series</Link></span></td>
-                <td>{r.story}</td><td>{r.art}</td><td>{r.characters}</td><td>{r.enjoyment}</td>
-                <td><strong>{r.overall}</strong></td>
+                <td className="num">{r.story}</td><td className="num">{r.art}</td><td className="num">{r.characters}</td><td className="num">{r.enjoyment}</td>
+                <td className="num"><strong>{r.overall}</strong></td>
                 <td>
                   <AudienceSelect
                     label={`Visibility of your rating of ${r.titleName}${r.volume != null ? ` volume ${r.volume}` : ''}`}

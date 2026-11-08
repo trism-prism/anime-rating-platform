@@ -132,7 +132,7 @@ export default function AvatarMenu() {
             role="menuitem"
             aria-haspopup="menu"
             aria-expanded={switching}
-            aria-controls="switch-menu"
+            aria-controls={switching ? 'switch-menu' : undefined}
             onClick={() => setSwitching(!switching)}
           >
             <SwitchIcon /> Switch account

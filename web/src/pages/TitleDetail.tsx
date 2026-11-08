@@ -106,7 +106,7 @@ export default function TitleDetail() {
               <thead><tr><th>Volume</th><th>Average</th><th>Ratings</th></tr></thead>
               <tbody>
                 {title.volumeAverages.map((v) => (
-                  <tr key={v.volume}><td>Volume {v.volume}</td><td><strong>{v.average}</strong> / 10</td><td>{v.count}</td></tr>
+                  <tr key={v.volume}><td>Volume {v.volume}</td><td className="num"><strong>{v.average}</strong> / 10</td><td className="num">{v.count}</td></tr>
                 ))}
               </tbody>
             </table>
