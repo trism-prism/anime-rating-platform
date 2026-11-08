@@ -21,7 +21,7 @@ export default function AlsoRated({ path }: { path: string }) {
       {items.map((i) => (
         <div key={i.titleId ?? i.seriesId} className="list-row">
           <Link to={i.titleId != null ? `/titles/${i.titleId}` : `/series/${i.seriesId}`} className="list-name">{i.name}</Link>
-          <span className="muted">{i.coRaters} of them rated it · {score(i.average)} / 10</span>
+          <span className="muted">{i.coRaters} of them rated it · <span className="nowrap">{score(i.average)} / 10</span></span>
         </div>
       ))}
     </>

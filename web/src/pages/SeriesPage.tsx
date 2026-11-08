@@ -56,7 +56,7 @@ export default function SeriesPage() {
           <p className="muted">
             {s.type} · {plural(s.entries.length, 'entry', 'entries')} ·{' '}
             {s.average != null
-              ? <><span className="num">{score(s.average)}</span> / 10 from <span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}</>
+              ? <><span className="nowrap"><span className="num">{score(s.average)}</span> / 10</span> from <span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}</>
               : 'Not rated yet'}
           </p>
           {s.crossLinks.length > 0 && (

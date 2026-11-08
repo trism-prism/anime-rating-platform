@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { usePending } from '../pendingRequests'
 import Avatar from './Avatar'
 
 const icon = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
@@ -24,6 +25,7 @@ export default function AvatarMenu() {
   const { user, accounts, isAdmin, emailVerified, loading, logout, switchTo } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const pending = usePending()
   const [open, setOpen] = useState(false)
   const [switching, setSwitching] = useState(false) // the account list under "Switch account"
   const box = useRef<HTMLDivElement>(null)
@@ -110,11 +112,12 @@ export default function AvatarMenu() {
         className="avatar-button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Account menu for ${user.userName}${unverified ? ', email not verified' : ''}`}
+        aria-label={`Account menu for ${user.userName}${unverified ? ', email not verified' : ''}${pending > 0 ? `, ${pending} friend ${pending === 1 ? 'request' : 'requests'} waiting` : ''}`}
         onClick={() => { setSwitching(false); setOpen(!open) }} // the account list always starts closed
       >
         <Avatar userName={user.userName} />
-        {unverified && <span className="avatar-dot" aria-hidden="true" />}
+        {pending > 0 && <span className="count-badge" aria-hidden="true">{pending > 9 ? '9+' : pending}</span>}
+        {unverified && <span className={pending > 0 ? 'avatar-dot low' : 'avatar-dot'} aria-hidden="true" />}
       </button>
       {open && (
         <div className="menu" role="menu" aria-label="Account">
@@ -122,7 +125,6 @@ export default function AvatarMenu() {
           {unverified && <Link to="/verify" state={{ from: pathname }} role="menuitem" onClick={() => setOpen(false)}>Verify email</Link>}
           <Link to={`/u/${encodeURIComponent(user.userName)}`} role="menuitem" onClick={() => setOpen(false)}>Profile</Link>
           <Link to="/stats" role="menuitem" onClick={() => setOpen(false)}>Stats</Link>
-          <Link to="/feed" role="menuitem" onClick={() => setOpen(false)}>Friends</Link>
           <Link to="/settings" role="menuitem" onClick={() => setOpen(false)}>Settings</Link>
           <Link to="/settings/notifications" role="menuitem" onClick={() => setOpen(false)}>Notification preferences</Link>
           {isAdmin && <Link to="/admin" role="menuitem" onClick={() => setOpen(false)}>Admin</Link>}

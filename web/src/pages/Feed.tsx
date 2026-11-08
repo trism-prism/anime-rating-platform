@@ -66,7 +66,7 @@ export default function Feed() {
             {items.map((r) => (
               <li key={r.ratingId}>
                 <div className="profile-rating-main">
-                  <span>
+                  <span className="activity-line">
                     <UserLink name={r.userName} />
                     {' rated '}
                     <Link to={`/titles/${r.titleId}`} className="link">{r.titleName}</Link>
@@ -76,7 +76,7 @@ export default function Feed() {
                   {r.hasReview && r.spoiler && <p className="muted">Review contains spoilers.</p>}
                   {r.hasReview && <Link to={`/reviews/${r.ratingId}`} className="link">Read review</Link>}
                 </div>
-                <strong>{score(r.overall)} / 10</strong>
+                <strong className="score-text">{score(r.overall)} / 10</strong>
               </li>
             ))}
           </ul>
