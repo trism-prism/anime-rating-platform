@@ -11,10 +11,9 @@ const SAVE_DELAY = 700
 const long = (iso: string) => (iso ? longDate(`${iso}T12:00:00`) : '')
 
 // started / finished dates of one list entry, saved a moment after the last change; the server checks the dates
-export default function WatchDates({ entry, onSaved, onError }: {
+export default function WatchDates({ entry, onSaved }: {
   entry: WatchEntry
   onSaved: (titleId: number, startedOn: string | null, finishedOn: string | null) => void
-  onError: (message: string) => void
 }) {
   const [dates, setDates] = useState<Dates>({ started: entry.startedOn ?? '', finished: entry.finishedOn ?? '' })
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -23,26 +22,26 @@ export default function WatchDates({ entry, onSaved, onError }: {
   const latest = useRef(dates) // what the timer saves, also on unmount
   const busy = useRef(false) // one request at a time; a change made meanwhile waits in `queued`
   const queued = useRef<Dates | null>(null)
-  const props = useRef({ entry, onSaved, onError })
+  const props = useRef({ entry, onSaved })
   const id = useId()
 
-  useEffect(() => { props.current = { entry, onSaved, onError } })
+  useEffect(() => { props.current = { entry, onSaved } })
 
   async function save(d: Dates) {
     if (busy.current) { queued.current = d; return }
     busy.current = true
-    const { entry: e, onSaved: saved, onError: failed } = props.current
+    const { entry: e, onSaved: saved } = props.current
     setState('saving')
     setError('')
     try {
       const body = { startedOn: d.started || null, finishedOn: d.finished || null, rewatchCount: e.rewatchCount }
       await api(`/me/watchlist/${e.titleId}/dates`, { method: 'PUT', body: JSON.stringify(body) })
       saved(e.titleId, body.startedOn, body.finishedOn)
-      setState('saved')
+      // "Saved" only if nothing newer is waiting
+      setState(timer.current === undefined && !queued.current ? 'saved' : 'saving')
     } catch (err) {
       setError((err as Error).message)
       setState('idle')
-      failed((err as Error).message)
     }
     busy.current = false
     const next = queued.current
@@ -53,8 +52,16 @@ export default function WatchDates({ entry, onSaved, onError }: {
   function change(next: Dates) {
     setDates(next)
     latest.current = next
-    setState('idle')
     window.clearTimeout(timer.current)
+    timer.current = undefined
+    queued.current = null
+    if (next.started && next.finished && next.finished < next.started) {
+      setError("The finish date can't be before the start date.") // not sent
+      setState('idle')
+      return
+    }
+    setError('')
+    setState('idle')
     timer.current = window.setTimeout(() => { timer.current = undefined; void save(next) }, SAVE_DELAY)
   }
 

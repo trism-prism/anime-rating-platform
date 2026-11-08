@@ -19,9 +19,9 @@ export interface ListRow {
 }
 
 const NOT_ON_LIST = [{ value: '', label: 'Not on list' }, ...STATUS_OPTIONS]
-const ratingKey = (r: MyRating) => `r-${r.titleId}-${r.volume ?? 0}`
+const ratingKey = (r: MyRating) => `r-${r.titleId}-${r.volume ?? 'all'}`
 
-export default function MyListRow({ row, busy, error, onStatus, onEntryAudience, onRatingAudience, onDates, onDatesError, onRemove }: {
+export default function MyListRow({ row, busy, error, onStatus, onEntryAudience, onRatingAudience, onDates, onRemove }: {
   row: ListRow
   busy: (key: string) => boolean
   error: string
@@ -29,10 +29,10 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
   onEntryAudience: (e: WatchEntry, a: Audience) => void
   onRatingAudience: (r: MyRating, a: Audience) => void
   onDates: (titleId: number, startedOn: string | null, finishedOn: string | null) => void
-  onDatesError: (titleId: number, message: string) => void
   onRemove: (row: ListRow) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [opened, setOpened] = useState(false) // once opened the details stay mounted, so a date save in flight is not lost on close
   const panel = useId()
   const { entry, rating, volumes } = row
   const progress = entry && entry.progress > 0 ? (entry.type === 'Manga' ? `${plural(entry.progress, 'chapter')} read` : `${plural(entry.progress, 'episode')} watched`) : ''
@@ -46,7 +46,7 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
           <Link to={`/titles/${row.titleId}`} className="list-name">{row.name}</Link>
           <div className="mylist-meta">
             {rating
-              ? <span className="num mylist-chip" aria-label={`Your score ${score(rating.overall)}`}>{score(rating.overall)}</span>
+              ? <span className="num mylist-chip"><span className="sr-only">Your score </span>{score(rating.overall)}</span>
               : !volumes.length && <Link to={`/titles/${row.titleId}`} className="link-quiet">Rate</Link>}
             {sub && <span className="muted mylist-sub" title={sub}>{sub}</span>}
           </div>
@@ -61,7 +61,7 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
           />
         </div>
         <button type="button" className="icon-button mylist-toggle" aria-expanded={open} aria-controls={panel}
-          aria-label={`Details of ${row.name}`} onClick={() => setOpen((o) => !o)}>
+          aria-label={`Details of ${row.name}`} onClick={() => { setOpen((o) => !o); setOpened(true) }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 6.5l4 4 4-4" />
           </svg>
@@ -69,7 +69,7 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
       </div>
       {error && <p className="error mylist-error" role="alert">{error}</p>}
       <div id={panel} className="mylist-detail" hidden={!open}>
-        {open && (
+        {opened && (
           <>
             {entry && (
               <div className="mylist-block">
@@ -78,7 +78,7 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
                   <AudienceSelect label={`Visibility of ${row.name}`} value={entry.audience} disabled={busy(`w-${row.titleId}`)}
                     onChange={(a) => onEntryAudience(entry, a)} />
                 </div>
-                <WatchDates entry={entry} onSaved={onDates} onError={(m) => onDatesError(row.titleId, m)} />
+                <WatchDates entry={entry} onSaved={onDates} />
               </div>
             )}
             {rating && (
@@ -110,7 +110,7 @@ export default function MyListRow({ row, busy, error, onStatus, onEntryAudience,
                   {volumes.map((v) => (
                     <li key={v.volume}>
                       <span>Volume <span className="num">{v.volume}</span></span>
-                      <span className="num mylist-chip" aria-label={`Score ${score(v.overall)}`}>{score(v.overall)}</span>
+                      <span className="num mylist-chip"><span className="sr-only">Score </span>{score(v.overall)}</span>
                       <AudienceSelect label={`Visibility of your rating of ${row.name} volume ${v.volume}`} value={v.audience} disabled={busy(ratingKey(v))}
                         onChange={(a) => onRatingAudience(v, a)} />
                     </li>
