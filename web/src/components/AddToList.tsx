@@ -6,7 +6,7 @@ import type { ListSummary } from '../types'
 import Select from './Select'
 
 // add this title or series to one of the signed-in user's custom lists
-export default function AddToList({ titleId, seriesId }: { titleId?: number; seriesId?: number }) {
+export default function AddToList({ titleId, seriesId, bare }: { titleId?: number; seriesId?: number; bare?: boolean }) {
   const { user } = useAuth()
   const [lists, setLists] = useState<ListSummary[] | null>(null)
   const [picked, setPicked] = useState(0)
@@ -19,7 +19,7 @@ export default function AddToList({ titleId, seriesId }: { titleId?: number; ser
   }, [user])
 
   if (!user || !lists) return null
-  if (lists.length === 0) return <><h2>Custom lists</h2><p className="muted">You have no custom lists yet. <Link to="/my-list" className="link">Make one</Link>.</p></>
+  if (lists.length === 0) return <>{!bare && <h2>Custom lists</h2>}<p className="muted">You have no custom lists yet. <Link to="/my-list" className="link">Make one</Link>.</p></>
 
   async function add() {
     setMsg('')
@@ -34,7 +34,7 @@ export default function AddToList({ titleId, seriesId }: { titleId?: number; ser
 
   return (
     <>
-    <h2>Custom lists</h2>
+    {!bare && <h2>Custom lists</h2>}
     <div className="row">
       <Select
         label="Custom list"

@@ -1,18 +1,68 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
+import { useAuth } from '../auth'
 import AddToList from '../components/AddToList'
 import AlsoRated from '../components/AlsoRated'
+import Cover from '../components/Cover'
 import Reviews from '../components/Reviews'
-import { formatLabel, plural, score, sentence, sizeLabel } from '../format'
+import { cleanSynopsis, formatLabel, plural, score, sizeLabel } from '../format'
 import { useTitle } from '../useTitle'
-import type { SeriesDetail } from '../types'
+import type { MyRating, SeriesDetail, SeriesEntry } from '../types'
+
+const RELATION: Record<string, string> = { SEQUEL: 'Sequel', PREQUEL: 'Prequel', SIDE_STORY: 'Side story' }
+const COLLAPSE_AFTER = 6
+
+// the synopsis, cut to about four lines with a Read more button when it is longer than that
+function Synopsis({ text, source }: { text: string; source: string | null }) {
+  const [open, setOpen] = useState(false)
+  const [clipped, setClipped] = useState(false)
+  const ref = useRef<HTMLParagraphElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () => { if (!open) setClipped(el.scrollHeight > el.clientHeight + 1) }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [text, open])
+
+  return (
+    <div className="series-synopsis">
+      <p ref={ref} className={`synopsis${open ? '' : ' clamp'}`}>{text}</p>
+      {(clipped || open) && (
+        <button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Show less' : 'Read more'}</button>
+      )}
+      {source && <p className="muted credit">Source: {source}</p>}
+    </div>
+  )
+}
+
+function EntryRow({ e }: { e: SeriesEntry }) {
+  return (
+    <li>
+      <Cover src={e.coverUrl} name={e.name} className="entry-cover" />
+      <div className="entry-main">
+        <Link to={`/titles/${e.id}`} className="list-name">{e.name}</Link>
+        <div className="muted">{[e.format && formatLabel(e.format), e.year, sizeLabel(e)].filter(Boolean).join(' · ')}</div>
+      </div>
+      {e.average != null && (
+        <span className="score-pill" title={`${plural(e.ratingCount, 'rating')}`} aria-label={`${score(e.average)} out of 10, from ${plural(e.ratingCount, 'rating')}`}>{score(e.average)}</span>
+      )}
+    </li>
+  )
+}
 
 export default function SeriesPage() {
   const { id } = useParams()
+  const { user } = useAuth()
   const [state, setState] = useState<{ id: string; series: SeriesDetail } | null>(null)
   const [error, setError] = useState<{ id: string; message: string } | null>(null)
   const [tick, setTick] = useState(0)
+  const [mine, setMine] = useState<MyRating[] | null>(null) // the signed-in user's ratings, for the summary
+  const [showUnrated, setShowUnrated] = useState<{ id: string; open: boolean } | null>(null)
   useTitle(state && state.id === id ? state.series.name : null)
 
   useEffect(() => {
@@ -26,6 +76,13 @@ export default function SeriesPage() {
     }
   }, [id, tick])
 
+  useEffect(() => {
+    if (!user) return
+    let stale = false
+    api<MyRating[]>('/me/ratings').then((r) => !stale && setMine(r)).catch(() => {})
+    return () => { stale = true }
+  }, [user])
+
   if (error && error.id === id) {
     return (
       <p className="error">
@@ -35,30 +92,54 @@ export default function SeriesPage() {
   }
   if (!state || state.id !== id) {
     return (
-      <div aria-busy="true">
-        <div className="detail">
-          <div className="cover skeleton noimg" />
-          <div className="skeleton-text"><p className="muted">Loading</p></div>
-        </div>
+      <div aria-busy="true" className="series-head">
+        <span className="cover-box series-cover" />
+        <div className="series-info"><p className="muted">Loading</p></div>
       </div>
     )
   }
 
   const s = state.series
   const crossKind = s.type === 'Anime' ? 'manga' : 'anime'
+  const synopsis = cleanSynopsis(s.synopsis)
+  const format = s.format && formatLabel(s.format).toLowerCase() !== s.type.toLowerCase() ? formatLabel(s.format) : ''
+
+  const rated = s.entries.filter((e) => e.average != null)
+  const unrated = s.entries.filter((e) => e.average == null)
+  // with nothing rated there is nothing above to make the list shorter, so it stays open
+  const collapsible = unrated.length > COLLAPSE_AFTER && rated.length > 0
+  const unratedOpen = !collapsible || (showUnrated?.id === id && showUnrated.open)
+
+  // related series as chips: one per series, the relation in plain words
+  const related = new Map<number, { seriesId: number; name: string; label: string }>()
+  for (const g of s.related) {
+    const label = RELATION[g.type] ?? 'Related'
+    for (const r of g.items) {
+      const have = related.get(r.seriesId)
+      if (!have || (have.label === 'Related' && label !== 'Related')) related.set(r.seriesId, { seriesId: r.seriesId, name: r.seriesName, label })
+    }
+  }
+
+  const entryIds = new Set(s.entries.map((e) => e.id))
+  const myScores = (mine ?? []).filter((r) => r.volume == null && entryIds.has(r.titleId)).map((r) => r.overall)
+  const myAverage = myScores.length ? myScores.reduce((a, b) => a + b, 0) / myScores.length : null
 
   return (
     <div>
-      <div className="detail">
-        {s.coverUrl ? <img className="cover" src={s.coverUrl} alt="" /> : <div className="cover noimg" />}
-        <div>
+      <div className="series-head">
+        <Cover src={s.coverUrl} name={s.name} eager className="series-cover" />
+        <div className="series-info">
           <h1>{s.name}</h1>
-          <p className="muted">
-            {s.type} · {plural(s.entries.length, 'entry', 'entries')} ·{' '}
-            {s.average != null
-              ? <><span className="nowrap"><span className="num">{score(s.average)}</span> / 10</span> from <span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}</>
-              : 'Not rated yet'}
-          </p>
+          <div className="badges">
+            <span className="badge-kind">{s.type}</span>
+            {format && <span className="badge-kind">{format}</span>}
+            {s.entries.length > 1 && <span className="muted">{plural(s.entries.length, 'entry', 'entries')}</span>}
+          </div>
+          {s.genres.length > 0 && (
+            <div className="tags">
+              {s.genres.map((g) => <span key={g} className="tag">{g}</span>)}
+            </div>
+          )}
           {s.crossLinks.length > 0 && (
             <p>
               Also as {crossKind}:{' '}
@@ -71,53 +152,83 @@ export default function SeriesPage() {
             </p>
           )}
         </div>
+
+        <div className="series-score">
+          {s.average != null ? (
+            <div>
+              <div className="series-score-main">
+                <span className="num series-score-num">{score(s.average)}</span>
+                <span className="series-score-of">/ 10</span>
+              </div>
+              <div className="muted">from <span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}</div>
+            </div>
+          ) : (
+            <div className="series-score-none">Not rated yet</div>
+          )}
+          {user && mine && (
+            <div className="series-mine">
+              <div className="muted">Your ratings</div>
+              {myAverage != null ? (
+                <div>
+                  <span className="num series-mine-num">{score(myAverage)}</span>
+                  <span className="muted"> average, {myScores.length} of {s.entries.length} {s.entries.length === 1 ? 'entry' : 'entries'}</span>
+                </div>
+              ) : (
+                <div className="muted">None yet</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="series-body">
+          {synopsis.text ? <Synopsis key={s.id} text={synopsis.text} source={synopsis.source} /> : <p className="muted">No synopsis.</p>}
+        </div>
       </div>
 
       <AddToList seriesId={s.id} />
 
       <h2>In this series</h2>
-      <ol className="entries">
-        {s.entries.map((e) => (
-          <li key={e.id}>
-            <span className="entry-pos muted">#{e.position}</span>
-            {e.coverUrl ? <img src={e.coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
-            <div className="entry-main">
-              <Link to={`/titles/${e.id}`} className="list-name">{e.name}</Link>
-              <div className="muted">{[e.format && formatLabel(e.format), e.year, sizeLabel(e)].filter(Boolean).join(' · ')}</div>
-            </div>
-            <div className="entry-score">
-              {e.average != null ? (
-                <>
-                  <strong>{score(e.average)}</strong>
-                  <div className="muted"><span className="num">{e.ratingCount}</span> {e.ratingCount === 1 ? 'rating' : 'ratings'}</div>
-                </>
-              ) : <div className="muted">Not rated yet</div>}
-            </div>
-          </li>
-        ))}
-      </ol>
+      {rated.length > 0 && (
+        <ul className="entries">
+          {rated.map((e) => <EntryRow key={e.id} e={e} />)}
+        </ul>
+      )}
+      {unrated.length > 0 && (
+        <>
+          {rated.length > 0 && (
+            collapsible ? (
+              <h3 className="entries-sub">
+                <button type="button" className="link-button" aria-expanded={unratedOpen} onClick={() => setShowUnrated({ id: id ?? '', open: !unratedOpen })}>
+                  Not rated yet ({unrated.length}) <span className="muted">{unratedOpen ? 'Hide' : 'Show'}</span>
+                </button>
+              </h3>
+            ) : (
+              <h3 className="entries-sub">Not rated yet</h3>
+            )
+          )}
+          {unratedOpen && (
+            <ul className="entries">
+              {unrated.map((e) => <EntryRow key={e.id} e={e} />)}
+            </ul>
+          )}
+        </>
+      )}
 
       <AlsoRated key={`also-${s.id}`} path={`/series/${s.id}`} />
 
-      {s.related.length > 0 && (
+      {related.size > 0 && (
         <>
           <h2>Related</h2>
-          <p className="muted">Linked to this series but not part of it.</p>
-          {s.related.map((g) => (
-            <div key={g.type} className="related-group">
-              <h3>{sentence(g.type)}</h3>
-              <ul>
-                {g.items.map((r) => (
-                  <li key={r.titleId}>
-                    <Link to={`/titles/${r.titleId}`} className="link">{r.name}</Link>
-                    {r.seriesName !== r.name && (
-                      <span className="muted"> in <Link to={`/series/${r.seriesId}`} className="link">{r.seriesName}</Link></span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <ul className="chips">
+            {[...related.values()].map((r) => (
+              <li key={r.seriesId}>
+                <Link to={`/series/${r.seriesId}`} className="chip">
+                  <span className="chip-rel">{r.label}</span>
+                  <span className="chip-name">{r.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </>
       )}
 

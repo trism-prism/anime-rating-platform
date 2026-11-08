@@ -95,6 +95,10 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 - Charts: bars are 4px thin; neutral by default, the accent only on the leading bar (the biggest in a group, or the Overall score).
 - Icons: one set, inline svg, stroke 1.5, text-2 color; 16px in controls, 20px (`Icon.tsx`) in the navigation.
 - Phones (under 640px): top bar is one row (brand, bell, avatar); Home, Trending, Rankings, My List and Friends sit in a fixed bottom tab bar (signed out: Home, Trending, Rankings, Log in). Controls are 44 high (`--control-h`). Content columns: `--w-narrow` 600 (forms, settings), `--w-reading` 800 (profile, review, list, friends, legal), `--w-wide` 1100 (browse, series, my list, admin); the footer uses the page's column.
+- Covers: always `components/Cover.tsx`, a 2:3 box (`.cover-box`) on `--cover-bg` with the first letter of the name under the picture; the picture fades in, the first row is `eager` with `fetchpriority=high`, the rest lazy. The parent sets only the width.
+- Rating: Quick rate (1 to 10, native radios, sets all four parts) first; Rate in detail opens the four sliders with 1 and 10 at the ends. Nothing is pre-filled and Save stays off until a quick score or all four sliders are set. Remove asks in a dialog.
+- Title page: facts across the top, then content left and the rating and list card right from 900px (sticky when the screen is 1100px or taller); one column below, in the order facts, synopsis, rating, list, characters, reviews.
+- Browse: search, type, genre and sort live in the address (replaced, not pushed). The loaded list and scroll position are kept in `sessionStorage` for Back. Sorts end in the id so pages never repeat.
 - Focus: a 2px accent ring with 2px offset on every focusable element. Never remove it.
 
 ## Copy rules

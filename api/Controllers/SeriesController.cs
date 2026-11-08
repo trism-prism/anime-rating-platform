@@ -20,29 +20,42 @@ public class SeriesController : ControllerBase
 
     public SeriesController(AppDbContext db) => _db = db;
 
-    // keyset paging by (Popularity desc, Id desc); the cursor is base64url of "popularity:id"
+    // sort: popular (most ratings, then AniList popularity), top (best average, rated only), newest (latest year), az.
+    // Every order ends in Id, so equal rows never swap between pages. The cursor is base64url of the offset: the sort
+    // keys are computed per series (ratings, average, year), so a keyset would need them stored.
+    // ponytail: offset paging over computed keys; store them on Series and use a keyset if the table grows 100x.
     [HttpGet("series")]
-    public async Task<IActionResult> List(string? search, TitleType? type, string? genre, string? cursor, int take = 24)
+    public async Task<IActionResult> List(string? search, TitleType? type, string? genre, string? cursor, string? sort, int take = 24)
     {
         take = Math.Clamp(take, 1, 100);
+        var skip = 0;
+        if (cursor != null && !TryDecode(cursor, out skip)) return BadRequest("Bad cursor.");
+        sort = sort?.ToLowerInvariant();
         var q = _db.Series.AsQueryable();
         if (type != null) q = q.Where(s => s.Kind == type);
         // genres are stored as "Action,Drama"; wrap in commas so "Action" doesn't match "Action Comedy"
         if (!string.IsNullOrWhiteSpace(genre)) q = q.Where(s => s.Titles.Any(t => ("," + t.Genres + ",").Contains("," + genre + ",")));
         if (!string.IsNullOrWhiteSpace(search)) q = q.Match(_db, Clean(search), false);
-        if (cursor != null)
+        if (sort == "top") q = q.Where(s => s.Titles.Any(t => t.RatingCount > 0));
+
+        var total = await q.CountAsync();
+        var keyed = q.Select(s => new
         {
-            if (!TryDecode(cursor, out var pop, out var lastId)) return BadRequest("Bad cursor.");
-            q = q.Where(s => s.Popularity < pop || (s.Popularity == pop && s.Id < lastId));
-        }
+            s.Id, s.Name, s.Kind, s.CoverUrl, s.Popularity,
+            Ratings = s.Titles.Sum(t => t.RatingCount),
+            Avg = s.Titles.Where(t => t.RatingCount > 0).Average(t => (double?)(t.RatingSum / t.RatingCount)) ?? 0,
+            Year = s.Titles.Max(t => t.Year) ?? 0, // 0 so unknown years sort last (Postgres puts NULL first when descending)
+            Entries = s.Titles.Select(t => new { t.RatingCount, t.RatingSum, t.Genres }).ToList()
+        });
+        var ordered = sort switch
+        {
+            "top" => keyed.OrderByDescending(s => s.Avg).ThenByDescending(s => s.Ratings).ThenByDescending(s => s.Id),
+            "newest" => keyed.OrderByDescending(s => s.Year).ThenByDescending(s => s.Popularity).ThenByDescending(s => s.Id),
+            "az" => keyed.OrderBy(s => s.Name).ThenBy(s => s.Id),
+            _ => keyed.OrderByDescending(s => s.Ratings).ThenByDescending(s => s.Popularity).ThenByDescending(s => s.Id),
+        };
 
-        var rows = await q.OrderByDescending(s => s.Popularity).ThenByDescending(s => s.Id).Take(take + 1)
-            .Select(s => new
-            {
-                s.Id, s.Name, s.Kind, s.CoverUrl, s.Popularity,
-                Entries = s.Titles.Select(t => new { t.RatingCount, t.RatingSum, t.Genres }).ToList()
-            }).ToListAsync();
-
+        var rows = await ordered.Skip(skip).Take(take + 1).ToListAsync();
         var more = rows.Count > take;
         rows = rows.Take(take).ToList();
         var items = rows.Select(s => new
@@ -51,10 +64,10 @@ public class SeriesController : ControllerBase
             entryCount = s.Entries.Count,
             average = RatingStats.SeriesAverage(s.Entries.Select(e => (e.RatingCount, e.RatingSum))),
             ratingCount = s.Entries.Sum(e => e.RatingCount),
+            year = s.Year == 0 ? (int?)null : s.Year,
             genres = s.Entries.SelectMany(e => e.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries)).Distinct().ToList()
         });
-        var last = rows.LastOrDefault();
-        return Ok(new { items, nextCursor = more && last != null ? Encode(last.Popularity, last.Id) : null });
+        return Ok(new { items, total, nextCursor = more ? Encode(skip + take) : null });
     }
 
     [HttpGet("series/{id:int}")]
@@ -67,8 +80,10 @@ public class SeriesController : ControllerBase
             .Select(t => new
             {
                 t.Id, t.AniListId, t.Name, t.Format, t.Year, t.Position, t.Volumes, t.Episodes, t.Chapters, t.CoverUrl,
-                t.RatingCount, t.RatingSum
+                t.RatingCount, t.RatingSum, t.Genres
             }).ToListAsync();
+        // only the lead entry's text is needed, so it is read apart from the list
+        var synopsis = await _db.Titles.Where(t => t.SeriesId == id).OrderBy(t => t.Position).Select(t => t.Synopsis).FirstOrDefaultAsync();
 
         // relations that did not join the series, when the target is in our database
         var aniIds = entries.Select(e => e.AniListId).ToList();
@@ -91,6 +106,9 @@ public class SeriesController : ControllerBase
         return Ok(new
         {
             s.Id, s.Name, type = s.Kind.ToString(), s.CoverUrl,
+            synopsis, // the lead entry's
+            format = entries.FirstOrDefault()?.Format,
+            genres = entries.SelectMany(e => e.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries)).Distinct().ToList(),
             average = RatingStats.SeriesAverage(entries.Select(e => (e.RatingCount, e.RatingSum))),
             ratingCount = entries.Sum(e => e.RatingCount),
             entries = entries.Select(e => new
@@ -129,15 +147,14 @@ public class SeriesController : ControllerBase
         return s.Length > 100 ? s[..100] : s;
     }
 
-    static string Encode(int popularity, int id) => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes($"{popularity}:{id}"));
+    static string Encode(int offset) => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(offset.ToString()));
 
-    static bool TryDecode(string cursor, out int popularity, out int id)
+    static bool TryDecode(string cursor, out int offset)
     {
-        popularity = id = 0;
+        offset = 0;
         try
         {
-            var parts = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(cursor)).Split(':');
-            return parts.Length == 2 && int.TryParse(parts[0], out popularity) && int.TryParse(parts[1], out id);
+            return int.TryParse(Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(cursor)), out offset) && offset >= 0;
         }
         catch (FormatException) { return false; }
     }
