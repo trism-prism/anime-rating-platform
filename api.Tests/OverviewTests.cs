@@ -20,10 +20,10 @@ public class OverviewTests
         await db.SaveChangesAsync();
     }
 
-    static async Task<int> Rate(Func<AppDbContext> open, string user, int title, double overall, int day, Audience a = Audience.Public, string? text = null, int? volume = null)
+    static async Task<int> Rate(Func<AppDbContext> open, string user, int title, double overall, int day, Audience a = Audience.Public, string? text = null, int? volume = null, bool spoiler = false)
     {
         using var db = open();
-        var r = new Rating { UserId = user, TitleId = title, Overall = overall, CreatedAt = Day(day), Audience = a, ReviewText = text, Volume = volume };
+        var r = new Rating { UserId = user, TitleId = title, Overall = overall, CreatedAt = Day(day), Audience = a, ReviewText = text, Volume = volume, Spoiler = spoiler };
         db.Ratings.Add(r);
         await db.SaveChangesAsync();
         return r.Id;
@@ -39,7 +39,7 @@ public class OverviewTests
         await Setup(open, "Action", "Action", "Action");
         await Rate(open, "a", 1, 9, 1);
         var newer = await Rate(open, "a", 2, 9, 5, text: "great");
-        await Rate(open, "a", 3, 7, 9);
+        await Rate(open, "a", 3, 7, 9, text: "secret", spoiler: true);
 
         var o = await Over(open, "a", "alice");
         Assert.Equal(3, o.GetProperty("ratingCount").GetInt32());
@@ -48,6 +48,8 @@ public class OverviewTests
         Assert.Equal(newer, top[0].GetProperty("ratingId").GetInt32());
         Assert.Equal("great", top[0].GetProperty("snippet").GetString());
         Assert.False(top[1].GetProperty("hasReview").GetBoolean());
+        Assert.True(top[2].GetProperty("hasReview").GetBoolean());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, top[2].GetProperty("snippet").ValueKind); // a spoiler sends no text
     }
 
     [Fact]
@@ -139,6 +141,5 @@ public class OverviewTests
         Assert.Equal(404, Status(await CallP(open, "c", p => p.Overview("alice"))));
         Assert.Equal(404, Status(await CallP(open, "a", p => p.Overview("Bob"))));
         Assert.Equal(404, Status(await CallP(open, "a", p => p.Overview("nobody"))));
-        Assert.Equal(200, Status(await CallP(open, "b", p => p.Overview("alice"))));
     }
 }

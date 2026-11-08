@@ -6,11 +6,14 @@ import type { ProfileOverview as Overview } from '../types'
 // top rated titles, top genres by average score and the rating count, of the ratings the viewer may see
 export default function ProfileOverview({ username }: { username: string }) {
   const [o, setO] = useState<Overview | null>(null)
+  const [error, setError] = useState('')
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    api<Overview>(`/users/${encodeURIComponent(username)}/overview`).then(setO).catch(() => setO(null))
-  }, [username])
+    api<Overview>(`/users/${encodeURIComponent(username)}/overview`).then((r) => { setO(r); setError('') }).catch((e: Error) => setError(e.message))
+  }, [username, tick])
 
+  if (error) return <p className="error" role="alert">{error} <button onClick={() => setTick((t) => t + 1)}>Retry</button></p>
   if (!o) return null
   if (o.ratingCount === 0) return <p className="muted">No ratings yet.</p>
   return (

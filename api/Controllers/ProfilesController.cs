@@ -103,7 +103,7 @@ public class ProfilesController : ControllerBase
                 hasReview = r.Text != null,
                 r.Spoiler,
                 // a spoiler review sends no snippet at all, so the list can't give it away
-                snippet = r.Text == null || r.Spoiler ? null : r.Text.Length > 140 ? r.Text[..140] + "..." : r.Text
+                snippet = ReviewRules.Snippet(r.Text, r.Spoiler)
             }),
             nextCursor = more ? rows[^1].Id : (int?)null
         });
@@ -112,7 +112,7 @@ public class ProfilesController : ControllerBase
     // Top 5 titles, top 3 genres by average score and the rating count, from the ratings this viewer may see (same rule and
     // same 404 as the profile). Whole-title ratings only for the top lists; the count includes volume ratings.
     // Genres need 2+ rated titles; if fewer than 3 qualify the rest are filled from the thinner ones so the section isn't empty.
-    [EnableRateLimiting("profile")]
+    [EnableRateLimiting("profile-overview")]
     [HttpGet("users/{username}/overview")]
     public async Task<IActionResult> Overview(string username)
     {
@@ -124,30 +124,33 @@ public class ProfilesController : ControllerBase
         var admin = await ReviewRules.IsAdmin(_db, viewer);
         var q = _db.Ratings.Where(r => r.UserId == user.Id).VisibleTo(_db, viewer, admin);
         var ratingCount = await q.CountAsync();
-        // a user's ratings are few enough to group in memory, like the stats page
+        // a user's ratings are few enough to group in memory, like the stats page; the review text is not loaded for all of them
         var whole = await q.Where(r => r.Volume == null)
             .Select(r => new
             {
                 r.Id, r.TitleId, titleName = r.Title.Name, r.Title.SeriesId, r.Title.CoverUrl, r.Title.Genres,
-                r.Overall, r.Spoiler, r.CreatedAt, Text = r.ReviewText
+                r.Overall, r.Spoiler, r.CreatedAt, HasText = r.ReviewText != null
             }).ToListAsync();
 
-        var top = whole.OrderByDescending(r => r.Overall).ThenByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).Take(5)
-            .Select(r => new
-            {
-                ratingId = r.Id, r.TitleId, r.titleName, r.SeriesId, r.CoverUrl, r.Overall,
-                hasReview = r.Text != null,
-                r.Spoiler,
-                // a spoiler review sends no snippet, like the ratings list
-                snippet = r.Text == null || r.Spoiler ? null : r.Text.Length > 140 ? r.Text[..140] + "..." : r.Text
-            });
+        var best = whole.OrderByDescending(r => r.Overall).ThenByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).Take(5).ToList();
+        // text only for the five, and only enough of it for a snippet
+        var ids = best.Where(r => r.HasText && !r.Spoiler).Select(r => r.Id).ToList();
+        var texts = await _db.Ratings.Where(r => ids.Contains(r.Id))
+            .Select(r => new { r.Id, Text = r.ReviewText!.Length > 141 ? r.ReviewText.Substring(0, 141) : r.ReviewText }).ToDictionaryAsync(x => x.Id, x => x.Text);
+        var top = best.Select(r => new
+        {
+            ratingId = r.Id, r.TitleId, r.titleName, r.SeriesId, r.CoverUrl, r.Overall,
+            hasReview = r.HasText,
+            r.Spoiler,
+            snippet = texts.TryGetValue(r.Id, out var t) ? ReviewRules.Snippet(t, false) : null
+        });
 
         var genres = whole
             .SelectMany(r => r.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(g => (g, r.Overall)))
             .GroupBy(x => x.g)
-            .Select(g => new { name = g.Key, average = Math.Round(g.Average(x => x.Overall), 2), count = g.Count() })
-            .OrderByDescending(g => g.count >= 2).ThenByDescending(g => g.average).ThenByDescending(g => g.count).ThenBy(g => g.name)
-            .Take(3).ToList();
+            .Select(g => new { name = g.Key, avg = g.Average(x => x.Overall), count = g.Count() })
+            .OrderByDescending(g => g.count >= 2).ThenByDescending(g => g.avg).ThenByDescending(g => g.count).ThenBy(g => g.name)
+            .Take(3).Select(g => new { g.name, average = Math.Round(g.avg, 2), g.count }).ToList();
 
         return Ok(new { ratingCount, topTitles = top, topGenres = genres });
     }

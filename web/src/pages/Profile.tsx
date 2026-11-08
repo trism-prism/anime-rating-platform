@@ -101,8 +101,8 @@ function Profile({ username }: { username: string }) {
           hint={(v) => `${v.length}/300`}
           field={(v, set) => <textarea rows={4} maxLength={300} value={v} onChange={(e) => set(e.target.value)} />}
           onSave={async (v) => {
-            await api('/me/bio', { method: 'PUT', body: JSON.stringify({ bio: v }) })
-            load() // best-effort: a failed reload must not replace the page
+            const r = await api<{ bio: string | null }>('/me/bio', { method: 'PUT', body: JSON.stringify({ bio: v }) })
+            setP((x) => x && { ...x, bio: r.bio }) // the server's trimmed and censored text
           }} />
       ) : p.bio && <p className="bio">{p.bio}</p>}
 

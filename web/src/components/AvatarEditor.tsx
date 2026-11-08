@@ -28,6 +28,7 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
   const dialog = useRef<HTMLDialogElement>(null)
   const file = useRef<HTMLInputElement>(null)
   const title = useId()
+  const latest = useRef(0) // the newest pick, so a slow crop of an earlier file can't overwrite it
   const inputId = useId()
   const [name, setName] = useState('')
   const [blob, setBlob] = useState<Blob | null>(null)
@@ -42,6 +43,7 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
   }
 
   function reset() {
+    latest.current++
     clear()
     setError('')
     if (file.current) file.current.value = ''
@@ -51,16 +53,18 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
     const f = e.target.files?.[0]
     setError('')
     clear()
+    const n = ++latest.current
     if (!f) return
     setName(f.name)
     try {
       if (!TYPES.includes(f.type)) throw new Error('Choose a png, jpeg or webp image.')
       if (f.size > MAX_FILE) throw new Error('The picture must be 2 MB or smaller.')
       const b = await square(f)
+      if (n !== latest.current) return
       setBlob(b)
       setPreview((u) => { if (u) URL.revokeObjectURL(u); return URL.createObjectURL(b) })
     } catch (err) {
-      setError((err as Error).message)
+      if (n === latest.current) setError((err as Error).message)
     }
   }
 

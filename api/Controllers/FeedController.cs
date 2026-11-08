@@ -43,7 +43,7 @@ public class FeedController : ControllerBase
                 hasReview = r.Text != null,
                 r.Spoiler,
                 // a spoiler review sends no snippet at all, like the profile list
-                snippet = r.Text == null || r.Spoiler ? null : r.Text.Length > 140 ? r.Text[..(char.IsHighSurrogate(r.Text[139]) ? 139 : 140)] + "..." : r.Text
+                snippet = ReviewRules.Snippet(r.Text, r.Spoiler)
             }),
             nextCursor = more ? rows[^1].Id : (int?)null
         });
