@@ -93,7 +93,7 @@ export default function ForgotPassword() {
       )}
       {info && <p className="muted" role="status">{info}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      <button type="submit" disabled={busy}>
+      <button type="submit" className="btn-primary" disabled={busy}>
         {step === 'email' ? 'Send code' : step === 'code' ? 'Check code' : 'Change password'}
       </button>
       {step === 'code' && (

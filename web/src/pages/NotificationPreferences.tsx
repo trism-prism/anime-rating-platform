@@ -54,21 +54,25 @@ export default function NotificationPreferences() {
   return (
     <div className="settings">
       <h1>Notification preferences</h1>
-      <p className="muted">Notify me when:</p>
-      {error && <p className="error" role="alert">{error} <button onClick={() => { setError(''); load() }}>Retry</button></p>}
+      <section className="settings-card" aria-labelledby="h-notify">
+      <h2 id="h-notify">Notify me when</h2>
+      <p className="card-desc">Turn off what you do not want to hear about.</p>
+      {error && <p className="error" role="alert">{error} <button type="button" onClick={() => { setError(''); load() }}>Retry</button></p>}
       {!prefs && !error && <p className="muted">Loading</p>}
       {prefs && (
         <ul className="prefs">
           {prefs.map((p) => (
             <li key={p.type}>
               <label>
-                <input type="checkbox" checked={p.enabled} disabled={saving.includes(p.type)} onChange={() => toggle(p)} /> {LABELS[p.type] ?? p.type}
+                <span>{LABELS[p.type] ?? p.type}</span>
+                <input type="checkbox" role="switch" className="switch" checked={p.enabled} disabled={saving.includes(p.type)} onChange={() => toggle(p)} />
               </label>
             </li>
           ))}
         </ul>
       )}
       {saveError && <p className="error" role="alert">{saveError}</p>}
+      </section>
     </div>
   )
 }

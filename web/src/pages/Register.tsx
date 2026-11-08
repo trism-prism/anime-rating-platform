@@ -53,7 +53,7 @@ export default function Register() {
         <span>I accept the <Link to="/terms" className="link">Terms of Service</Link> and the <Link to="/privacy" className="link">Privacy policy</Link></span>
       </label>
       {error && <p className="error">{error}</p>}
-      <button type="submit" disabled={busy}>Create account</button>
+      <button type="submit" className="btn-primary" disabled={busy}>Create account</button>
       <GoogleLink ticked={age && terms} />
       <p className="muted">Have an account? <Link to="/login" className="link">Login</Link></p>
     </form>

@@ -10,7 +10,8 @@ import TabBar from './TabBar'
 const NARROW = ['/login', '/register', '/forgot-password', '/verify', '/settings', '/support', '/confirm-email-change', '/auth/callback']
 const READING = ['/u', '/reviews', '/lists', '/feed', '/stats', '/privacy', '/terms', '/content-policy', '/faq']
 const under = (path: string, roots: string[]) => roots.some((r) => path === r || path.startsWith(r + '/'))
-const columnOf = (path: string) => (under(path, NARROW) ? 'narrow' : under(path, READING) ? 'reading' : 'wide')
+// the settings page is a nav plus a column of cards, so it takes the reading width
+const columnOf = (path: string) => (path === '/settings' ? 'reading' : under(path, NARROW) ? 'narrow' : under(path, READING) ? 'reading' : 'wide')
 
 export default function Layout() {
   const { user, emailVerified, loading } = useAuth()

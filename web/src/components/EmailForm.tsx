@@ -39,7 +39,7 @@ export default function EmailForm({ onChanged }: { onChanged: () => void }) {
       <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
       {error && <p className="error" role="alert">{error}</p>}
       {msg && <p role="status">{msg}</p>}
-      <button type="submit" disabled={busy}>Change email</button>
+      <button type="submit" className="btn-secondary" disabled={busy}>{busy ? 'Sending' : 'Change email'}</button>
     </form>
   )
 }

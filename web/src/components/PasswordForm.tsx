@@ -38,7 +38,7 @@ export default function PasswordForm({ onChanged }: { onChanged: () => void }) {
       <p className="muted hint">At least 12 characters. Your other devices will be signed out.</p>
       {error && <p className="error" role="alert">{error}</p>}
       {msg && <p role="status">{msg}</p>}
-      <button type="submit" disabled={busy}>Change password</button>
+      <button type="submit" className="btn-secondary" disabled={busy}>{busy ? 'Saving' : 'Change password'}</button>
     </form>
   )
 }
