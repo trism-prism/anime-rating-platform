@@ -1,6 +1,6 @@
 # Style guide
 
-Status: DRAFT. The direction and palette below were chosen without review. To change the look, edit the token block at the top of `web/src/index.css` (every color, space, size and duration is a custom property there); to undo the redesign, revert the PR.
+To change the look, edit the token block at the top of `web/src/index.css` (every color, space, size and duration is a custom property there); to undo the redesign, revert the PR.
 
 Built with the unslop method by Damir Sokolovsky (https://heydamir.design/unslop, licensed CC BY 4.0). This guide and the CSS adapt it.
 
