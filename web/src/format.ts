@@ -27,7 +27,8 @@ export const longDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB
 
 // AniList synopses contain html (<br>, <i>) and often end with "(Source: X)": plain text and the credit apart
 export function cleanSynopsis(html: string | null): { text: string; source: string | null } {
-  let text = (html ?? '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
+  // DOMParser builds an inert document (no scripts run, nothing is attached); textContent drops tags and decodes entities
+  let text = new DOMParser().parseFromString((html ?? '').replace(/<br\s*\/?>/gi, '\n'), 'text/html').documentElement.textContent ?? ''
   let source: string | null = null
   text = text.replace(/\(\s*Source:\s*([^)]*?)\s*\)/gi, (_, s: string) => { source ??= s || null; return '' })
   text = text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()

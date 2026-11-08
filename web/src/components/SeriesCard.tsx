@@ -10,7 +10,7 @@ export default function SeriesCard({ id, name, coverUrl, type, average, ratingCo
       {average != null && <span className="score-chip" aria-hidden="true">{score(average)}</span>}
       {coverUrl ? <img src={coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
       <div className="card-body">
-        <h2 className="card-name" title={name}>{name}</h2>
+        <div className="card-name" title={name}>{name}</div>
         <div className="muted">{type}</div>
         <div className="muted">
           {average == null ? 'Not rated yet' : (

@@ -73,7 +73,7 @@ export default function TitleDetail() {
           <ScoreBar label="Overall" value={a.overall} />
         </div>
       ) : (
-        <p className="muted">No ratings yet.</p>
+        <p className="muted">Not rated yet</p>
       )}
 
       <h2>Your rating</h2>

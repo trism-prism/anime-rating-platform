@@ -13,7 +13,7 @@ export default function Layout() {
 
   return (
     <>
-      <a href="#main" className="skip-link">Skip to content</a>
+      <a href="#main" className="skip-link" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to content</a>
       <nav className="nav">
         <NavLink to="/" end className="brand">AnimeRate</NavLink>
         <span className="spacer" />

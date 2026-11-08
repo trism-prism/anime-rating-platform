@@ -323,7 +323,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .volumes { max-width: 520px; }
 
 /* admin series tools */
-.picker { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; flex: 1 1 260px; }
+.picker { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; flex: 1 1 220px; }
 .picker-list { height: 168px; overflow-y: auto; border: 1px solid var(--hairline); border-radius: var(--r-sm); padding: var(--s-1); background: var(--card); }
 .picker-list button { display: flex; width: 100%; justify-content: space-between; gap: var(--s-2); border: 0; background: none; text-align: left; padding: var(--s-1) var(--s-2); min-height: 32px; border-radius: var(--r-xs); }
 .picker-list button[aria-pressed='true'] { background: var(--raised-hover); color: var(--accent); }
@@ -480,7 +480,6 @@ a.button:hover { background: var(--raised-hover); border-color: var(--hairline-s
 
 /* admin: panels never push the page wider than the screen */
 .admin-box, .picker { min-width: 0; max-width: 100%; }
-.picker { flex-basis: 220px; }
 .people li { flex-wrap: wrap; }
 .people .profile-rating-main { flex: 1 1 220px; }
 @media (max-width: 600px) {

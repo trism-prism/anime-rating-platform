@@ -92,6 +92,7 @@ export default function Browse() {
         {!loading && data.items.length === 0 && <p className="muted">No series found.</p>}
         {!loading && (
           <>
+            <h2 className="sr-only">Results</h2>
             <div className="grid">
               {data.items.map((s) => (
                 <SeriesCard key={s.id} id={s.id} name={s.name} coverUrl={s.coverUrl} type={s.type} average={s.average} ratingCount={s.ratingCount} />
