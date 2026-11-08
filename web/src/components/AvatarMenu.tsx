@@ -116,9 +116,8 @@ export default function AvatarMenu() {
         onClick={() => { setSwitching(false); setOpen(!open) }} // the account list always starts closed
       >
         <Avatar userName={user.userName} />
-        {pending > 0
-          ? <span className="count-badge" aria-hidden="true">{pending > 9 ? '9+' : pending}</span>
-          : unverified && <span className="avatar-dot" aria-hidden="true" />}
+        {pending > 0 && <span className="count-badge" aria-hidden="true">{pending > 9 ? '9+' : pending}</span>}
+        {unverified && <span className={pending > 0 ? 'avatar-dot low' : 'avatar-dot'} aria-hidden="true" />}
       </button>
       {open && (
         <div className="menu" role="menu" aria-label="Account">

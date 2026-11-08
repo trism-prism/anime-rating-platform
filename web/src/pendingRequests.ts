@@ -12,8 +12,10 @@ export function setPending(n: number) {
   subs.forEach((f) => f())
 }
 
+let seq = 0 // an older answer arriving late must not overwrite a newer count
 export function refreshPending() {
-  api<FriendsData>('/me/friends').then((d) => setPending(d.incoming.length)).catch(() => {}) // retried at the next poll
+  const id = ++seq
+  api<FriendsData>('/me/friends').then((d) => { if (id === seq) setPending(d.incoming.length) }).catch(() => {}) // retried at the next poll
 }
 
 export const usePending = () =>
@@ -23,7 +25,7 @@ export const usePending = () =>
 export function usePendingSync(signedIn: boolean, pathname: string) {
   useEffect(() => {
     if (!signedIn) { setPending(0); return }
-    refreshPending()
+    if (pathname !== '/feed') refreshPending() // the Friends page loads the list itself
     const tick = () => { if (document.visibilityState === 'visible') refreshPending() }
     const id = setInterval(tick, 60_000)
     document.addEventListener('visibilitychange', tick)

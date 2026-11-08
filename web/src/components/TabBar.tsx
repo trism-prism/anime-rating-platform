@@ -5,7 +5,7 @@ import Icon, { type IconName } from './Icon'
 
 // main navigation on phones: fixed to the bottom edge, hidden from 640px up (see .tabbar in index.css)
 export default function TabBar() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const pending = usePending()
   const tabs: { to: string; label: string; icon: IconName; end?: boolean }[] = [
     { to: '/', label: 'Home', icon: 'home', end: true },
@@ -13,7 +13,7 @@ export default function TabBar() {
     { to: '/rankings', label: 'Rankings', icon: 'rankings' },
     ...(user
       ? [{ to: '/my-list', label: 'My List', icon: 'list' as const }, { to: '/feed', label: 'Friends', icon: 'friends' as const }]
-      : [{ to: '/login', label: 'Log in', icon: 'login' as const }]),
+      : loading ? [] : [{ to: '/login', label: 'Log in', icon: 'login' as const }]),
   ]
   return (
     <nav className="tabbar" aria-label="Main">

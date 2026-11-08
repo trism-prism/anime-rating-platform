@@ -170,6 +170,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .avatar-button { position: relative; padding: 0; min-height: 0; border: 0; border-radius: 50%; background: none; line-height: 0; }
 .avatar-button:hover:not(:disabled) { border: 0; background: none; }
 .avatar-dot { position: absolute; top: -1px; right: -1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface-deep); box-sizing: content-box; }
+.avatar-dot.low { top: auto; bottom: -1px; }
 /* count of waiting friend requests: on the avatar, the Friends tab and the Friends link */
 .count-badge { position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); border: 2px solid var(--surface-deep); box-sizing: content-box; font: var(--fw-medium) 11px/16px var(--font-num); font-variant-numeric: tabular-nums; text-align: center; pointer-events: none; }
 .avatar-button .count-badge { top: -6px; right: -8px; }

@@ -42,7 +42,7 @@ export default function Layout() {
             <NotificationBell />
             <AvatarMenu />
           </>
-        ) : (
+        ) : !loading && (
           <>
             <NavLink to="/login" className="nav-text">Login</NavLink>
             <NavLink to="/register" className="nav-text">Register</NavLink>
@@ -53,12 +53,13 @@ export default function Layout() {
         <div className="banner" role="status">
           <span>Verify your email to post reviews.</span>
           <button type="button" className="link-button" onClick={() => navigate('/verify', { state: { from: pathname } })}>Verify</button>
-          <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setHidden(true)}>&times;</button>
+          <button type="button" className="icon-button" aria-label="Dismiss email verification reminder" onClick={() => setHidden(true)}>&times;</button>
         </div>
       )}
       <main id="main" className={column} tabIndex={-1}>
         <Outlet />
       </main>
+      <TabBar /> {/* fixed to the bottom on phones; placed before the footer so keyboard order reaches it first */}
       <footer className={`${column} muted`}>
         <NavLink to="/privacy">Privacy</NavLink>
         <NavLink to="/terms">Terms</NavLink>
@@ -66,7 +67,6 @@ export default function Layout() {
         <NavLink to="/faq">FAQ</NavLink>
         <NavLink to="/support">Support</NavLink>
       </footer>
-      <TabBar />
     </>
   )
 }
