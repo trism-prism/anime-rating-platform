@@ -68,7 +68,8 @@ const pairs = [
   ['--text-muted', '--card', 4.5, 'disabled button text'],
   // UI boundaries and graphics, 3:1
   ...[...surfaces, '--field'].map((s) => ['--control-border', s, 3, `input and switch edge on ${s}`]),
-  ...['--bg', '--card', '--surface-deep'].map((s) => ['--accent', s, 3, `focus ring and selected edge on ${s}`]),
+  ...['--bg', '--card', '--surface-deep'].map((s) => ['--accent', s, 3, `selected edge on ${s}`]),
+  ...[...surfaces, '--field', '--raised-hover', '--surface-deep'].map((s) => ['--focus', s, 3, `focus ring on ${s}`]),
   ...['--positive', '--warning', '--negative'].map((f) => [f, '--card', 3, `status colour ${f}`]),
   ['--text-2', '--raised', 3, 'switch knob and chevron'],
   ['--text-muted', '--raised', 3, 'chart bar on its track'],
@@ -90,7 +91,7 @@ for (const [label, t] of [['dark', dark], ['light', light]]) {
 
 // every token the light theme overrides must exist in dark, and the light block must not miss a colour
 for (const name of Object.keys(dark)) {
-  if (!/^--(surface|bg|card|raised|field|control-border|hairline|scrim|shadow|selection|chip|text|accent|positive|negative|warning|on-)/.test(name)) continue
+  if (!/^--(surface|bg|card|raised|field|control-border|hairline|scrim|shadow|selection|chip|text|accent|focus|positive|negative|warning|on-)/.test(name)) continue
   if (!(name in tokens(lightBlock.text))) { fail++; console.error(`FAIL light theme does not set ${name}`) }
 }
 
