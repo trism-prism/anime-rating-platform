@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { api } from '../api'
 import type { FriendsData } from '../types'
-import Avatar from './Avatar'
+import UserLink from './UserLink'
 import ConfirmDialog from './ConfirmDialog'
 
-const profile = (name: string) => `/u/${encodeURIComponent(name)}`
-const Who = ({ name }: { name: string }) => <span className="who"><Avatar userName={name} small /><Link to={profile(name)} className="link">{name}</Link></span>
+const Who = UserLink
 
 // on the Friends page: friends, pending requests both ways, and add-by-username
 export default function FriendsSection() {

@@ -430,4 +430,28 @@ footer.page a:hover { color: var(--text); }
 @media (hover: none) { .profile-avatar-lg .edit-pencil { opacity: 1; } }
 .inline-edit { display: flex; align-items: flex-start; gap: var(--s-2); }
 .inline-edit > :first-child { margin-top: 0; }
-.avatar-preview { display: block; width: 128px; height: 128px; border-radius: 999px; object-fit: cover; margin: 0 0 var(--s-3); }
+.avatar-preview { display: block; width: 128px; height: 128px; border-radius: 999px; object-fit: cover; margin: 0 0 var(--s-3); border: 1px solid var(--hairline-strong); }
+
+/* profile overview */
+.user-link { color: var(--text); text-decoration: none; }
+.user-link strong { font-weight: inherit; text-decoration: underline; text-decoration-color: var(--hairline-strong); text-underline-offset: 3px; transition: text-decoration-color var(--t-fast) var(--ease); }
+.user-link:hover strong { text-decoration-color: var(--accent); }
+.overview-titles { list-style: none; margin: 0; padding: 0; }
+.overview-titles li { display: flex; align-items: center; gap: var(--s-3); background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: var(--s-2); margin-bottom: var(--s-2); }
+.overview-titles img, .overview-titles .noimg { width: 48px; height: 64px; object-fit: cover; border-radius: var(--r-xs); flex-shrink: 0; }
+.overview-main { flex: 1; min-width: 0; }
+.overview-review { margin: var(--s-1) 0 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.overview-genres { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.overview-genres li { background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: var(--s-2) var(--s-3); }
+
+/* empty field on your own profile that you click to fill */
+.field-empty { display: flex; justify-content: space-between; gap: var(--s-3); width: 100%; max-width: 480px; margin-bottom: var(--s-4); text-align: left; background: none; border-style: dashed; border-color: var(--hairline-strong); color: var(--text-muted); }
+
+/* avatar editor: themed file button over a visually hidden input */
+.avatar-file { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-3); }
+.avatar-file input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; overflow: hidden; }
+.avatar-file label { display: inline-flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--raised); cursor: pointer; flex-shrink: 0; }
+.avatar-file label:hover { background: var(--raised-hover); border-color: var(--hairline-strong); }
+.avatar-file input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.avatar-file input:disabled + label { opacity: 0.45; cursor: default; }
+.avatar-file-name { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

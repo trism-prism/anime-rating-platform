@@ -108,4 +108,47 @@ public class ProfilesController : ControllerBase
             nextCursor = more ? rows[^1].Id : (int?)null
         });
     }
+
+    // Top 5 titles, top 3 genres by average score and the rating count, from the ratings this viewer may see (same rule and
+    // same 404 as the profile). Whole-title ratings only for the top lists; the count includes volume ratings.
+    // Genres need 2+ rated titles; if fewer than 3 qualify the rest are filled from the thinner ones so the section isn't empty.
+    [EnableRateLimiting("profile")]
+    [HttpGet("users/{username}/overview")]
+    public async Task<IActionResult> Overview(string username)
+    {
+        if (SocialRules.ExpiredToken(Request, User)) return Unauthorized();
+        var viewer = User.FindFirst("sub")?.Value;
+        var user = await SocialRules.FindVisible(_db, viewer, username);
+        if (user == null) return NotFound();
+
+        var admin = await ReviewRules.IsAdmin(_db, viewer);
+        var q = _db.Ratings.Where(r => r.UserId == user.Id).VisibleTo(_db, viewer, admin);
+        var ratingCount = await q.CountAsync();
+        // a user's ratings are few enough to group in memory, like the stats page
+        var whole = await q.Where(r => r.Volume == null)
+            .Select(r => new
+            {
+                r.Id, r.TitleId, titleName = r.Title.Name, r.Title.SeriesId, r.Title.CoverUrl, r.Title.Genres,
+                r.Overall, r.Spoiler, r.CreatedAt, Text = r.ReviewText
+            }).ToListAsync();
+
+        var top = whole.OrderByDescending(r => r.Overall).ThenByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).Take(5)
+            .Select(r => new
+            {
+                ratingId = r.Id, r.TitleId, r.titleName, r.SeriesId, r.CoverUrl, r.Overall,
+                hasReview = r.Text != null,
+                r.Spoiler,
+                // a spoiler review sends no snippet, like the ratings list
+                snippet = r.Text == null || r.Spoiler ? null : r.Text.Length > 140 ? r.Text[..140] + "..." : r.Text
+            });
+
+        var genres = whole
+            .SelectMany(r => r.Genres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(g => (g, r.Overall)))
+            .GroupBy(x => x.g)
+            .Select(g => new { name = g.Key, average = Math.Round(g.Average(x => x.Overall), 2), count = g.Count() })
+            .OrderByDescending(g => g.count >= 2).ThenByDescending(g => g.average).ThenByDescending(g => g.count).ThenBy(g => g.name)
+            .Take(3).ToList();
+
+        return Ok(new { ratingCount, topTitles = top, topGenres = genres });
+    }
 }

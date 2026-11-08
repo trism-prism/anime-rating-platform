@@ -1,0 +1,52 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api } from '../api'
+import type { ProfileOverview as Overview } from '../types'
+
+// top rated titles, top genres by average score and the rating count, of the ratings the viewer may see
+export default function ProfileOverview({ username }: { username: string }) {
+  const [o, setO] = useState<Overview | null>(null)
+
+  useEffect(() => {
+    api<Overview>(`/users/${encodeURIComponent(username)}/overview`).then(setO).catch(() => setO(null))
+  }, [username])
+
+  if (!o) return null
+  if (o.ratingCount === 0) return <p className="muted">No ratings yet.</p>
+  return (
+    <section className="overview" aria-label="Overview">
+      <p className="muted">{o.ratingCount} {o.ratingCount === 1 ? 'rating' : 'ratings'}</p>
+      {o.topTitles.length > 0 && (
+        <>
+          <h2>Top rated</h2>
+          <ol className="overview-titles">
+            {o.topTitles.map((t) => (
+              <li key={t.ratingId}>
+                {t.coverUrl ? <img src={t.coverUrl} alt="" loading="lazy" /> : <div className="noimg" />}
+                <div className="overview-main">
+                  <Link to={`/series/${t.seriesId}`} className="link">{t.titleName}</Link>
+                  {t.hasReview && (
+                    <p className="overview-review muted">
+                      {t.snippet ?? 'Spoiler review'} <Link to={`/reviews/${t.ratingId}`} className="link">Read review</Link>
+                    </p>
+                  )}
+                </div>
+                <span className="mono">{t.overall}</span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      {o.topGenres.length > 0 && (
+        <>
+          <h2>Top genres</h2>
+          <ul className="overview-genres">
+            {o.topGenres.map((g) => (
+              <li key={g.name}><span>{g.name}</span> <span className="mono muted">{g.average} avg</span></li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  )
+}
