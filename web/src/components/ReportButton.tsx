@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import ConfirmDialog from './ConfirmDialog'
 import Select from './Select'
@@ -48,7 +48,9 @@ export function ReportDialog({ path, what, open, onClose, onSent }: { path: stri
 export default function ReportButton({ path, what }: { path: string; what: string }) {
   const [open, setOpen] = useState(false)
   const [done, setDone] = useState(false)
-  if (done) return <span className="muted">Reported</span>
+  const reported = useRef<HTMLSpanElement>(null)
+  useEffect(() => { if (done) reported.current?.focus() }, [done]) // the Report button is gone; keep focus here
+  if (done) return <span className="muted" ref={reported} tabIndex={-1}>Reported</span>
   return (
     <>
       <button className="link-button" onClick={() => setOpen(true)} aria-label={`Report this ${what}`}>Report</button>

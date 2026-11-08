@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { refreshPending } from '../pendingRequests'
 import { timeAgo } from '../time'
@@ -45,7 +45,12 @@ const target = (n: Notification) => n.type === 'ReportOutcome' ? null : n.review
 // bell with an unread badge and a dropdown of notifications; rendered only while someone is signed in
 export default function NotificationBell() {
   const [unread, setUnread] = useState(0)
-  const [open, setOpen] = useState(false)
+  const { pathname } = useLocation()
+  const panelId = useId()
+  // open belongs to the page it was opened on, so any route change closes it
+  const [openPath, setOpenPath] = useState<string | null>(null)
+  const open = openPath === pathname
+  const setOpen = (v: boolean) => setOpenPath(v ? pathname : null)
   const [items, setItems] = useState<Notification[] | null>(null)
   const [next, setNext] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -89,7 +94,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false)
+      if (!box.current?.contains(e.target as Node)) setOpenPath(null)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
@@ -131,7 +136,8 @@ export default function NotificationBell() {
     if (n.read) return
     setItems((l) => l && l.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
     setUnread((u) => Math.max(0, u - 1))
-    api(`/me/notifications/${n.id}/read`, { method: 'POST' }).catch(loadCount) // failed: take the real count back
+    api(`/me/notifications/${n.id}/read`, { method: 'POST' })
+      .then(loadCount, loadCount) // settled either way: take the real count
   }
 
   async function answer(n: Notification, accept: boolean) {
@@ -162,11 +168,12 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="bell" ref={box} onKeyDown={onKeyDown}>
+    <div className="bell" ref={box} onKeyDown={onKeyDown}
+      onBlur={(e) => { if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) setOpen(false) }}>
       <button
         ref={button}
         className="bell-button"
-        aria-haspopup="true"
+        aria-controls={open ? panelId : undefined}
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         onClick={() => { if (!open) loadFirst(); setOpen(!open) }}
@@ -175,7 +182,7 @@ export default function NotificationBell() {
         {unread > 0 && <span className="bell-badge" aria-hidden="true">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div className="bell-panel" role="region" aria-label="Notifications">
+        <div className="bell-panel" id={panelId} role="region" aria-label="Notifications">
           <div className="bell-head">
             <strong>Notifications</strong>
             <button className="link-button" onClick={markAll} disabled={!items?.some((x) => !x.read)}>Mark all read</button>

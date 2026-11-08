@@ -20,6 +20,12 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
     if (!open && d.open) d.close()
   }, [open])
 
+  // if the owner unmounts while it is open, close it so focus goes back to where it was
+  useEffect(() => {
+    const d = ref.current
+    return () => { if (d?.open) d.close() }
+  }, [])
+
   return (
     <dialog ref={ref} aria-labelledby={titleId} onCancel={(e) => { e.preventDefault(); if (!busy) onCancel() }}>
       <h3 id={titleId}>{title}</h3>

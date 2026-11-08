@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { api } from '../api'
 import { refreshAvatars } from '../avatarVersion'
 import Avatar from './Avatar'
@@ -28,6 +28,8 @@ async function square(file: File): Promise<Blob> {
 export default function AvatarEditor({ userName, hasAvatar, onChange }: { userName: string; hasAvatar: boolean; onChange: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const file = useRef<HTMLInputElement>(null)
+  const pencil = useRef<HTMLButtonElement>(null)
+  const removed = useRef(false)
   const title = useId()
   const latest = useRef(0) // the newest pick, so a slow crop of an earlier file can't overwrite it
   const inputId = useId()
@@ -78,8 +80,10 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
       refreshAvatars()
       onChange()
       dialog.current?.close()
+      return true
     } catch (err) {
       setError((err as Error).message)
+      return false
     } finally {
       setBusy(false)
     }
@@ -87,15 +91,22 @@ export default function AvatarEditor({ userName, hasAvatar, onChange }: { userNa
 
   const save = () => blob && run(() => api('/me/avatar', { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type } }))
   const remove = async () => {
-    await run(() => api('/me/avatar', { method: 'DELETE' }))
+    if (await run(() => api('/me/avatar', { method: 'DELETE' }))) removed.current = true
     setConfirmRemove(false)
   }
+  // removed: the Remove link is gone, so once the confirm has closed focus goes to the pencil
+  useEffect(() => {
+    if (!confirmRemove && removed.current) {
+      removed.current = false
+      pencil.current?.focus()
+    }
+  }, [confirmRemove])
 
   return (
     <>
       <span className="profile-avatar profile-avatar-lg">
         <Avatar userName={userName} />
-        <button type="button" className="edit-pencil" aria-label="Change profile picture" aria-haspopup="dialog" onClick={() => dialog.current?.showModal()}><Pencil /></button>
+        <button ref={pencil} type="button" className="edit-pencil" aria-label="Change profile picture" aria-haspopup="dialog" onClick={() => dialog.current?.showModal()}><Pencil /></button>
       </span>
       {/* the native dialog traps focus, closes on Escape and returns focus to the pencil */}
       <dialog ref={dialog} aria-labelledby={title} onClose={reset} onCancel={(e) => { if (busy) e.preventDefault() }}>

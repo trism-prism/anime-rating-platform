@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 
 export interface MoreItem {
   label: string
@@ -7,10 +7,11 @@ export interface MoreItem {
 }
 
 // "More" button with a menu of actions: arrow keys move, Escape closes and returns focus to the button, every item looks the same
-export default function MoreMenu({ items, disabled }: { items: MoreItem[]; disabled?: boolean }) {
+export default function MoreMenu({ items, disabled, buttonRef }: { items: MoreItem[]; disabled?: boolean; buttonRef?: RefObject<HTMLButtonElement | null> }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  const button = useRef<HTMLButtonElement>(null)
+  const own = useRef<HTMLButtonElement>(null)
+  const button = buttonRef ?? own // the page can move focus here when a dialog it opened is gone
 
   const entries = () => Array.from(box.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? [])
 

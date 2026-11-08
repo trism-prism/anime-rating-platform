@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
@@ -33,8 +33,10 @@ function Profile({ username }: { username: string }) {
   const [confirm, setConfirm] = useState<'block' | 'unfriend' | null>(null)
   const [reporting, setReporting] = useState(false)
   const [reported, setReported] = useState(false)
+  const moreButton = useRef<HTMLButtonElement>(null)
   const [tick, setTick] = useState(0)
   useTitle(p?.userName ?? username)
+  useEffect(() => { if (reported) moreButton.current?.focus() }, [reported]) // the dialog is gone: keep focus on More
 
   const load = useCallback(() => {
     return api<ProfileData>(`/users/${encodeURIComponent(username)}`)
@@ -133,7 +135,7 @@ function Profile({ username }: { username: string }) {
           )}
           {state === 'Friends' && <span className="muted">Friends</span>}
           {state === 'BlockedByViewer' && <span className="muted">You blocked this user</span>}
-          <MoreMenu disabled={busy} items={[
+          <MoreMenu buttonRef={moreButton} disabled={busy} items={[
             ...(state === 'Friends' ? [{ label: 'Unfriend', onSelect: () => setConfirm('unfriend') }] : []),
             state === 'BlockedByViewer'
               ? { label: 'Unblock', onSelect: () => run(call(`/blocks/${name}`, 'DELETE')) }
