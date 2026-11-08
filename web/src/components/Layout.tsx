@@ -31,7 +31,16 @@ export default function Layout() {
     <>
       <a href="#main" className="skip-link" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to content</a>
       <nav className="nav" aria-label="Site">
-        <NavLink to="/" end className="brand">AnimeRate</NavLink>
+        <NavLink to="/" end className="brand">
+          {/* three key-frame sheets with a pencil line: genga are the key drawings of an animation */}
+          <svg className="brand-mark" viewBox="0 0 32 32" width="22" height="22" fill="none" aria-hidden="true" focusable="false">
+            <rect x="3" y="12" width="14" height="14" rx="3" opacity=".4" />
+            <rect x="7" y="8" width="14" height="14" rx="3" className="brand-sheet" opacity=".7" />
+            <rect x="11" y="4" width="14" height="14" rx="3" className="brand-sheet" />
+            <path d="M14.5 13.5c2-5.5 4.5-5.5 7-1" />
+          </svg>
+          GengaRate
+        </NavLink>
         <span className="spacer" />
         {/* phones get these links in the bottom tab bar */}
         <NavLink to="/" end className="nav-text">Home</NavLink>

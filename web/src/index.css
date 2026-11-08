@@ -240,6 +240,9 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .nav a.active { color: var(--text); background: var(--raised); }
 .nav .brand { color: var(--text); font-weight: var(--fw-medium); font-size: 17px; line-height: 1; margin-right: var(--s-4); padding-left: 0; }
 .nav .brand.active { background: none; }
+.nav .brand { display: inline-flex; align-items: center; gap: var(--s-2); }
+.brand-mark { flex: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.brand-sheet { fill: var(--surface-deep); }
 .spacer { flex: 1; }
 
 .avatar-menu { position: relative; }
