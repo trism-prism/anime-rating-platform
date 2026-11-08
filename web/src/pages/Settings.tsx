@@ -27,7 +27,7 @@ export default function Settings() {
           <a href="#account">Account</a>
           <a href="#appearance">Appearance</a>
           <a href="#import-export">Import and export</a>
-          <a href="#danger">Danger zone</a>
+          <a href="#danger">Delete account</a>
         </nav>
 
         <div className="settings-cards">
@@ -35,7 +35,7 @@ export default function Settings() {
             {loading ? null : !hasPassword ? (
               <section className="settings-card" aria-labelledby="h-signin">
                 <h2 id="h-signin">Sign-in</h2>
-                <p className="card-desc">This account signs in with Google. To add a password, use Forgot password on the login page.</p>
+                <p className="card-desc">This account signs in with Google. To add a password, use Forgot password on the Log in page.</p>
               </section>
             ) : (
               <>

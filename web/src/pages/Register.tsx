@@ -55,7 +55,7 @@ export default function Register() {
       {error && <p className="error">{error}</p>}
       <button type="submit" className="btn-primary" disabled={busy}>Create account</button>
       <GoogleLink ticked={age && terms} />
-      <p className="muted">Have an account? <Link to="/login" className="link">Login</Link></p>
+      <p className="muted">Have an account? <Link to="/login" className="link">Log in</Link></p>
     </form>
   )
 }
