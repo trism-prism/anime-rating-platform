@@ -53,27 +53,25 @@ export default function DeleteAccountForm() {
   return (
     <>
       <form className="settings-form" onSubmit={submit}>
-        <p className="muted hint">
-          This cannot be undone. Download your data above first if you want a copy.
-        </p>
+        <p className="card-desc">This cannot be undone. Download your data above first if you want a copy.</p>
         {hasPassword ? (
           <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
         ) : (
           <>
             <p className="muted hint">This account has no password, so we email you a code to confirm.</p>
-            <button type="button" onClick={sendCode} disabled={busy}>{sent ? 'Send a new code' : 'Email me a code'}</button>
+            <button type="button" className="btn-secondary" onClick={sendCode} disabled={busy}>{sent ? 'Send a new code' : 'Email me a code'}</button>
             <label>Code
               <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
             </label>
-        </>
-      )}
-      {error && <p className="error" role="alert">{error}</p>}
-      {info && <p role="status">{info}</p>}
-      <button type="submit" disabled={busy || !ready}>Delete my account</button>
-    </form>
-    <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} onConfirm={remove} onCancel={() => setAsking(false)}>
-      <p>This cannot be undone.</p>
-    </ConfirmDialog>
+          </>
+        )}
+        {error && <p className="error" role="alert">{error}</p>}
+        {info && <p role="status">{info}</p>}
+        <div><button type="submit" className="btn-danger" disabled={busy || !ready}>Delete my account</button></div>
+      </form>
+      <ConfirmDialog open={asking} title="Delete your account?" confirmLabel="Delete forever" busy={busy} danger onConfirm={remove} onCancel={() => setAsking(false)}>
+        <p>Your ratings and reviews stay, without your name. This cannot be undone.</p>
+      </ConfirmDialog>
     </>
   )
 }

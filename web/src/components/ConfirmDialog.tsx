@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 // native modal dialog: focus trap, Escape and backdrop come from the browser
-export default function ConfirmDialog({ open, title, children, confirmLabel, busy, onConfirm, onCancel }: {
+export default function ConfirmDialog({ open, title, children, confirmLabel, busy, danger, onConfirm, onCancel }: {
   open: boolean
   title: string
   children?: ReactNode
   confirmLabel: string
   busy: boolean
+  danger?: boolean // the confirm button is the filled negative colour
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -32,7 +33,7 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, bus
       <div>{children}</div>
       <div className="row row-end">
         <button type="button" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="button" onClick={onConfirm} disabled={busy} className="on">{busy ? 'Working' : confirmLabel}</button>
+        <button type="button" onClick={onConfirm} disabled={busy} className={danger ? 'btn-danger filled' : 'btn-primary'}>{busy ? 'Working' : confirmLabel}</button>
       </div>
     </dialog>
   )

@@ -66,7 +66,7 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 
 ## Component rules
 
-- Buttons: raised surface with a hairline; hover steps the surface. A form's submit button (`type="submit"`) is the primary action in the accent. One primary per form.
+- Buttons: a plain button is secondary (raised surface, hairline; hover steps the surface). Variants are classes: `btn-primary` (accent, one per form or section, full width in `.auth-form`), `btn-secondary`, `btn-quiet`, `btn-danger` (negative outline; add `filled` on the confirm). Disabled is a flat card surface with muted text, never reduced opacity. Settings has no primary: every section uses secondary, Delete uses danger.
 - Selected state (filters, reactions you made): surface step plus an accent border.
 - Links in text: primary color with an underline that turns accent on hover. Never accent text.
 - Cards and rows: `--card` with a hairline, 12 radius. Poster cards step to `--raised` on hover and do not move.

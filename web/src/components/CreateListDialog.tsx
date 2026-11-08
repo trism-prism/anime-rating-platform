@@ -53,7 +53,7 @@ export default function CreateListDialog({ open, onClose, onCreated }: {
         {error && <p className="error" role="alert">{error}</p>}
         <div className="row row-end">
           <button type="button" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" disabled={busy || !name.trim()}>{busy ? 'Creating' : 'Create'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || !name.trim()}>{busy ? 'Creating' : 'Create'}</button>
         </div>
       </form>
     </dialog>

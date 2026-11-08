@@ -140,7 +140,7 @@ export default function ReplyThread({ reviewId, reviewMine, onCount, onResync }:
           <div className="row">
             <label className="check"><input type="checkbox" checked={spoiler} onChange={(e) => setSpoiler(e.target.checked)} /> Contains spoilers</label>
             <span className="muted count">{text.length}/{MAX}</span>
-            <button type="submit" disabled={posting || !text.trim()}>{posting ? 'Posting' : 'Reply'}</button>
+            <button type="submit" className="btn-primary" disabled={posting || !text.trim()}>{posting ? 'Posting' : 'Reply'}</button>
           </div>
         </form>
       )}

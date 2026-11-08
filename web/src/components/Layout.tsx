@@ -7,10 +7,11 @@ import NotificationBell from './NotificationBell'
 import TabBar from './TabBar'
 
 // one content column per kind of page, so the left edge holds between sibling pages (widths: --w-* in index.css)
-const NARROW = ['/login', '/register', '/forgot-password', '/verify', '/settings', '/support', '/confirm-email-change', '/auth/callback']
+const NARROW = ['/login', '/register', '/forgot-password', '/verify', '/support', '/confirm-email-change', '/auth/callback']
 const READING = ['/u', '/reviews', '/lists', '/feed', '/stats', '/privacy', '/terms', '/content-policy', '/faq']
 const under = (path: string, roots: string[]) => roots.some((r) => path === r || path.startsWith(r + '/'))
-const columnOf = (path: string) => (under(path, NARROW) ? 'narrow' : under(path, READING) ? 'reading' : 'wide')
+// settings and its sub-pages share the reading width (the page is a nav plus a column of cards)
+const columnOf = (path: string) => (under(path, ['/settings']) ? 'reading' : under(path, NARROW) ? 'narrow' : under(path, READING) ? 'reading' : 'wide')
 
 export default function Layout() {
   const { user, emailVerified, loading } = useAuth()

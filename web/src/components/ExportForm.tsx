@@ -1,14 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api'
 import PasswordInput from './PasswordInput'
-import Select from './Select'
 
-const FORMATS = [{ value: 'json', label: 'JSON' }, { value: 'csv', label: 'CSV (zip)' }]
+const FORMATS = [
+  { value: 'csv', label: 'Spreadsheets (CSV, zipped)' },
+  { value: 'json', label: 'Backup file (JSON)' },
+] as const
 
 // download your ratings, reviews, list entries and custom lists; asks for the password like the other sensitive actions
 export default function ExportForm() {
   const [password, setPassword] = useState('')
-  const [format, setFormat] = useState<'json' | 'csv'>('json')
+  const [format, setFormat] = useState<'json' | 'csv'>('csv')
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
@@ -25,7 +27,7 @@ export default function ExportForm() {
       a.href = url
       a.download = format === 'json' ? 'anime-platform-export.json' : 'anime-platform-export.zip'
       a.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 1000) // some browsers read the blob after click()
       setPassword('')
       setMsg('Download started')
     } catch (err) {
@@ -37,15 +39,20 @@ export default function ExportForm() {
 
   return (
     <form className="settings-form" onSubmit={submit}>
-      <p className="muted hint">Your ratings, reviews, list entries and custom lists with their dates. CSV comes as a zip with one file per table. Up to 5 downloads an hour.</p>
       <PasswordInput label="Current password" value={password} onChange={setPassword} autoComplete="current-password" />
-      <label className="row">
-        <span>Format</span>
-        <Select label="Format" value={format} options={FORMATS} onChange={(v) => setFormat(v as 'json' | 'csv')} />
-      </label>
+      <fieldset className="choice">
+        <legend>File type</legend>
+        {FORMATS.map((f) => (
+          <label key={f.value} className="choice-opt">
+            <input type="radio" name="export-format" value={f.value} checked={format === f.value} onChange={() => setFormat(f.value)} />
+            {f.label}
+          </label>
+        ))}
+      </fieldset>
+      <p className="muted hint">Up to 5 downloads an hour.</p>
       {error && <p className="error" role="alert">{error}</p>}
       {msg && <p role="status">{msg}</p>}
-      <button type="submit" disabled={busy || !password}>Download my data</button>
+      <div><button type="submit" className="btn-primary" disabled={busy || !password}>{busy ? 'Preparing' : 'Download my data'}</button></div>
     </form>
   )
 }

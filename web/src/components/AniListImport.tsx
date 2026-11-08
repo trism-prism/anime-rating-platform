@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { api } from '../api'
 import type { ListImportStatus } from '../types'
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 // import a public AniList list; it runs on the server, so this polls until it is done
 export default function AniListImport() {
@@ -8,6 +10,7 @@ export default function AniListImport() {
   const [status, setStatus] = useState<ListImportStatus | null>(null)
   const [error, setError] = useState('')
   const [polling, setPolling] = useState(true)
+  const id = useId()
 
   const load = useCallback(() => api<ListImportStatus>('/me/import/anilist').then((s) => { setStatus(s); setPolling(s.running) }).catch(() => setPolling(false)), [])
 
@@ -33,19 +36,24 @@ export default function AniListImport() {
   const r = status?.result
   return (
     <>
-      <h2>Import from AniList</h2>
-      <p className="muted hint">
-        Copies the titles on your public AniList list that exist here. Scores are not imported. Imported entries are visible to only you; change that on My List.
-        Your list must be public. You can import once every 10 minutes.
-      </p>
-      <form className="row" onSubmit={start}>
-        <input value={name} maxLength={20} placeholder="AniList username" aria-label="AniList username" onChange={(e) => setName(e.target.value)} />
-        <button disabled={!name.trim() || status?.running}>Import</button>
+      <h2 id="h-import">Import from AniList</h2>
+      <p className="card-desc">Import your public AniList list by username.</p>
+      <form className="settings-form" onSubmit={start}>
+        <label htmlFor={id}>AniList username</label>
+        <div className="row import-row">
+          <input id={id} value={name} maxLength={20} autoComplete="off" onChange={(e) => setName(e.target.value)} />
+          <button type="submit" className="btn-secondary" disabled={!name.trim() || status?.running}>Import</button>
+        </div>
       </form>
-      {status?.running && <p className="muted">Importing</p>}
-      {error && <p className="error">{error}</p>}
-      {status?.error && <p className="error">{status.error}</p>}
-      {r && <p>Added {r.added}, already on My List {r.alreadyOnList}, not found here {r.unmatched}.</p>}
+      {status?.running && <p className="muted" role="status">Importing</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+      {status?.error && <p className="error" role="alert">{status.error}</p>}
+      {r && !status?.running && (
+        <p className="import-result" role="status">
+          Added {plural(r.added, 'title', 'titles')} to My List, only visible to you. {r.alreadyOnList} {r.alreadyOnList === 1 ? 'was' : 'were'} already there
+          and {r.unmatched} {r.unmatched === 1 ? 'was' : 'were'} not found here. Scores are not imported.
+        </p>
+      )}
     </>
   )
 }

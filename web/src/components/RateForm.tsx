@@ -136,7 +136,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
         <p className="error" role="alert">Could not load your existing rating. <button type="button" onClick={() => { setErrorKey(''); setAttempt((n) => n + 1) }}>Retry</button></p>
       )}
       <div className="row">
-        <button type="submit" disabled={busy || !loaded}>{hasRating ? 'Update rating' : 'Save rating'}</button>
+        <button type="submit" className="btn-primary" disabled={busy || !loaded}>{hasRating ? 'Update rating' : 'Save rating'}</button>
         {hasRating && <button type="button" disabled={busy} onClick={remove}>Delete</button>}
         {msg && <span className="muted">{msg}</span>}
         {error && <span className="error">{error}</span>}
