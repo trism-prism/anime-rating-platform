@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import { STATUSES, type WatchEntry, type WatchStatus } from '../types'
+import { STATUS_OPTIONS, type WatchEntry, type WatchStatus } from '../types'
+import Select from './Select'
 
 export default function ListForm({ titleId }: { titleId: number }) {
   const { user } = useAuth()
@@ -47,9 +48,7 @@ export default function ListForm({ titleId }: { titleId: number }) {
 
   return (
     <div className="row">
-      <select aria-label="Watch status" value={status} onChange={(e) => setStatus(e.target.value as WatchStatus)}>
-        {STATUSES.map((s) => <option key={s}>{s}</option>)}
-      </select>
+      <Select label="Watch status" value={status} options={STATUS_OPTIONS} onChange={(v) => setStatus(v as WatchStatus)} />
       <button onClick={save} disabled={!loaded}>{inList ? 'Update list' : 'Add to my list'}</button>
       {msg && <span className="muted">{msg}</span>}
       {error && <span className="error">{error}</span>}

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import type { ReviewItem, ReviewPage } from '../types'
 import ReviewCard from './ReviewCard'
+import Select from './Select'
 
 type Sort = 'helpful' | 'newest'
+const SORTS = [{ value: 'helpful', label: 'Most helpful' }, { value: 'newest', label: 'Newest' }]
 
 // the Reviews section of a title or series page: path is "/titles/5" or "/series/3"; `refresh` changes when the page's own ratings did
 export default function Reviews({ path, showTitle, refresh = 0 }: { path: string; showTitle: boolean; refresh?: number }) {
@@ -60,10 +62,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
         <h2 id="reviews-title">Reviews</h2>
         <label className="row">
           <span className="muted">Sort</span>
-          <select value={sort} onChange={(e) => pick(e.target.value as Sort)}>
-            <option value="helpful">Most helpful</option>
-            <option value="newest">Newest</option>
-          </select>
+          <Select label="Sort" value={sort} options={SORTS} onChange={(v) => pick(v as Sort)} />
         </label>
       </div>
       <div className="reviews" aria-busy={!items && !error}>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import Select from '../components/Select'
 import type { RankingRow } from '../types'
 
-const CATEGORIES = ['overall', 'story', 'art', 'characters', 'enjoyment']
+const CATEGORY_OPTIONS = ['overall', 'story', 'art', 'characters', 'enjoyment'].map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }))
+const TYPES = [{ value: '', label: 'Anime and manga' }, { value: 'Anime', label: 'Anime' }, { value: 'Manga', label: 'Manga' }]
 
 export default function Rankings() {
   const [category, setCategory] = useState('overall')
@@ -31,14 +33,8 @@ export default function Rankings() {
     <div>
       <h1>Rankings</h1>
       <div className="filters">
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
-        </select>
-        <select value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">Anime and manga</option>
-          <option value="Anime">Anime</option>
-          <option value="Manga">Manga</option>
-        </select>
+        <Select label="Category" value={category} options={CATEGORY_OPTIONS} onChange={setCategory} />
+        <Select label="Type" value={type} options={TYPES} onChange={setType} />
       </div>
       {error && <p className="error">{error}</p>}
       {loading && !error && <p className="muted">Loading</p>}
@@ -50,7 +46,7 @@ export default function Rankings() {
               <Link to={`/series/${r.id}`} className="list-name">{r.name}</Link>
               <span className="muted">{r.type}</span>
               <strong>{r.average}</strong>
-              <span className="muted">{r.ratingCount} {r.ratingCount === 1 ? 'rating' : 'ratings'}</span>
+              <span className="muted"><span className="num">{r.ratingCount}</span> {r.ratingCount === 1 ? 'rating' : 'ratings'}</span>
             </li>
           ))}
         </ol>
