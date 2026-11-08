@@ -34,6 +34,10 @@ public static class ReviewRules
     // a review is a rating that has text
     public static IQueryable<Rating> Reviews(this IQueryable<Rating> q) => q.Where(r => r.ReviewText != null);
 
+    // list snippet: none for a spoiler (so the list can't give it away), 140 chars max without cutting a surrogate pair
+    public static string? Snippet(string? text, bool spoiler) =>
+        text == null || spoiler ? null : text.Length > 140 ? text[..(char.IsHighSurrogate(text[139]) ? 139 : 140)] + "..." : text;
+
     // The one review the viewer may see, or null: unknown, no text, hidden by audience and blocked all look the same.
     public static Task<Rating?> FindReview(AppDbContext db, int id, string? viewer, bool admin) =>
         db.Ratings.Where(r => r.Id == id).Reviews().VisibleTo(db, viewer, admin).FirstOrDefaultAsync();

@@ -92,7 +92,7 @@ export default function AdminReports() {
                 {r.target === 'Profile'
                   ? (
                     <div className="who">
-                      <Avatar userName={r.targetUser} />
+                      <Link to={`/u/${encodeURIComponent(r.targetUser)}`} tabIndex={-1} aria-hidden="true"><Avatar userName={r.targetUser} /></Link>
                       <span>{r.bio ? <span className="bio">{r.bio}</span> : <span className="muted">No bio</span>}{!r.hasAvatar && <span className="muted"> · No picture</span>}</span>
                     </div>
                   )
