@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { usePending } from '../pendingRequests'
 import Avatar from './Avatar'
+import { ThemeCycle } from './ThemeSwitch'
 
 const icon = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
 
@@ -151,6 +152,7 @@ export default function AvatarMenu() {
               </Link>
             </div>
           )}
+          <ThemeCycle menu />
           <button role="menuitem" onClick={doLogout}>Log out</button>
         </div>
       )}

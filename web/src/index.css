@@ -4,7 +4,7 @@
 */
 :root {
   /* tinted neutral ramp (warm graphite) */
-  --surface-deep: #0f0e0d;   /* nav, footer band */
+  --surface-deep: #0f0e0d;   /* nav, tab bar */
   --bg: #141311;             /* page */
   --card: #1b1a17;           /* cards, rows, menus */
   --raised: #262420;         /* inputs, buttons, active rows */
@@ -12,6 +12,11 @@
   --control-border: #7d786d;   /* form control edges, 3:1 on --raised */
   --hairline: rgb(236 232 225 / 0.09);
   --hairline-strong: rgb(236 232 225 / 0.18);
+  --scrim: rgb(0 0 0 / 0.6);   /* behind dialogs */
+  --shadow: 0 8px 24px rgb(0 0 0 / 0.4);   /* menus and popovers */
+  --selection: rgb(255 122 89 / 0.3);
+  --chip-bg: rgb(15 14 13 / 0.85);   /* score tag on a cover; text is --accent */
+  --chip-solid: #0f0e0d;             /* the same tag inside a row, no image behind */
 
   /* three text roles */
   --text: #ece8e1;           /* primary */
@@ -31,6 +36,7 @@
   --negative-soft-strong: rgb(242 115 109 / 0.16);
   --negative-hover: #f68a85;
   --negative-line: rgb(242 115 109 / 0.45);
+  --on-negative: #1c0d08;    /* ink on a filled danger button */
 
   /* type */
   --font: 'Geist Variable', system-ui, sans-serif;
@@ -76,6 +82,46 @@
   color-scheme: dark;
 }
 
+/*
+  Light theme, "Paper". Same names, warm paper values. Set by the data-theme attribute on <html>
+  (public/theme-init.js before first paint, src/theme.ts after). Contrast is checked by
+  scripts/check-contrast.mjs, which reads this block and the one above.
+*/
+:root[data-theme='light'] {
+  --surface-deep: #fffdf8;
+  --bg: #f6f2ea;
+  --card: #fffdf8;
+  --raised: #ebe5d8;
+  --raised-hover: #e0d9ca;
+  --control-border: #7d7667;
+  --hairline: rgb(31 27 22 / 0.12);
+  --hairline-strong: rgb(31 27 22 / 0.24);
+  --scrim: rgb(31 27 22 / 0.5);
+  --shadow: 0 8px 24px rgb(60 45 20 / 0.18);
+  --selection: rgb(168 45 20 / 0.22);
+  --chip-bg: rgb(255 253 248 / 0.94);
+  --chip-solid: #ebe5d8;
+
+  --text: #1f1b16;
+  --text-2: #5c554a;
+  --text-muted: #645d51;
+
+  --accent: #a82d14;
+  --accent-hover: #8f2610;
+  --accent-ink: #ffffff;
+
+  --positive: #1d7447;
+  --negative: #b3261e;
+  --warning: #965500;
+  --negative-soft: rgb(179 38 30 / 0.08);
+  --negative-soft-strong: rgb(179 38 30 / 0.14);
+  --negative-hover: #961e17;
+  --negative-line: rgb(179 38 30 / 0.5);
+  --on-negative: #ffffff;
+
+  color-scheme: light;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -105,7 +151,7 @@ p { margin: var(--s-2) 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input:focus-visible, textarea:focus-visible { outline-offset: 0; border-color: var(--accent); }
 
-::selection { background: rgb(255 122 89 / 0.3); }
+::selection { background: var(--selection); }
 
 /* controls */
 button, input, textarea {
@@ -140,7 +186,7 @@ button:disabled:not(.link-button, .avatar-button, .bell-button, .bell-main, .men
 .btn-danger { background: none; border-color: var(--negative); color: var(--negative); }
 .btn-danger:hover:not(:disabled) { background: var(--negative-soft); border-color: var(--negative); }
 .btn-danger:active:not(:disabled) { background: var(--negative-soft-strong); }
-.btn-danger.filled { background: var(--negative); border-color: transparent; color: var(--accent-ink); font-weight: var(--fw-medium); }
+.btn-danger.filled { background: var(--negative); border-color: transparent; color: var(--on-negative); font-weight: var(--fw-medium); }
 .btn-danger.filled:hover:not(:disabled) { background: var(--negative-hover); border-color: transparent; }
 .btn-danger.filled:active:not(:disabled) { background: var(--negative); }
 .btn-danger.filled:disabled { color: var(--text-muted); font-weight: var(--fw); }
@@ -149,13 +195,18 @@ button:disabled:not(.link-button, .avatar-button, .bell-button, .bell-main, .men
 .select-button {
   display: inline-flex; align-items: center; min-width: 120px; padding-right: var(--s-8); text-align: left; cursor: pointer;
   border-color: var(--control-border);
-  --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23aca69c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.5l4 4 4-4'/%3E%3C/svg%3E");
 }
-.select-button, .select-button:hover:not(:disabled) { background-image: var(--chev); background-repeat: no-repeat; background-position: right var(--s-2) center; }
+/* the arrow is a mask filled with a token, so it follows the theme */
+.select-button { position: relative; }
+.select-button::after {
+  content: ''; position: absolute; right: var(--s-2); top: 50%; width: 16px; height: 16px; margin-top: -8px; background: var(--text-2); pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.5l4 4 4-4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.5l4 4 4-4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 .select-button:hover:not(:disabled) { border-color: var(--text-2); }
 .select-list {
   position: fixed; z-index: 30; margin: 0; padding: var(--s-1); list-style: none; max-height: 240px; overflow-y: auto;
-  background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: var(--shadow);
 }
 .select-list:focus-visible { outline: none; }
 .select-list li { padding: 0 var(--s-3); min-height: 32px; display: flex; align-items: center; border-radius: var(--r-xs); cursor: pointer; white-space: nowrap; box-shadow: inset 2px 0 transparent; }
@@ -217,7 +268,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
   background: var(--card);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--r-md);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  box-shadow: var(--shadow);
 }
 .menu-label { padding: var(--s-2) var(--s-3) var(--s-1); font-size: var(--fs-xs); color: var(--text-muted); }
 .nav .menu a, .menu button { display: flex; align-items: center; gap: var(--s-2); min-height: 32px; padding: 0 var(--s-3); border: 0; border-radius: var(--r-xs); background: none; color: var(--text); text-align: left; }
@@ -248,10 +299,12 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .card:hover { background: var(--raised); border-color: var(--hairline-strong); }
 .card img, .card .noimg { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block; }
 .noimg { background: var(--raised); }
+/* a pale cover on a pale card keeps an edge */
+.card img, .cover, .mylist-thumb img, .entries img, .characters img, .overview-titles img { outline: 1px solid var(--hairline); outline-offset: -1px; }
 .card-body { padding: var(--s-3); font-size: var(--fs-sm); line-height: 20px; }
 .card-name { margin: 0; line-height: 20px; font-size: var(--fs-base); font-weight: var(--fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* signature: the community score sits on the cover like a small tag */
-.score-chip { position: absolute; top: var(--s-2); left: var(--s-2); padding: 2px 6px; border-radius: var(--r-xs); background: rgb(15 14 13 / 0.85); color: var(--accent); font-size: var(--fs-xs); line-height: 16px; font-weight: var(--fw-medium); }
+.score-chip { position: absolute; top: var(--s-2); left: var(--s-2); padding: 2px 6px; border-radius: var(--r-xs); background: var(--chip-bg); color: var(--accent); font-size: var(--fs-xs); line-height: 16px; font-weight: var(--fw-medium); }
 
 .pager { display: flex; justify-content: center; align-items: center; gap: var(--s-4); margin-top: var(--s-6); }
 
@@ -316,6 +369,11 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
   .settings-nav { position: sticky; top: var(--s-6); flex-direction: column; gap: 0; margin: 0; }
   .settings-nav a { min-height: 36px; }
 }
+/* theme choice: segmented radio group; the selected one takes a surface step and the accent border */
+.segmented { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--control-border); border-radius: var(--r-sm); background: var(--raised); }
+.settings-card h2 + .segmented { margin-top: var(--s-3); }
+.segmented button { min-height: calc(var(--control-h) - 6px); padding: 0 var(--s-4); border-color: transparent; border-radius: 6px; background: none; color: var(--text-2); }
+.segmented button[aria-checked='true'], .segmented button[aria-checked='true']:hover:not(:disabled) { background: var(--card); border-color: var(--accent); color: var(--text); }
 /* switch: a native checkbox drawn as a track and a knob, so keyboard and screen readers keep working */
 .prefs { list-style: none; margin: 0; padding: 0; }
 .prefs li { margin: 0; border-top: 1px solid var(--hairline); }
@@ -381,7 +439,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 /* browse search with typeahead */
 .search { display: flex; gap: var(--s-2); flex: 1; min-width: 220px; position: relative; }
 .search input { flex: 1; min-width: 0; }
-.suggest { position: absolute; left: 0; right: 0; top: calc(100% + var(--s-1)); z-index: 20; background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); overflow: hidden; box-shadow: 0 8px 24px rgb(0 0 0 / 0.4); }
+.suggest { position: absolute; left: 0; right: 0; top: calc(100% + var(--s-1)); z-index: 20; background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow); }
 .suggest ul { list-style: none; margin: 0; padding: var(--s-1); }
 .suggest li { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-radius: var(--r-xs); cursor: pointer; }
 .suggest li.on { background: var(--raised); }
@@ -419,7 +477,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .row-end { margin-top: var(--s-4); justify-content: flex-end; }
 .admin-titles { min-height: 120px; margin-top: var(--s-2); }
 dialog { color: var(--text); background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-lg); max-width: 440px; padding: var(--s-6); }
-dialog::backdrop { background: rgb(0 0 0 / 0.6); }
+dialog::backdrop { background: var(--scrim); }
 dialog h3 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 
 /* notification bell */
@@ -427,7 +485,7 @@ dialog h3 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 .bell-button { position: relative; width: 32px; height: 32px; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: none; border-color: transparent; color: var(--text-2); }
 .bell-button:hover:not(:disabled) { color: var(--text); }
 .bell-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: var(--fw-medium); line-height: 16px; text-align: center; pointer-events: none; }
-.bell-panel { position: absolute; right: 0; top: calc(100% + var(--s-2)); z-index: 10; width: 360px; max-height: 70vh; overflow-y: auto; background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: 0 8px 24px rgb(0 0 0 / 0.4); }
+.bell-panel { position: absolute; right: 0; top: calc(100% + var(--s-2)); z-index: 10; width: 360px; max-height: 70vh; overflow-y: auto; background: var(--card); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: var(--shadow); }
 .bell-head { display: flex; justify-content: space-between; align-items: center; padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--hairline); }
 .link-button { border: 0; background: none; min-height: 0; padding: 0; color: var(--text-2); text-decoration: underline; text-decoration-color: var(--hairline-strong); text-underline-offset: 3px; }
 .link-button:hover:not(:disabled) { background: none; color: var(--text); }
@@ -505,8 +563,8 @@ dialog h3 { margin: 0 0 var(--s-2); font-size: var(--fs-lg); }
 .legal li { margin: var(--s-1) 0; }
 .legal .hint { font-size: var(--fs-sm); }
 footer.page { display: flex; flex-wrap: wrap; gap: var(--s-4); padding-top: var(--s-6); padding-bottom: var(--s-8); font-size: var(--fs-sm); border-top: 1px solid var(--hairline); }
-footer.page a { color: var(--text-muted); transition: color var(--t-fast) var(--ease); }
-footer.page a:hover { color: var(--text); }
+footer.page a, footer.page .link-button { color: var(--text-muted); transition: color var(--t-fast) var(--ease); }
+footer.page a:hover, footer.page .link-button:hover:not(:disabled) { color: var(--text); }
 .hp { position: absolute; left: -10000px; height: 0; overflow: hidden; }
 .auth-form .check { flex-direction: row; align-items: flex-start; }
 
@@ -627,7 +685,7 @@ a.button:hover { background: var(--raised-hover); border-color: var(--hairline-s
 .mylist-meta a { display: inline-flex; align-items: center; min-height: 24px; color: var(--text-2); text-decoration: underline; text-decoration-color: var(--hairline-strong); text-underline-offset: 3px; }
 .mylist-meta a:hover { color: var(--text); }
 .mylist-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mylist-chip { flex: none; padding: 0 6px; border-radius: var(--r-xs); background: var(--surface-deep); color: var(--accent); font-size: var(--fs-xs); line-height: 20px; font-weight: var(--fw-medium); }
+.mylist-chip { flex: none; padding: 0 6px; border-radius: var(--r-xs); background: var(--chip-solid); color: var(--accent); font-size: var(--fs-xs); line-height: 20px; font-weight: var(--fw-medium); }
 .mylist-status .select-button { min-width: 0; width: 132px; }
 .mylist-error { margin: 0; padding: 0 var(--s-3) var(--s-2); font-size: var(--fs-sm); }
 .mylist-detail { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-3); border-top: 1px solid var(--hairline); }

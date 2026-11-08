@@ -5,6 +5,7 @@ import { usePending, usePendingSync } from '../pendingRequests'
 import AvatarMenu from './AvatarMenu'
 import NotificationBell from './NotificationBell'
 import TabBar from './TabBar'
+import { ThemeCycle } from './ThemeSwitch'
 
 // one content column per kind of page, so the left edge holds between sibling pages (widths: --w-* in index.css)
 const NARROW = ['/login', '/register', '/forgot-password', '/verify', '/support', '/confirm-email-change', '/auth/callback']
@@ -67,6 +68,7 @@ export default function Layout() {
         <NavLink to="/content-policy">Content policy</NavLink>
         <NavLink to="/faq">FAQ</NavLink>
         <NavLink to="/support">Support</NavLink>
+        {!user && !loading && <ThemeCycle />}
       </footer>
     </>
   )
