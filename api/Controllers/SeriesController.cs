@@ -24,6 +24,9 @@ public class SeriesController : ControllerBase
     // Every order ends in Id, so equal rows never swap between pages. The cursor is base64url of the offset: the sort
     // keys are computed per series (ratings, average, year), so a keyset would need them stored.
     // ponytail: offset paging over computed keys; store them on Series and use a keyset if the table grows 100x.
+    // Accepted limits: a rating saved between two pages can move a series, so a row may repeat (the client drops repeats) or be skipped;
+    // A to Z follows the database collation (Postgres) and plain ordinal order on InMemory.
+    // total is counted on the first page only (cursor == null); the client keeps it for later pages.
     [HttpGet("series")]
     public async Task<IActionResult> List(string? search, TitleType? type, string? genre, string? cursor, string? sort, int take = 24)
     {
@@ -38,7 +41,7 @@ public class SeriesController : ControllerBase
         if (!string.IsNullOrWhiteSpace(search)) q = q.Match(_db, Clean(search), false);
         if (sort == "top") q = q.Where(s => s.Titles.Any(t => t.RatingCount > 0));
 
-        var total = await q.CountAsync();
+        int? total = cursor == null ? await q.CountAsync() : null;
         var keyed = q.Select(s => new
         {
             s.Id, s.Name, s.Kind, s.CoverUrl, s.Popularity,

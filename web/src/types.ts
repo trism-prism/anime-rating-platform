@@ -19,7 +19,7 @@ export interface SeriesSummary {
 // pass nextCursor back as ?cursor= until it is null; total is the count for the current search and filters
 export interface SeriesPage {
   items: SeriesSummary[]
-  total: number
+  total: number | null // only on the first page; keep the earlier one after that
   nextCursor: string | null
 }
 

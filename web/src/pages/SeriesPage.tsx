@@ -49,7 +49,7 @@ function EntryRow({ e }: { e: SeriesEntry }) {
         <div className="muted">{[e.format && formatLabel(e.format), e.year, sizeLabel(e)].filter(Boolean).join(' · ')}</div>
       </div>
       {e.average != null && (
-        <span className="score-pill" title={`${plural(e.ratingCount, 'rating')}`} aria-label={`${score(e.average)} out of 10, from ${plural(e.ratingCount, 'rating')}`}>{score(e.average)}</span>
+        <span className="score-pill" role="img" title={`${plural(e.ratingCount, 'rating')}`} aria-label={`${score(e.average)} out of 10, from ${plural(e.ratingCount, 'rating')}`}>{score(e.average)}</span>
       )}
     </li>
   )

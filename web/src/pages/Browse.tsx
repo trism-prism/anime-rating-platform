@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import { browseVersion } from '../browseCache'
 import SearchBox from '../components/SearchBox'
 import Select from '../components/Select'
 import SeriesCard from '../components/SeriesCard'
@@ -32,23 +33,15 @@ function seriesUrl(query: string, type: string, genre: string, sort: string, cur
 function readSnapshot(loc: string, key: string): { y: number; data: Data } | null {
   try {
     const s = JSON.parse(sessionStorage.getItem(SNAPSHOT) ?? 'null')
-    if (s && s.loc === loc && s.data?.key === key && Array.isArray(s.data.items)) return s
+    // a rating saved since then changed the averages in the saved list: start fresh
+    if (s && s.loc === loc && s.v === browseVersion() && s.data?.key === key && Array.isArray(s.data.items)) return s
   } catch { /* ignore */ }
   return null
 }
 
 // Trending now: a row of covers that scrolls sideways (Tab moves through the cards and scrolls them into view)
-let railCache: TrendingItem[] = [] // kept for the session so the rail is there at once on Back and the page below does not move
-function TrendingRail() {
-  const [items, setItems] = useState<TrendingItem[]>(railCache)
-  useEffect(() => {
-    let stale = false
-    api<TrendingItem[]>('/trending?type=Anime')
-      .then((l) => { railCache = l.slice(0, RAIL_MAX); if (!stale) setItems(railCache) })
-      .catch(() => {}) // no rail beats an error banner
-    return () => { stale = true }
-  }, [])
-  if (items.length === 0) return null
+let railCache: TrendingItem[] | null = null // kept for the session so the rail is there at once on Back and the page below does not move
+function TrendingRail({ items }: { items: TrendingItem[] }) {
   return (
     <section className="rail-section" aria-labelledby="rail-title">
       <div className="rail-head">
@@ -78,11 +71,23 @@ export default function Browse() {
   const key = `${query}|${type}|${genre}|${sort}`
   const filtered = !!(query || type || genre)
 
+  // null = not known yet. Only the first six covers on the page load eagerly: the rail's, or the grid's when there is no rail.
+  const [rail, setRail] = useState<TrendingItem[] | null>(railCache)
+  useEffect(() => {
+    let stale = false
+    api<TrendingItem[]>('/trending?type=Anime')
+      .then((l) => { railCache = l.slice(0, RAIL_MAX); if (!stale) setRail(railCache) })
+      .catch(() => { if (!stale) setRail(railCache ?? []) }) // no rail beats an error banner
+    return () => { stale = true }
+  }, [])
+  const showRail = !filtered && !!rail && rail.length > 0
+  const gridEager = filtered || (rail !== null && rail.length === 0)
+
   const [clearCount, setClearCount] = useState(0) // remounts the search box so its text empties on Clear filters
   const [snap] = useState(() => readSnapshot(location.key, key))
   // moreBusy and moreError live in data so they belong to this filter key and reset with every first-page load
   const [data, setData] = useState<Data | null>(snap ? { ...snap.data, moreBusy: false, moreError: '' } : null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{ key: string; message: string } | null>(null) // belongs to the filters it failed for
   const [tick, setTick] = useState(0) // bump to retry
   const generation = useRef(0) // bumped by every first-page load; a load-more from an older one is dropped
   const skipKey = useRef(snap?.data.key ?? null) // the restored list stands for this key, so it is not fetched again
@@ -105,10 +110,9 @@ export default function Browse() {
     api<SeriesPage>(seriesUrl(query, type, genre, sort, null))
       .then((d) => {
         if (run.stale) return
-        setData({ key, items: d.items, next: d.nextCursor, total: d.total, moreBusy: false, moreError: '' })
-        setError('')
+        setData({ key, items: d.items, next: d.nextCursor, total: d.total ?? d.items.length, moreBusy: false, moreError: '' })
       })
-      .catch((e: Error) => !run.stale && setError(e.message))
+      .catch((e: Error) => !run.stale && setError({ key, message: e.message }))
     return () => {
       run.stale = true
     }
@@ -129,7 +133,7 @@ export default function Browse() {
     const save = () => {
       const { data: d, key: k, loc } = latest.current
       if (!d || d.key !== k) return
-      try { sessionStorage.setItem(SNAPSHOT, JSON.stringify({ loc, y: scrollY.current, data: { ...d, moreBusy: false, moreError: '' } })) } catch { /* ignore */ }
+      try { sessionStorage.setItem(SNAPSHOT, JSON.stringify({ loc, v: browseVersion(), y: scrollY.current, data: { ...d, moreBusy: false, moreError: '' } })) } catch { /* ignore */ }
     }
     const onScroll = () => {
       if (window.location.pathname !== path) return // the next page is already in place and may have clamped the scroll
@@ -146,7 +150,7 @@ export default function Browse() {
   }, [snap])
 
   async function loadMore() {
-    if (!data?.next || data.key !== key) return
+    if (!data?.next || data.key !== key || data.moreBusy) return
     const gen = generation.current
     const cursor = data.next
     // still the same page of the same list? (a filter switch and back reloads page one with the same cursor)
@@ -158,7 +162,7 @@ export default function Browse() {
         const c = current(cur)
         if (!c) return cur
         const have = new Set(c.items.map((i) => i.id)) // a rating between two pages can shift the order and repeat a series
-        return { ...c, items: [...c.items, ...d.items.filter((i) => !have.has(i.id))], next: d.nextCursor, total: d.total, moreBusy: false, moreError: '' }
+        return { ...c, items: [...c.items, ...d.items.filter((i) => !have.has(i.id))], next: d.nextCursor, total: d.total ?? c.total, moreBusy: false, moreError: '' }
       })
     } catch (e) {
       setData((cur) => { const c = current(cur); return c ? { ...c, moreBusy: false, moreError: (e as Error).message } : cur })
@@ -176,7 +180,7 @@ export default function Browse() {
         <Select label="Genre" value={genre} options={GENRE_OPTIONS} onChange={(v) => change({ genre: v })} />
       </div>
 
-      {!filtered && <TrendingRail />}
+      {showRail && <TrendingRail items={rail} />}
 
       <div className="results-bar">
         <p className="results-count" role="status">{!loading && count(data.total)}</p>
@@ -187,12 +191,12 @@ export default function Browse() {
       </div>
 
       <div className="results">
-        {error && (
+        {error?.key === key && (
           <p className="error" role="alert">
-            {error} <button onClick={() => { setError(''); setTick((t) => t + 1) }}>Retry</button>
+            {error.message} <button onClick={() => { setError(null); setTick((t) => t + 1) }}>Retry</button>
           </p>
         )}
-        {loading && !error && <p className="muted">Loading</p>}
+        {loading && error?.key !== key && <p className="muted">Loading</p>}
         {!loading && data.items.length === 0 && (
           <div className="empty">
             <p><strong>{query ? `Nothing matches '${query}'.` : filtered ? 'Nothing matches these filters.' : 'No series yet.'}</strong></p>
@@ -208,14 +212,14 @@ export default function Browse() {
             <h2 className="sr-only">Results</h2>
             <div className="grid">
               {data.items.map((s, i) => (
-                <SeriesCard key={s.id} id={s.id} name={s.name} coverUrl={s.coverUrl} type={s.type} average={s.average} ratingCount={s.ratingCount} eager={i < 6} />
+                <SeriesCard key={s.id} id={s.id} name={s.name} coverUrl={s.coverUrl} type={s.type} average={s.average} ratingCount={s.ratingCount} eager={gridEager && i < 6} />
               ))}
             </div>
             <div className="pager">
               {data.next ? (
                 <>
                   <span className="muted" role="status">Showing {data.items.length.toLocaleString('en-US')} of {data.total.toLocaleString('en-US')}</span>
-                  <button disabled={data.moreBusy} onClick={loadMore}>{data.moreBusy ? 'Loading' : 'Load more'}</button>
+                  <button aria-busy={data.moreBusy} onClick={loadMore}>{data.moreBusy ? 'Loading' : 'Load more'}</button>
                 </>
               ) : (
                 <span className="muted">That's everything</span>

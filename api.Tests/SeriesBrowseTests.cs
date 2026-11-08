@@ -27,13 +27,13 @@ public class SeriesBrowseTests
         return new SeriesController(db);
     }
 
-    static async Task<(string[] Names, int Total, string? Next)> Page(SeriesController c, string? sort, string? cursor = null, int take = 24, string? search = null)
+    static async Task<(string[] Names, int? Total, string? Next)> Page(SeriesController c, string? sort, string? cursor = null, int take = 24, string? search = null)
     {
         var ok = Assert.IsType<OkObjectResult>(await c.List(search, null, null, cursor, sort, take));
         var v = ok.Value!;
         var items = ((System.Collections.IEnumerable)v.GetType().GetProperty("items")!.GetValue(v)!).Cast<object>()
             .Select(i => (string)i.GetType().GetProperty("Name")!.GetValue(i)!).ToArray();
-        return (items, (int)v.GetType().GetProperty("total")!.GetValue(v)!, (string?)v.GetType().GetProperty("nextCursor")!.GetValue(v));
+        return (items, (int?)v.GetType().GetProperty("total")!.GetValue(v), (string?)v.GetType().GetProperty("nextCursor")!.GetValue(v));
     }
 
     [Fact]
@@ -117,6 +117,8 @@ public class SeriesBrowseTests
         Assert.Equal(2, found.Total);
         Assert.Equal(new[] { "Naruto", "Naruto Shippuden" }, found.Names);
         Assert.IsType<BadRequestObjectResult>(await c.List(null, null, null, "!!", null, 24));
+        var negative = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(System.Text.Encoding.UTF8.GetBytes("-5"));
+        Assert.IsType<BadRequestObjectResult>(await c.List(null, null, null, negative, null, 24));
         Assert.Equal(3, (await Page(c, "bogus")).Names.Length); // unknown sort = popular
     }
 
@@ -126,11 +128,36 @@ public class SeriesBrowseTests
         var s = S("Show", genres: "Action,Drama", synopsis: "Lead text");
         s.Titles.Add(new Title { AniListId = ++_ani, Name = "Show 2", Position = 2, Format = "MOVIE", Genres = "Drama,Comedy", Synopsis = "Second text" });
         var c = await Ctl(s);
-        var id = (await Page(c, "az")).Names.Length; // one series, id 1 on a fresh store
-        var ok = Assert.IsType<OkObjectResult>(await c.Get(id));
+        var ok = Assert.IsType<OkObjectResult>(await c.Get(s.Id)); // the saved entity's id
         var v = ok.Value!;
         Assert.Equal("Lead text", (string?)v.GetType().GetProperty("synopsis")!.GetValue(v));
         Assert.Equal("TV", (string?)v.GetType().GetProperty("format")!.GetValue(v));
         Assert.Equal(new[] { "Action", "Drama", "Comedy" }, (List<string>)v.GetType().GetProperty("genres")!.GetValue(v)!);
+    }
+
+    [Fact]
+    public async Task Total_is_counted_on_the_first_page_only()
+    {
+        var c = await Ctl(S("A"), S("B"), S("C"));
+        var first = await Page(c, "az", take: 2);
+        Assert.Equal(3, first.Total);
+        Assert.Null((await Page(c, "az", first.Next, take: 2)).Total);
+    }
+
+    [Fact]
+    public async Task Genre_filter_matches_whole_genres_only()
+    {
+        var c = await Ctl(S("Plain", genres: "Action,Drama"), S("Mixed", genres: "Action Comedy"), S("Other", genres: "Comedy"));
+        var ok = Assert.IsType<OkObjectResult>(await c.List(null, null, "Action", null, "az", 24));
+        var items = ((System.Collections.IEnumerable)ok.Value!.GetType().GetProperty("items")!.GetValue(ok.Value)!).Cast<object>()
+            .Select(i => (string)i.GetType().GetProperty("Name")!.GetValue(i)!).ToArray();
+        Assert.Equal(new[] { "Plain" }, items); // "Action" must not match "Action Comedy"
+    }
+
+    [Fact]
+    public async Task Unknown_series_is_404()
+    {
+        var c = await Ctl(S("A"));
+        Assert.IsType<NotFoundResult>(await c.Get(9999));
     }
 }

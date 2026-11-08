@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api'
+import { bumpBrowseVersion } from '../browseCache'
 import { useAuth } from '../auth'
 import { score as fmt } from '../format'
 import type { Audience, MyRating } from '../types'
@@ -46,26 +47,29 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
   const [attempt, setAttempt] = useState(0)
   const loaded = loadedKey === key
   const loadError = errorKey === key
-  const touched = useRef(false) // the user edited the form before the prefill arrived
+  // fields the user edited before the prefill arrived: the prefill must not overwrite those, but it always fills the others
+  const edited = useRef(new Set<'scores' | 'review' | 'audience' | 'spoiler'>())
 
   // prefill with the user's existing rating for this title
   useEffect(() => {
     if (!user) return
     const ac = new AbortController()
-    touched.current = false
+    edited.current = new Set()
     api<MyRating[]>('/me/ratings')
       .then((list) => {
         if (ac.signal.aborted) return
         const mine = list.find((r) => r.titleId === titleId && (r.volume ?? null) === volume)
         if (mine) {
-          if (!touched.current) {
+          const e = edited.current
+          if (!e.has('scores')) {
             const s = { story: mine.story, art: mine.art, characters: mine.characters, enjoyment: mine.enjoyment }
             setScores(s)
             setDetail(!FIELDS.every((f) => s[f.key] === s.story)) // four different answers are only visible in detail
-            setReview(mine.reviewText ?? '')
-            setAudience(mine.audience)
-            setSpoiler(mine.spoiler)
           }
+          // the review, audience and spoiler flag always come back: Save sends them, and the server clears text it is not given
+          if (!e.has('review')) setReview(mine.reviewText ?? '')
+          if (!e.has('audience')) setAudience(mine.audience)
+          if (!e.has('spoiler')) setSpoiler(mine.spoiler)
           setHasRating(true)
         }
         setLoadedKey(`${titleId}:${volume}`)
@@ -85,13 +89,13 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
   const quick = complete && FIELDS.every((f) => scores[f.key] === scores.story) ? scores.story : 0
   const answered = FIELDS.filter((f) => scores[f.key] > 0).length
 
-  const edit = () => { touched.current = true; setMsg('') }
+  const edit = (what: 'scores' | 'review' | 'audience' | 'spoiler') => { edited.current.add(what); setMsg('') }
   function setQuick(n: number) {
-    edit()
+    edit('scores')
     setScores({ story: n, art: n, characters: n, enjoyment: n })
   }
   function setOne(f: Field, n: number) {
-    edit()
+    edit('scores')
     setScores((s) => ({ ...s, [f]: n }))
   }
 
@@ -105,6 +109,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
       await api(ratingUrl, { method: 'PUT', body: JSON.stringify({ ...scores, reviewText: review, audience, spoiler }) })
       setHasRating(true)
       setMsg('Saved')
+      bumpBrowseVersion()
       onChanged()
     } catch (err) {
       setError((err as Error).message)
@@ -126,6 +131,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
       setAudience('Public')
       setHasRating(false)
       setMsg('Removed')
+      bumpBrowseVersion()
       onChanged()
     } catch (err) {
       setError((err as Error).message)
@@ -137,8 +143,9 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
 
   return (
     <form className="rate-form" onSubmit={save}>
-      <fieldset className="quick">
+      <fieldset className="quick" aria-describedby={`${uid}-quick-hint`}>
         <legend>Quick rate</legend>
+        <span id={`${uid}-quick-hint`} className="sr-only">Sets all four scores</span>
         <div className="quick-scale">
           {NUMBERS.map((n) => (
             <label key={n} className="quick-opt">
@@ -158,34 +165,36 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
 
       <div>
         <button type="button" className="link-button rate-toggle" aria-expanded={detail} aria-controls={`${uid}-detail`} onClick={() => setDetail(!detail)}>
-          Rate in detail <span className="muted">{detail ? 'Hide' : 'Show'}</span>
+          Rate in detail <span className="muted" aria-hidden="true">{detail ? 'Hide' : 'Show'}</span>
         </button>
-        {detail && (
-          <div id={`${uid}-detail`} className="rate-detail">
-            {FIELDS.map((f) => {
-              const v = scores[f.key]
-              return (
-                <div key={f.key} className="rate-row">
-                  <label htmlFor={`${uid}-${f.key}`} className="score-label">{f.label}</label>
-                  <span className="rate-end num" aria-hidden="true">1</span>
-                  <input
-                    id={`${uid}-${f.key}`}
-                    type="range"
-                    min={1}
-                    max={10}
-                    className={v === 0 ? 'unset' : ''}
-                    value={v || 5}
-                    aria-valuetext={v === 0 ? 'Not set' : String(v)}
-                    onPointerDown={() => { if (v === 0) setOne(f.key, 5) }}
-                    onChange={(e) => setOne(f.key, Number(e.target.value))}
-                  />
-                  <span className="rate-end num" aria-hidden="true">10</span>
-                  <span className="score-value">{v === 0 ? '-' : v}</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <div id={`${uid}-detail`} className="rate-detail" hidden={!detail}>
+          {FIELDS.map((f) => {
+            const v = scores[f.key]
+            return (
+              <div key={f.key} className="rate-row">
+                <label htmlFor={`${uid}-${f.key}`} className="score-label">{f.label}</label>
+                <span className="rate-end num" aria-hidden="true">1</span>
+                <input
+                  id={`${uid}-${f.key}`}
+                  type="range"
+                  min={1}
+                  max={10}
+                  className={v === 0 ? 'unset' : ''}
+                  value={v || 5}
+                  aria-valuetext={v === 0 ? 'Not set' : String(v)}
+                  onPointerDown={() => { if (v === 0) setOne(f.key, 5) }}
+                  onKeyDown={(e) => {
+                    // an unset slider shows 5 but 5 cannot be reached by arrows, so the first key press sets it
+                    if (v === 0 && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); setOne(f.key, 5) }
+                  }}
+                  onChange={(e) => setOne(f.key, Number(e.target.value))}
+                />
+                <span className="rate-end num" aria-hidden="true">10</span>
+                <span className="score-value">{v === 0 ? '-' : v}</span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <div className="rate-review">
@@ -195,17 +204,17 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
           rows={3}
           value={review}
           disabled={!emailVerified}
-          onChange={(e) => { edit(); setReview(e.target.value) }}
+          onChange={(e) => { edit('review'); setReview(e.target.value) }}
         />
         {!emailVerified && (
           <p className="muted hint"><Link to="/verify" state={{ from: pathname }} className="link">Verify your email</Link> to write reviews</p>
         )}
         <label className="check">
-          <input type="checkbox" checked={spoiler} disabled={!emailVerified || !review.trim()} onChange={(e) => { edit(); setSpoiler(e.target.checked) }} /> Contains spoilers
+          <input type="checkbox" checked={spoiler} disabled={!emailVerified || !review.trim()} onChange={(e) => { edit('spoiler'); setSpoiler(e.target.checked) }} /> Contains spoilers
         </label>
         <label className="row">
           <span className="muted">Visibility</span>
-          <AudienceSelect label="Visibility" value={audience} onChange={(a) => { edit(); setAudience(a) }} />
+          <AudienceSelect label="Visibility" value={audience} onChange={(a) => { edit('audience'); setAudience(a) }} />
         </label>
       </div>
 

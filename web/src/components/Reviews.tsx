@@ -71,7 +71,7 @@ export default function Reviews({ path, showTitle, refresh = 0 }: { path: string
       {!user && items && items.length > 0 && <p className="muted"><Link to="/login" className="link">Log in</Link> to react to reviews.</p>}
       <div className="reviews" aria-busy={!items && !error}>
         {error && <p className="error" role="alert">{error} <button onClick={retry}>Retry</button></p>}
-        {!items && !error && <div className="skeleton review-skeleton" aria-label="Loading reviews" />}
+        {!items && !error && <div className="skeleton review-skeleton" role="status"><span className="sr-only">Loading reviews</span></div>}
         {items && items.length === 0 && <p className="muted">No reviews yet.</p>}
         {items?.map((r) => <ReviewCard key={r.id} review={r} showTitle={showTitle} onChange={update} />)}
       </div>
