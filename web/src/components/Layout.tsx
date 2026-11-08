@@ -49,7 +49,7 @@ export default function Layout() {
           </>
         ) : !loading && (
           <>
-            <NavLink to="/login" className="nav-text">Login</NavLink>
+            <NavLink to="/login" className="nav-text">Log in</NavLink>
             <NavLink to="/register" className="nav-text">Register</NavLink>
           </>
         )}

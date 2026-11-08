@@ -146,7 +146,7 @@ function Profile({ username }: { username: string }) {
       )}
       {actionError && <p className="error" role="alert">{actionError}</p>}
 
-      <ProfileOverview key={`o:${p.userName}:${p.viewerState}`} username={p.userName} />
+      <ProfileOverview key={`o:${p.userName}:${p.viewerState}`} username={p.userName} own={state === 'Self'} />
       <ProfileLists key={`l:${p.userName}:${p.viewerState}`} username={p.userName} />
 
       <ConfirmDialog open={confirm === 'block'} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}

@@ -165,7 +165,7 @@ export default function RateForm({ titleId, volume = null, onChanged }: { titleI
 
       <div>
         <button type="button" className="link-button rate-toggle" aria-expanded={detail} aria-controls={`${uid}-detail`} onClick={() => setDetail(!detail)}>
-          Rate in detail <span className="muted" aria-hidden="true">{detail ? 'Hide' : 'Show'}</span>
+          Rate in detail <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6.5l4 4 4-4" /></svg>
         </button>
         <div id={`${uid}-detail`} className="rate-detail" hidden={!detail}>
           {FIELDS.map((f) => {

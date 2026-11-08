@@ -35,7 +35,7 @@ export default function ConfirmEmailChange() {
       {status === 'loading' && <p className="muted">Confirming</p>}
       {status === 'ok' && <p role="status">{message}</p>}
       {status === 'error' && <p className="error" role="alert">{message}</p>}
-      {status !== 'loading' && <Link to="/login" className="link">Go to login</Link>}
+      {status !== 'loading' && <Link to="/login" className="link">Go to log in</Link>}
     </div>
   )
 }

@@ -11,7 +11,7 @@ export default function GoogleCallback() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const userId = params.get('userId')
-  const [error, setError] = useState(userId ? '' : 'This Google sign-in link is not valid. Start again from the login page.')
+  const [error, setError] = useState(userId ? '' : 'This Google sign-in link is not valid. Start again from the Log in page.')
   // a refresh token is single-use and StrictMode runs effects twice in dev
   const called = useRef(false)
 
@@ -41,7 +41,7 @@ export default function GoogleCallback() {
     <div className="auth-form">
       <h1>Google sign-in</h1>
       {error ? <p className="error" role="alert">{error}</p> : <p className="muted">Signing you in</p>}
-      {error && <Link to="/login" className="link">Back to login</Link>}
+      {error && <Link to="/login" className="link">Back to log in</Link>}
     </div>
   )
 }

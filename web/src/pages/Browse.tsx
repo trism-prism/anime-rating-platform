@@ -174,6 +174,7 @@ export default function Browse() {
   return (
     <div>
       <h1>Browse</h1>
+      {!filtered && <p className="muted site-intro">Rate anime and manga, write reviews, and see what your friends think.</p>}
       <div className="filters">
         <SearchBox key={clearCount} onSubmit={(q) => change({ q })} initial={query} />
         <Select label="Type" value={type} options={TYPES} onChange={(v) => change({ type: v })} />

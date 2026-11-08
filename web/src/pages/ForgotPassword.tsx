@@ -102,7 +102,7 @@ export default function ForgotPassword() {
         </button>
       )}
       {step !== 'email' && <button type="button" onClick={startOver} disabled={busy}>Start over</button>}
-      <p className="muted"><Link to="/login" className="link">Back to login</Link></p>
+      <p className="muted"><Link to="/login" className="link">Back to log in</Link></p>
     </form>
   )
 }

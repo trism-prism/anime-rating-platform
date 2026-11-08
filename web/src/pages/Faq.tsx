@@ -12,7 +12,7 @@ export default function Faq() {
       </p>
       <h3>How do I reset my password?</h3>
       <p>
-        Use <Link to="/forgot-password" className="link">Forgot password</Link> on the login page. A code is emailed to you.
+        Use <Link to="/forgot-password" className="link">Forgot password</Link> on the Log in page. A code is emailed to you.
         Accounts made with Google can add a password the same way.
       </p>
 
@@ -28,7 +28,7 @@ export default function Faq() {
       <h3>Can I download my data?</h3>
       <p>
         Yes. <Link to="/settings" className="link">Settings</Link> has an export of your ratings,
-        reviews, list entries and custom lists as JSON or CSV. It asks for your password.
+        reviews, list entries and custom lists as a spreadsheet or backup file. It asks for your password.
       </p>
       <h3>Can I delete my account?</h3>
       <p>

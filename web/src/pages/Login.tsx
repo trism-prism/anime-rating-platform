@@ -13,7 +13,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
 }
 
 export default function Login() {
-  useTitle('Login')
+  useTitle('Log in')
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -44,14 +44,14 @@ export default function Login() {
 
   return (
     <form className="auth-form" onSubmit={submit}>
-      <h1>Login</h1>
+      <h1>Log in</h1>
       {note && <p className="muted">{note}</p>}
       <label>Email
         <input type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
       <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
       {(error || googleError) && <p className="error">{error || googleError}</p>}
-      <button type="submit" className="btn-primary" disabled={busy}>Login</button>
+      <button type="submit" className="btn-primary" disabled={busy}>Log in</button>
       <GoogleLink notice />
       <p className="muted"><Link to="/forgot-password" className="link">Forgot password?</Link></p>
       <p className="muted">No account? <Link to="/register" className="link">Register</Link></p>
