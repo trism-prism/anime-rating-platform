@@ -13,6 +13,7 @@ export default function Layout() {
 
   return (
     <>
+      <a href="#main" className="skip-link">Skip to content</a>
       <nav className="nav">
         <NavLink to="/" end className="brand">AnimeRate</NavLink>
         <span className="spacer" />
@@ -39,7 +40,7 @@ export default function Layout() {
           <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setHidden(true)}>&times;</button>
         </div>
       )}
-      <main className="page">
+      <main id="main" className="page" tabIndex={-1}>
         <Outlet />
       </main>
       <footer className="page muted">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
+import { useTitle } from '../useTitle'
 import type { ListPageData } from '../types'
 
 // keyed so another list or another account starts from the loading state
@@ -16,6 +17,7 @@ function List({ id }: { id: string }) {
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState('')
   const [name, setName] = useState('')
+  useTitle(data?.name)
 
   useEffect(() => {
     api<ListPageData>(`/lists/${id}`)

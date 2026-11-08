@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import SearchBox from '../components/SearchBox'
 import Select from '../components/Select'
 import SeriesCard from '../components/SeriesCard'
 import type { SeriesPage, SeriesSummary } from '../types'
+import { useTitle } from '../useTitle'
 
 const TAKE = 24
 const TYPES = [{ value: '', label: 'All types' }, { value: 'Anime', label: 'Anime' }, { value: 'Manga', label: 'Manga' }]
@@ -20,7 +22,10 @@ function seriesUrl(query: string, type: string, genre: string, cursor: string | 
 }
 
 export default function Browse() {
-  const [query, setQuery] = useState('') // search text actually sent, updated on submit
+  useTitle('Browse')
+  const [params] = useSearchParams()
+  const [initial] = useState(params.get('q') ?? '') // a search started elsewhere (the 404 page) arrives as ?q=
+  const [query, setQuery] = useState(initial) // search text actually sent, updated on submit
   const [type, setType] = useState('')
   const [genre, setGenre] = useState('')
   // moreBusy and moreError live in data so they belong to this filter key and reset with every first-page load
@@ -72,7 +77,7 @@ export default function Browse() {
     <div>
       <h1>Browse</h1>
       <div className="filters">
-        <SearchBox onSubmit={setQuery} />
+        <SearchBox onSubmit={setQuery} initial={initial} />
         <Select label="Type" value={type} options={TYPES} onChange={setType} />
         <Select label="Genre" value={genre} options={GENRE_OPTIONS} onChange={setGenre} />
       </div>

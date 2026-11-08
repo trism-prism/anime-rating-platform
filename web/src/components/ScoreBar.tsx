@@ -1,3 +1,5 @@
+import { score } from '../format'
+
 // scores are out of 10
 export default function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
@@ -6,7 +8,7 @@ export default function ScoreBar({ label, value }: { label: string; value: numbe
       <div className="bar">
         <div className={label === 'Overall' ? 'bar-fill lead' : 'bar-fill'} style={{ width: `${value * 10}%` }} />
       </div>
-      <span className="score-value">{value}</span>
+      <span className="score-value">{score(value)}</span>
     </div>
   )
 }

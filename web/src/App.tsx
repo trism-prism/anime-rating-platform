@@ -25,6 +25,7 @@ import ContentPolicy from './pages/ContentPolicy'
 import Faq from './pages/Faq'
 import Support from './pages/Support'
 import GoogleCallback from './pages/GoogleCallback'
+import NotFound from './pages/NotFound'
 import { AuthProvider } from './auth'
 
 export default function App() {
@@ -59,7 +60,7 @@ export default function App() {
           <Route path="/faq" element={<Faq />} />
           <Route path="/support" element={<Support />} />
           <Route path="/auth/callback" element={<GoogleCallback />} />
-          <Route path="*" element={<h1>Page not found</h1>} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

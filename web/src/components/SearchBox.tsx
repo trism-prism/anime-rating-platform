@@ -7,11 +7,11 @@ const MIN_CHARS = 2
 const DEBOUNCE_MS = 250
 
 // text box with series typeahead (GET /search/suggest); submitting the form without a highlighted option runs a full search
-export default function SearchBox({ onSubmit }: { onSubmit: (text: string) => void }) {
+export default function SearchBox({ onSubmit, initial = '' }: { onSubmit: (text: string) => void; initial?: string }) {
   const navigate = useNavigate()
   const uid = useId()
   const listId = `${uid}-list`
-  const [text, setText] = useState('')
+  const [text, setText] = useState(initial)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const [result, setResult] = useState<{ q: string; list: Suggestion[]; failed: boolean } | null>(null)

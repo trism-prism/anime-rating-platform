@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import SeriesCard from '../components/SeriesCard'
 import type { TitleType, TrendingItem } from '../types'
+import { useTitle } from '../useTitle'
 
 export default function Trending() {
+  useTitle('Trending')
   const [type, setType] = useState<TitleType>('Anime')
   const [items, setItems] = useState<{ type: TitleType; list: TrendingItem[] } | null>(null)
   const [error, setError] = useState('')
