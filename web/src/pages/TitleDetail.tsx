@@ -8,12 +8,9 @@ import AddToList from '../components/AddToList'
 import AlsoRated from '../components/AlsoRated'
 import Reviews from '../components/Reviews'
 import Select from '../components/Select'
+import { cleanSynopsis, formatLabel, score, sentence, sizeLabel } from '../format'
+import { useTitle } from '../useTitle'
 import type { TitleDetail as Detail } from '../types'
-
-// AniList synopses contain html (<br>, <i>); show as plain text instead of injecting html
-function plainText(html: string | null) {
-  return (html ?? '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
-}
 
 export default function TitleDetail() {
   const { id } = useParams()
@@ -21,6 +18,7 @@ export default function TitleDetail() {
   const [error, setError] = useState<{ id: string; message: string } | null>(null)
   const [tick, setTick] = useState(0) // bump to refetch after rating
   const [picked, setPicked] = useState({ titleId: 0, volume: 0 }) // volume 0 = none picked
+  useTitle(title && title.id === Number(id) ? title.name : null)
 
   useEffect(() => {
     let stale = false
@@ -44,7 +42,8 @@ export default function TitleDetail() {
 
   const a = title.averages
   const volume = picked.titleId === title.id ? picked.volume : 0
-  const size = title.type === 'Anime' ? (title.episodes ? `${title.episodes} episodes` : '') : (title.chapters ? `${title.chapters} chapters` : '')
+  const format = title.format && formatLabel(title.format).toLowerCase() !== title.type.toLowerCase() ? formatLabel(title.format) : '' // "Manga · Manga" says nothing
+  const synopsis = cleanSynopsis(title.synopsis)
 
   return (
     <div>
@@ -55,11 +54,12 @@ export default function TitleDetail() {
             <Link to={`/series/${title.seriesId}`} className="link">{title.seriesName}</Link> · #{title.position}
           </p>
           <h1>{title.name}</h1>
-          <p className="muted">{[title.type, title.format && title.format.replace(/_/g, ' '), title.year, size].filter(Boolean).join(' · ')}</p>
+          <p className="muted">{[title.type, format, title.year, sizeLabel(title)].filter(Boolean).join(' · ')}</p>
           <div className="tags">
             {title.genres.map((g) => <span key={g} className="tag">{g}</span>)}
           </div>
-          <p className="synopsis">{plainText(title.synopsis) || 'No synopsis.'}</p>
+          <p className="synopsis">{synopsis.text || 'No synopsis.'}</p>
+          {synopsis.source && <p className="muted credit">Source: {synopsis.source}</p>}
         </div>
       </div>
 
@@ -73,11 +73,11 @@ export default function TitleDetail() {
           <ScoreBar label="Overall" value={a.overall} />
         </div>
       ) : (
-        <p className="muted">No ratings yet.</p>
+        <p className="muted">Not rated yet</p>
       )}
 
       <h2>Your rating</h2>
-      <RateForm key={title.id} titleId={title.id} onChanged={load} />
+      <RateForm key={`rate-${title.id}`} titleId={title.id} onChanged={load} />
 
       {title.type === 'Manga' && title.volumes != null && (
         <>
@@ -106,7 +106,7 @@ export default function TitleDetail() {
               <thead><tr><th>Volume</th><th>Average</th><th>Ratings</th></tr></thead>
               <tbody>
                 {title.volumeAverages.map((v) => (
-                  <tr key={v.volume}><td>Volume {v.volume}</td><td className="num"><strong>{v.average}</strong> / 10</td><td className="num">{v.count}</td></tr>
+                  <tr key={v.volume}><td>Volume {v.volume}</td><td className="num"><strong>{score(v.average)}</strong> / 10</td><td className="num">{v.count}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -114,9 +114,9 @@ export default function TitleDetail() {
         </>
       )}
 
-      <h2>Your list</h2>
-      <ListForm key={title.id} titleId={title.id} />
-      <AddToList key={title.id} titleId={title.id} />
+      <h2>My List</h2>
+      <ListForm key={`list-${title.id}`} titleId={title.id} />
+      <AddToList key={`add-${title.id}`} titleId={title.id} />
 
 
       <h2>Characters</h2>
@@ -124,18 +124,18 @@ export default function TitleDetail() {
       <ul className="characters">
         {title.characters.map((c) => (
           <li key={c.characterId}>
-            {c.imageUrl ? <img src={c.imageUrl} alt={c.name} /> : <div className="noimg" />}
+            {c.imageUrl ? <img src={c.imageUrl} alt="" loading="lazy" /> : <div className="noimg" />}
             <div>
               <div>{c.name}</div>
-              <div className="muted">{[c.role, c.voiceActor && `VA: ${c.voiceActor.name}`].filter(Boolean).join(' · ')}</div>
+              <div className="muted">{[c.role && sentence(c.role), c.voiceActor && `Voice: ${c.voiceActor.name}`].filter(Boolean).join(' · ')}</div>
             </div>
           </li>
         ))}
       </ul>
 
-      <AlsoRated key={title.id} path={`/titles/${title.id}`} />
+      <AlsoRated key={`also-${title.id}`} path={`/titles/${title.id}`} />
 
-      <Reviews key={title.id} path={`/titles/${title.id}`} showTitle={false} refresh={tick} />
+      <Reviews key={`reviews-${title.id}`} path={`/titles/${title.id}`} showTitle={false} refresh={tick} />
     </div>
   )
 }

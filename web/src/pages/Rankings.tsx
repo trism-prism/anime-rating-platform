@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import Select from '../components/Select'
 import type { RankingRow } from '../types'
+import { score } from '../format'
+import { useTitle } from '../useTitle'
 
 const CATEGORY_OPTIONS = ['overall', 'story', 'art', 'characters', 'enjoyment'].map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }))
 const TYPES = [{ value: '', label: 'Anime and manga' }, { value: 'Anime', label: 'Anime' }, { value: 'Manga', label: 'Manga' }]
 
 export default function Rankings() {
+  useTitle('Rankings')
   const [category, setCategory] = useState('overall')
   const [type, setType] = useState('')
   const [rows, setRows] = useState<{ key: string; list: RankingRow[] } | null>(null)
@@ -45,7 +48,7 @@ export default function Rankings() {
             <li key={r.id}>
               <Link to={`/series/${r.id}`} className="list-name">{r.name}</Link>
               <span className="muted">{r.type}</span>
-              <strong>{r.average}</strong>
+              <strong>{score(r.average)}</strong>
               <span className="muted"><span className="num">{r.ratingCount}</span> {r.ratingCount === 1 ? 'rating' : 'ratings'}</span>
             </li>
           ))}

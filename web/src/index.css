@@ -210,7 +210,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .card img, .card .noimg { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block; }
 .noimg { background: var(--raised); }
 .card-body { padding: var(--s-3); font-size: var(--fs-sm); line-height: 20px; }
-.card-name { font-size: var(--fs-base); font-weight: var(--fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-name { margin: 0; line-height: 20px; font-size: var(--fs-base); font-weight: var(--fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* signature: the community score sits on the cover like a small tag */
 .score-chip { position: absolute; top: var(--s-2); left: var(--s-2); padding: 2px 6px; border-radius: var(--r-xs); background: rgb(15 14 13 / 0.85); color: var(--accent); font-size: var(--fs-xs); line-height: 16px; font-weight: var(--fw-medium); }
 
@@ -323,7 +323,7 @@ button.on { background: var(--raised-hover); border-color: var(--accent); color:
 .volumes { max-width: 520px; }
 
 /* admin series tools */
-.picker { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; flex: 1 1 260px; }
+.picker { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; flex: 1 1 220px; }
 .picker-list { height: 168px; overflow-y: auto; border: 1px solid var(--hairline); border-radius: var(--r-sm); padding: var(--s-1); background: var(--card); }
 .picker-list button { display: flex; width: 100%; justify-content: space-between; gap: var(--s-2); border: 0; background: none; text-align: left; padding: var(--s-1) var(--s-2); min-height: 32px; border-radius: var(--r-xs); }
 .picker-list button[aria-pressed='true'] { background: var(--raised-hover); color: var(--accent); }
@@ -426,9 +426,6 @@ footer.page a { color: var(--text-muted); transition: color var(--t-fast) var(--
 footer.page a:hover { color: var(--text); }
 .hp { position: absolute; left: -10000px; height: 0; overflow: hidden; }
 .auth-form .check { flex-direction: row; align-items: flex-start; }
-/* roles arrive from the API in capitals; show them in sentence case */
-.characters .muted { text-transform: lowercase; }
-.characters .muted::first-letter { text-transform: uppercase; }
 
 /* own profile: large picture with a pencil, inline edit rows, picture dialog */
 .profile-avatar-lg { position: relative; display: inline-block; }
@@ -453,8 +450,9 @@ footer.page a:hover { color: var(--text); }
 .overview-genres { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .overview-genres li { background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: var(--s-2) var(--s-3); }
 
-/* empty field on your own profile that you click to fill */
-.field-empty { display: flex; justify-content: space-between; gap: var(--s-3); width: 100%; max-width: 480px; margin-bottom: var(--s-4); text-align: left; background: none; border-style: dashed; border-color: var(--hairline-strong); color: var(--text-muted); }
+/* empty field on your own profile: a quiet link that opens the editor */
+.field-empty { display: block; margin-bottom: var(--s-4); min-height: var(--control-h); }
+.link-button.field-empty:hover:not(:disabled) { color: var(--text); }
 
 /* avatar editor: themed file button over a visually hidden input */
 .avatar-file { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-3); }
@@ -465,3 +463,27 @@ footer.page a:hover { color: var(--text); }
 .avatar-file input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
 .avatar-file input:disabled + label { opacity: 0.45; cursor: default; }
 .avatar-file-name { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* skip link: first focusable element, shown only while focused */
+.skip-link { position: absolute; left: var(--s-2); top: var(--s-2); z-index: 100; padding: var(--s-2) var(--s-4); border-radius: var(--r-sm); background: var(--accent); color: var(--accent-ink); font-weight: var(--fw-medium); transform: translateY(-200%); }
+.skip-link:focus { transform: none; }
+main:focus { outline: none; }
+
+/* a link that looks like a button */
+a.button { display: inline-flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--raised); transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+a.button:hover { background: var(--raised-hover); border-color: var(--hairline-strong); }
+.not-found { max-width: 560px; }
+.not-found .filters { margin: var(--s-4) 0; }
+
+/* the provider credit under a synopsis */
+.credit { margin-top: calc(-1 * var(--s-2)); font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* admin: panels never push the page wider than the screen */
+.admin-box, .picker { min-width: 0; max-width: 100%; }
+.people li { flex-wrap: wrap; }
+.people .profile-rating-main { flex: 1 1 220px; }
+@media (max-width: 600px) {
+  .admin-box { padding: var(--s-3); }
+  .admin-box .row-top { flex-direction: column; align-items: stretch; }
+  .admin-box .row-top .picker { flex: 0 0 auto; width: 100%; }
+}

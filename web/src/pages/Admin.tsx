@@ -4,6 +4,7 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import AdminReports from '../components/AdminReports'
 import AdminSeries from '../components/AdminSeries'
+import { useTitle } from '../useTitle'
 
 type AdminUser = { id: string; userName: string; email: string; emailVerified: boolean; isAdmin: boolean }
 type Page = { total: number; page: number; pageSize: number; items: AdminUser[] }
@@ -11,6 +12,7 @@ type Page = { total: number; page: number; pageSize: number; items: AdminUser[] 
 const PAGE_SIZE = 20
 
 export default function Admin() {
+  useTitle('Admin')
   const { isAdmin, loading } = useAuth()
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('') // applied search
@@ -81,9 +83,10 @@ export default function Admin() {
         <button type="submit">Search</button>
       </form>
       {error && <p className="error">{error}</p>}
+      <div className="table-scroll">
       <table className="table">
         <thead>
-          <tr><th>Display name</th><th>Email</th><th>Verified</th><th>Admin</th><th /></tr>
+          <tr><th>Display name</th><th>Email</th><th>Verified</th><th>Admin</th><th><span className="sr-only">Actions</span></th></tr>
         </thead>
         <tbody>
           {data?.items.map((u) => (
@@ -97,6 +100,7 @@ export default function Admin() {
           ))}
         </tbody>
       </table>
+      </div>
       <div className="pager">
         <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
         <span className="muted">Page {page} of {pages}</span>

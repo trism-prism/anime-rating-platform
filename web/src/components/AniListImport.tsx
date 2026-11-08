@@ -35,7 +35,7 @@ export default function AniListImport() {
     <>
       <h2>Import from AniList</h2>
       <p className="muted hint">
-        Copies the titles on your public AniList list that exist here. Scores are not imported. Imported entries are visible to only you; change that on My list.
+        Copies the titles on your public AniList list that exist here. Scores are not imported. Imported entries are visible to only you; change that on My List.
         Your list must be public. You can import once every 10 minutes.
       </p>
       <form className="row" onSubmit={start}>
@@ -45,7 +45,7 @@ export default function AniListImport() {
       {status?.running && <p className="muted">Importing</p>}
       {error && <p className="error">{error}</p>}
       {status?.error && <p className="error">{status.error}</p>}
-      {r && <p>Added {r.added}, already on your list {r.alreadyOnList}, not found here {r.unmatched}.</p>}
+      {r && <p>Added {r.added}, already on My List {r.alreadyOnList}, not found here {r.unmatched}.</p>}
     </>
   )
 }

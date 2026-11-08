@@ -48,7 +48,7 @@ export default function InlineEdit({ label, value, display, empty, field, hint, 
   if (!editing) {
     const start = () => { setDraft(value); setError(''); setEditing(true) }
     if (empty && !value) {
-      return <button ref={edit} type="button" className="field-empty" onClick={start}><span>{empty}</span><span className="mono">{hint('')}</span></button>
+      return <button ref={edit} type="button" className="link-button field-empty" onClick={start}>{empty}</button>
     }
     return (
       <div className="inline-edit">

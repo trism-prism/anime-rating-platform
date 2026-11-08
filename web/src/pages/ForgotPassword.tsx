@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import PasswordInput from '../components/PasswordInput'
 import { useCountdown } from '../useCountdown'
+import { useTitle } from '../useTitle'
 
 type Step = 'email' | 'code' | 'password'
 
@@ -10,6 +11,7 @@ const RESEND_SECONDS = 60 // the server sends one code per address per minute
 
 // three steps on one page: the account email, the emailed code, the new password
 export default function ForgotPassword() {
+  useTitle('Forgot password')
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')

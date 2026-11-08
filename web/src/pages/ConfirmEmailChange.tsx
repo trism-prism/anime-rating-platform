@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { useTitle } from '../useTitle'
 
 // the link in the mail sent to the new address; every device is signed out, so it ends at the login page
 export default function ConfirmEmailChange() {
+  useTitle('Confirm new email')
   const [params] = useSearchParams()
   const { user, refresh } = useAuth()
   const userId = params.get('userId')
