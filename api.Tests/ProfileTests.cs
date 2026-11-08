@@ -117,6 +117,7 @@ public class ProfileTests
         var file = (FileContentResult)await Pic(open, "ALICE"); // the name lookup ignores case
         Assert.Equal(Png, file.FileContents);
         Assert.Equal(204, Status(await Pic(open, "carol"))); // no picture
+        Assert.Equal(204, Status(await Pic(open, "nobody"))); // no such account
         // a matching If-None-Match gets a 304 with no body; a stale one gets the picture
         string Etag(AppDbContext db) => $"\"{db.Avatars.AsNoTracking().Single().UpdatedAt.Ticks}\"";
         using (var db = open())

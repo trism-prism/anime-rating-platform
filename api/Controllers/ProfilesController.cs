@@ -53,8 +53,8 @@ public class ProfilesController : ControllerBase
     }
 
     // The picture as an image (public, like the profile; an <img> can't send a token so blocks don't apply). 204 when there is none
-    // or the account is gone (a 404 would log an error in the browser console for every such avatar): the web client then shows the initial-letter avatar. no-cache + ETag: always revalidated, a 304 costs no bytes.
-    // The bytes are only read when the ETag doesn't match.
+    // or the account is gone (a 404 would log an error in the browser console for every such avatar): the web client then shows the initial-letter avatar.
+    // Always no-cache, so a new picture shows at once; the ETag (200 only) makes a repeat a 304 that costs no bytes. The bytes are only read when the ETag doesn't match.
     [EnableRateLimiting("avatar-read")]
     [HttpGet("users/{username}/avatar")]
     public async Task<IActionResult> Avatar(string username)
@@ -63,10 +63,10 @@ public class ProfilesController : ControllerBase
         var normalized = username.ToUpperInvariant();
         var meta = await _db.Avatars.Where(x => _db.Users.Any(u => u.Id == x.UserId && u.NormalizedUserName == normalized && u.DeletedAt == null))
             .Select(x => new { x.UserId, x.ContentType, x.UpdatedAt }).FirstOrDefaultAsync();
+        Response.Headers.CacheControl = "public, no-cache";
         if (meta == null) return NoContent();
 
         var etag = $"\"{meta.UpdatedAt.Ticks}\"";
-        Response.Headers.CacheControl = "public, no-cache";
         Response.Headers.ETag = etag;
         if (Request.Headers.IfNoneMatch.Contains(etag)) return StatusCode(304);
         var data = await _db.Avatars.Where(x => x.UserId == meta.UserId).Select(x => x.Data).FirstOrDefaultAsync();

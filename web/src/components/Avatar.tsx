@@ -11,7 +11,7 @@ export default function Avatar({ userName, small }: { userName: string; small?: 
   return (
     <span className={small ? 'avatar small' : 'avatar'} aria-hidden="true">
       {userName !== DELETED_USER && failed !== src
-        ? <img src={src} alt="" onError={() => setFailed(src)} />
+        ? <img src={src} alt="" onError={() => setFailed(src)} onLoad={(e) => { if (e.currentTarget.naturalWidth === 0) setFailed(src) }} />
         : userName.charAt(0).toUpperCase()}
     </span>
   )

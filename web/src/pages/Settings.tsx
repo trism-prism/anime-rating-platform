@@ -78,7 +78,7 @@ export default function Settings() {
             {!loading && hasPassword && (
               <section className="settings-card" aria-labelledby="h-export">
                 <h2 id="h-export">Export your data</h2>
-                <p className="card-desc">Your ratings, reviews, list entries and custom lists, with dates.</p>
+                <p className="card-desc">Your profile (username, month joined, bio), ratings, reviews, list entries and custom lists, with dates.</p>
                 <ExportForm />
               </section>
             )}

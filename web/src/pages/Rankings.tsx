@@ -47,10 +47,10 @@ export default function Rankings() {
         <ol className="rankings">
           {rows.list.map((r) => (
             <li key={r.id}>
-              <span className="num rank">{1 + rows.list.filter((x) => Math.round(x.average * 10) > Math.round(r.average * 10)).length}</span>
+              <span className="num rank">{1 + rows.list.filter((x) => Number(score(x.average)) > Number(score(r.average))).length}</span>
               <Link to={`/series/${r.id}`} tabIndex={-1} aria-hidden="true"><Cover src={r.coverUrl} name={r.name} /></Link>
               <span className="rank-text">
-                <Link to={`/series/${r.id}`} className="list-name">{r.name}</Link>
+                <Link to={`/series/${r.id}`} className="list-name" title={r.name}>{r.name}</Link>
                 <span className="muted">{r.type} · <span className="num">{r.ratingCount}</span> {r.ratingCount === 1 ? 'rating' : 'ratings'}</span>
               </span>
               <span className="score-pill">{score(r.average)}</span>

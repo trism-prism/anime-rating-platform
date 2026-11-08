@@ -90,7 +90,7 @@ for (const [label, t] of [['dark', dark], ['light', light]]) {
 
 // every token the light theme overrides must exist in dark, and the light block must not miss a colour
 for (const name of Object.keys(dark)) {
-  if (!/^--(surface|bg|card|raised|control-border|hairline|scrim|shadow|selection|chip|text|accent|positive|negative|warning|on-)/.test(name)) continue
+  if (!/^--(surface|bg|card|raised|field|control-border|hairline|scrim|shadow|selection|chip|text|accent|positive|negative|warning|on-)/.test(name)) continue
   if (!(name in tokens(lightBlock.text))) { fail++; console.error(`FAIL light theme does not set ${name}`) }
 }
 
