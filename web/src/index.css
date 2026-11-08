@@ -458,6 +458,7 @@ footer.page a:hover { color: var(--text); }
 
 /* avatar editor: themed file button over a visually hidden input */
 .avatar-file { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-3); }
+.avatar-file ~ .hint { margin: 0 0 var(--s-2); }
 .avatar-file input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; overflow: hidden; }
 .avatar-file label { display: inline-flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--raised); cursor: pointer; flex-shrink: 0; }
 .avatar-file label:hover { background: var(--raised-hover); border-color: var(--hairline-strong); }
