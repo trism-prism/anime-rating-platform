@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import Legal from '../components/Legal'
+import pageMeta from '../pageMeta.json'
 
 export default function Faq() {
   return (
-    <Legal title="FAQ" updated="2026-11-07">
+    <Legal title={pageMeta['/faq'].title} updated="2026-11-07">
       <h2>Getting started</h2>
       <h3>Why verify my email?</h3>
       <p>

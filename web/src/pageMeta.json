@@ -1,0 +1,11 @@
+{
+  "/trending": { "title": "Trending", "description": "See which anime and manga people are rating and talking about right now." },
+  "/rankings": { "title": "Rankings", "description": "The highest rated anime and manga, ranked by story, art, characters and enjoyment." },
+  "/login": { "title": "Log in", "description": "Log in to AnimeRate to rate anime and manga, keep lists and see what friends watched." },
+  "/register": { "title": "Register", "description": "Create a free AnimeRate account to rate anime and manga, keep lists and follow friends." },
+  "/faq": { "title": "FAQ", "description": "Answers to common questions about ratings, lists, privacy and your AnimeRate account." },
+  "/terms": { "title": "Terms of Service", "description": "The rules for using AnimeRate." },
+  "/privacy": { "title": "Privacy policy", "description": "What AnimeRate collects, why, and how to delete it." },
+  "/content-policy": { "title": "Content policy", "description": "What is and is not allowed in reviews, lists and profiles on AnimeRate." },
+  "/support": { "title": "Support", "description": "Contact AnimeRate support for help with your account or to report a problem." }
+}

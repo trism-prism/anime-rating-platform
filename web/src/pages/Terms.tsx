@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import Legal from '../components/Legal'
+import pageMeta from '../pageMeta.json'
 
 // bump TERMS_VERSION in api/Services/Terms.cs together with this date when the text changes
 export const TERMS_UPDATED = '2026-11-07'
 
 export default function Terms() {
   return (
-    <Legal title="Terms of Service" updated={TERMS_UPDATED}>
+    <Legal title={pageMeta['/terms'].title} updated={TERMS_UPDATED}>
       <p>
         AnimeRate is a hobby and portfolio project, run by one person. It is free, it comes without
         any promise of uptime, and these terms are short on purpose. By creating an account or using

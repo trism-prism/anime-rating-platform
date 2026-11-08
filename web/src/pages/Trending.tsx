@@ -3,9 +3,10 @@ import { api } from '../api'
 import SeriesCard from '../components/SeriesCard'
 import type { TitleType, TrendingItem } from '../types'
 import { useTitle } from '../useTitle'
+import pageMeta from '../pageMeta.json'
 
 export default function Trending() {
-  useTitle('Trending')
+  useTitle(pageMeta['/trending'].title)
   const [type, setType] = useState<TitleType>('Anime')
   const [items, setItems] = useState<{ type: TitleType; list: TrendingItem[] } | null>(null)
   const [error, setError] = useState('')
