@@ -44,7 +44,7 @@ public class SecurityHeadersTests
         Assert.StartsWith("default-src 'none'", ctx.Response.Headers["Content-Security-Policy"].ToString());
     }
 
-    // the website's headers live in web/vercel.json; keep the API rewrite and the single-page fallback next to them
+    // the website's headers live in web/vercel.json; keep the API rewrite, the link-preview rewrite (web/api/preview.js) and the single-page fallback next to them
     [Fact]
     public void Vercel_config_has_headers_and_keeps_the_rewrites()
     {
@@ -62,6 +62,6 @@ public class SecurityHeadersTests
         Assert.DoesNotContain("script-src 'self' 'unsafe", csp); // no inline or eval scripts: index.html has none
 
         var rewrites = json.RootElement.GetProperty("rewrites").EnumerateArray().Select(r => r.GetProperty("source").GetString()).ToList();
-        Assert.Equal(new[] { "/api/:path*", "/(.*)" }, rewrites);
+        Assert.Equal(new[] { "/api/:path*", "/:kind(series|titles)/:id(\\d+)", "/(.*)" }, rewrites);
     }
 }
