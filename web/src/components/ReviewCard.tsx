@@ -77,7 +77,7 @@ export default function ReviewCard({ review, showTitle, defaultOpen = false, onC
         <UserLink name={review.userName} />
         <span className="muted">
           {showTitle && <> · <Link to={`/titles/${review.titleId}`} className="link-quiet">{review.titleName}</Link></>}
-          {review.volume != null && ` · Volume ${review.volume}`} · {score(review.overall)} / 10 · {timeAgo(review.createdAt)}
+          {review.volume != null && ` · Volume ${review.volume}`} · <span className="nowrap">{score(review.overall)} / 10</span> · {timeAgo(review.createdAt)}
         </span>
       </div>
       {review.spoiler ? <Spoiler what="review">{text}</Spoiler> : text}

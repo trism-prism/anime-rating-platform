@@ -64,7 +64,7 @@ function Overall() {
       <h2>Ratings</h2>
       {s.ratingCount === 0 ? <p className="muted">Rate a title from its page and your scores show up here.</p> : (
         <>
-          <p><span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}, average <strong className="num">{s.averageScore != null ? score(s.averageScore) : '-'}</strong> / 10</p>
+          <p><span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}, average <span className="nowrap"><strong className="num">{s.averageScore != null ? score(s.averageScore) : '-'}</strong> / 10</span></p>
           <Bars lead rows={s.distribution.map((value, i) => ({ label: String(i + 1), value }))} />
         </>
       )}

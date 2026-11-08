@@ -73,7 +73,8 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 - Menus and popovers: `--card`, strong hairline, soft neutral shadow, fade and rise 4px.
 - Status: a 6px dot and secondary text, not a colored pill.
 - Charts: bars are 4px thin; neutral by default, the accent only on the leading bar (the biggest in a group, or the Overall score).
-- Icons: one set, inline svg, 16px, stroke 1.5, text-2 color.
+- Icons: one set, inline svg, stroke 1.5, text-2 color; 16px in controls, 20px (`Icon.tsx`) in the navigation.
+- Phones (under 640px): top bar is one row (brand, bell, avatar); Home, Trending, Rankings, My List and Friends sit in a fixed bottom tab bar (signed out: Home, Trending, Rankings, Log in). Controls are 44 high (`--control-h`). Content columns: `--w-narrow` 600 (forms, settings), `--w-reading` 800 (profile, review, list, friends, legal), `--w-wide` 1100 (browse, series, my list, admin); the footer uses the page's column.
 - Focus: a 2px accent ring with 2px offset on every focusable element. Never remove it.
 
 ## Copy rules
