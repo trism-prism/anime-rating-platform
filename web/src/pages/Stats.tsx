@@ -47,13 +47,13 @@ function Overall() {
       <h2>Ratings</h2>
       {s.ratingCount === 0 ? <p className="muted">No ratings yet.</p> : (
         <>
-          <p>{s.ratingCount} {s.ratingCount === 1 ? 'rating' : 'ratings'}, average <strong>{s.averageScore}</strong> / 10</p>
+          <p><span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}, average <strong className="num">{s.averageScore}</strong> / 10</p>
           <Bars rows={s.distribution.map((value, i) => ({ label: String(i + 1), value }))} />
         </>
       )}
 
       <h2>Watched and read</h2>
-      <p>{s.episodes} episodes · {s.chapters} chapters · {s.volumesRated} volumes rated</p>
+      <p><span className="num">{s.episodes}</span> episodes · <span className="num">{s.chapters}</span> chapters · <span className="num">{s.volumesRated}</span> volumes rated</p>
 
       <h2>Top genres</h2>
       {s.genres.length === 0 ? <p className="muted">Nothing on your list yet.</p> : <Bars rows={s.genres.map((g) => ({ label: g.name, value: g.count }))} />}

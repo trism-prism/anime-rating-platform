@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import Browse from './pages/Browse'
 import SeriesPage from './pages/SeriesPage'
@@ -7,7 +7,6 @@ import ReviewPage from './pages/ReviewPage'
 import Trending from './pages/Trending'
 import Rankings from './pages/Rankings'
 import MyList from './pages/MyList'
-import MyLists from './pages/MyLists'
 import ListPage from './pages/ListPage'
 import Stats from './pages/Stats'
 import Login from './pages/Login'
@@ -41,7 +40,7 @@ export default function App() {
           <Route path="/trending" element={<Trending />} />
           <Route path="/rankings" element={<Rankings />} />
           <Route path="/my-list" element={<MyList />} />
-          <Route path="/lists" element={<MyLists />} />
+          <Route path="/lists" element={<Navigate to="/my-list" replace />} />
           <Route path="/lists/:id" element={<ListPage />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/feed" element={<Feed />} />

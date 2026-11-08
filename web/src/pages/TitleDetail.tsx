@@ -7,6 +7,7 @@ import ListForm from '../components/ListForm'
 import AddToList from '../components/AddToList'
 import AlsoRated from '../components/AlsoRated'
 import Reviews from '../components/Reviews'
+import Select from '../components/Select'
 import type { TitleDetail as Detail } from '../types'
 
 // AniList synopses contain html (<br>, <i>); show as plain text instead of injecting html
@@ -84,10 +85,12 @@ export default function TitleDetail() {
           <p className="muted">Volume ratings are kept separate and do not change the title average above.</p>
           <label className="row">
             <span>Volume</span>
-            <select value={volume} onChange={(e) => setPicked({ titleId: title.id, volume: Number(e.target.value) })}>
-              <option value={0}>Pick a volume</option>
-              {Array.from({ length: title.volumes }, (_, i) => i + 1).map((v) => <option key={v} value={v}>Volume {v}</option>)}
-            </select>
+            <Select
+              label="Volume"
+              value={String(volume)}
+              options={[{ value: '0', label: 'Pick a volume' }, ...Array.from({ length: title.volumes }, (_, i) => ({ value: String(i + 1), label: `Volume ${i + 1}` }))]}
+              onChange={(v) => setPicked({ titleId: title.id, volume: Number(v) })}
+            />
           </label>
           {volume > 0 && <RateForm key={`${title.id}-${volume}`} titleId={title.id} volume={volume} onChanged={load} />}
         </>

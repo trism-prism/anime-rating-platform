@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import SearchBox from '../components/SearchBox'
+import Select from '../components/Select'
 import SeriesCard from '../components/SeriesCard'
 import type { SeriesPage, SeriesSummary } from '../types'
 
 const TAKE = 24
+const TYPES = [{ value: '', label: 'All types' }, { value: 'Anime', label: 'Anime' }, { value: 'Manga', label: 'Manga' }]
 const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller']
+const GENRE_OPTIONS = [{ value: '', label: 'All genres' }, ...GENRES.map((g) => ({ value: g, label: g }))]
 
 function seriesUrl(query: string, type: string, genre: string, cursor: string | null) {
   const params = new URLSearchParams({ take: String(TAKE) })
@@ -70,15 +73,8 @@ export default function Browse() {
       <h1>Browse</h1>
       <div className="filters">
         <SearchBox onSubmit={setQuery} />
-        <select aria-label="Type" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">All types</option>
-          <option value="Anime">Anime</option>
-          <option value="Manga">Manga</option>
-        </select>
-        <select aria-label="Genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
-          <option value="">All genres</option>
-          {GENRES.map((g) => <option key={g}>{g}</option>)}
-        </select>
+        <Select label="Type" value={type} options={TYPES} onChange={setType} />
+        <Select label="Genre" value={genre} options={GENRE_OPTIONS} onChange={setGenre} />
       </div>
 
       <div className="results">
