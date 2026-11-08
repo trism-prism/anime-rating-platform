@@ -126,3 +126,7 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 - New palette or font: edit the token blocks (dark and light) in `web/src/index.css`, then run `npm run check:contrast`; for a font also edit the imports in `web/src/main.tsx`.
 - Accent only: change `--accent`, `--accent-hover` and `--accent-ink` in both blocks.
 - Whole redesign: revert the PR; no data or logic changed.
+
+## Brand
+
+The product is GengaRate (genga: the key drawings that set a scene's poses). The nav shows a small mark, three overlapping key-frame sheets with a pencil line, drawn inline in `Layout.tsx` and styled by `.brand-mark` in `index.css` (stroke `--accent`, decorative, `aria-hidden`), then the text wordmark. The favicon (`web/public/favicon.svg`) and the share image (`npm run og-image`) use the same mark in `#ff7a59` on `#141311`.

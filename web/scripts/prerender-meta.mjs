@@ -18,7 +18,7 @@ const swap = (src, re, value) => {
 }
 
 for (const [path, { title, description }] of Object.entries(pages)) {
-  const full = `${title} · AnimeRate`
+  const full = `${title} · GengaRate`
   let out = html
   out = swap(out, /(<title>)[^<]*(<\/title>)/, esc(full))
   out = swap(out, /(<meta name="description" content=")[^"]*(")/, esc(description))
