@@ -8,7 +8,6 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "postbuild": "node scripts/prerender-meta.mjs",
-    "og-image": "node scripts/og-image.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "preview": "vite preview"
   },

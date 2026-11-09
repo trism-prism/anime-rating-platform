@@ -129,4 +129,4 @@ Motion: one curve `cubic-bezier(0.22, 1, 0.36, 1)`; 150ms for hover and press, 2
 
 ## Brand
 
-The product is GengaRate (genga: the key drawings that set a scene's poses). The nav shows a small mark, three overlapping key-frame sheets with a pencil line, drawn inline in `Layout.tsx` and styled by `.brand-mark` in `index.css` (stroke `--accent`, decorative, `aria-hidden`), then the text wordmark. The favicon (`web/public/favicon.svg`) and the share image (`npm run og-image`) use the same mark in `#ff7a59` on `#141311`.
+The product is GengaRate (genga: the key drawings that set a scene's poses). The nav shows a small mark, three overlapping key-frame sheets with a pencil line, drawn inline in `Layout.tsx` and styled by `.brand-mark` in `index.css` (stroke `--accent`, decorative, `aria-hidden`), then the text wordmark. The favicon (`web/public/favicon.svg`) uses the same mark in `#ff7a59` on `#141311`. The share image (`web/public/og-image.png`, 1200x630) is a committed screenshot of the home screen; replace the file to update it.
