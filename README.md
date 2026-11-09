@@ -43,7 +43,7 @@ api/            ASP.NET Core 8, EF Core, Identity, 15 migrations
 api.Tests/      xUnit, InMemory by default, Postgres when TEST_PG is set
 web/            React 19, react-router 7, Vite, TypeScript
   api/          Vercel function for link previews
-  scripts/      contrast check, prerender, og-image
+  scripts/      contrast check, prerender
 .github/        CI: api job, web job
 ```
 
