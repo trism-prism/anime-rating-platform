@@ -2,21 +2,29 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { score } from '../format'
+import { withScope, type Scope } from '../scope'
 import type { ProfileOverview as Overview } from '../types'
 import Cover from './Cover'
 
 // top rated titles, top genres by average score and the rating count, of the ratings the viewer may see
-export default function ProfileOverview({ username, own = false }: { username: string; own?: boolean }) {
+export default function ProfileOverview({ username, own = false, scope = 'all' }: { username: string; own?: boolean; scope?: Scope }) {
   const [o, setO] = useState<Overview | null>(null)
   const [error, setError] = useState('')
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    api<Overview>(`/users/${encodeURIComponent(username)}/overview`).then((r) => { setO(r); setError('') }).catch((e: Error) => setError(e.message))
-  }, [username, tick])
+    let stale = false
+    api<Overview>(withScope(`/users/${encodeURIComponent(username)}/overview`, scope))
+      .then((r) => { if (!stale) { setO(r); setError('') } })
+      .catch((e: Error) => !stale && setError(e.message))
+    return () => { stale = true }
+  }, [username, scope, tick])
 
   if (error) return <p className="error" role="alert">{error} <button onClick={() => setTick((t) => t + 1)}>Retry</button></p>
   if (!o) return null
+  if (o.ratingCount === 0 && scope !== 'all') {
+    return <p className="muted">{scope === 'me' ? 'You have not kept any ratings to yourself.' : own ? 'You have not shared any ratings with friends.' : 'No ratings shared with friends.'}</p>
+  }
   if (o.ratingCount === 0) {
     return own ? (
       <div className="empty-profile">

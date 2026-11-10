@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { setScope } from './scope'
 import { api, getActive, refreshSession, setLostHandler, setSession, type SignedIn } from './api'
 
 // no secrets here: the access token stays in memory and refresh tokens are HttpOnly cookies
@@ -58,6 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(() => !!activeId)
 
   useEffect(() => persist(accounts, activeId), [accounts, activeId])
+
+  // another account (or none) starts from All ratings; the first run is the page load and keeps the stored choice
+  const lastId = useRef(activeId)
+  useEffect(() => {
+    if (lastId.current === activeId) return
+    lastId.current = activeId
+    setScope('all')
+  }, [activeId])
 
   // forget an account; if it was the active one, nobody is signed in until the caller picks another
   const removeAccount = useCallback((id: string) => {

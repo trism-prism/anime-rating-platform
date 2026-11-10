@@ -2,17 +2,19 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { score } from '../format'
+import { useScope, withScope } from '../scope'
 import type { AlsoRatedItem } from '../types'
 
 // "people who rated this also rated": counts only, never who. `path` is /titles/{id} or /series/{id}.
 export default function AlsoRated({ path }: { path: string }) {
   const [items, setItems] = useState<AlsoRatedItem[] | null>(null)
+  const [scope] = useScope()
 
   useEffect(() => {
     let stale = false
-    api<AlsoRatedItem[]>(`${path}/also-rated`).then((r) => !stale && setItems(r)).catch(() => {})
+    api<AlsoRatedItem[]>(withScope(`${path}/also-rated`, scope)).then((r) => !stale && setItems(r)).catch(() => !stale && setItems(null))
     return () => { stale = true }
-  }, [path])
+  }, [path, scope])
 
   if (!items || items.length === 0) return null
   return (

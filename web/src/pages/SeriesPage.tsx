@@ -6,6 +6,8 @@ import AddToList from '../components/AddToList'
 import AlsoRated from '../components/AlsoRated'
 import Cover from '../components/Cover'
 import Reviews from '../components/Reviews'
+import ScopeSelect from '../components/ScopeSelect'
+import { scopeEmpty, useScope, withScope } from '../scope'
 import { cleanSynopsis, formatLabel, plural, score, sizeLabel } from '../format'
 import { useTitle } from '../useTitle'
 import type { MyRating, SeriesDetail, SeriesEntry } from '../types'
@@ -58,6 +60,7 @@ function EntryRow({ e }: { e: SeriesEntry }) {
 export default function SeriesPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const [scope] = useScope()
   const [state, setState] = useState<{ id: string; series: SeriesDetail } | null>(null)
   const [error, setError] = useState<{ id: string; message: string } | null>(null)
   const [tick, setTick] = useState(0)
@@ -68,13 +71,13 @@ export default function SeriesPage() {
   useEffect(() => {
     if (!id) return
     let stale = false
-    api<SeriesDetail>(`/series/${id}`)
+    api<SeriesDetail>(withScope(`/series/${id}`, scope))
       .then((series) => { if (!stale) { setState({ id, series }); setError(null) } })
       .catch((e: Error & { status?: number }) => !stale && setError({ id, message: e.status === 404 ? 'Series not found.' : e.message }))
     return () => {
       stale = true
     }
-  }, [id, tick])
+  }, [id, scope, tick])
 
   useEffect(() => {
     if (!user) return
@@ -164,8 +167,9 @@ export default function SeriesPage() {
               <div className="muted">from <span className="num">{s.ratingCount}</span> {s.ratingCount === 1 ? 'rating' : 'ratings'}</div>
             </div>
           ) : (
-            <div className="series-score-none">Not rated yet</div>
+            <div className="series-score-none">{scopeEmpty(scope, 'rated', 'Not rated yet')}</div>
           )}
+          <ScopeSelect />
           {user && mine && (
             <div className="series-mine">
               <div className="muted">Your ratings</div>
@@ -233,7 +237,7 @@ export default function SeriesPage() {
         </>
       )}
 
-      <Reviews key={`reviews-${s.id}`} path={`/series/${s.id}`} showTitle />
+      <Reviews key={`reviews-${s.id}-${scope}`} path={`/series/${s.id}`} showTitle />
     </div>
   )
 }

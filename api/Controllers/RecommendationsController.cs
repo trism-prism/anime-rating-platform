@@ -1,5 +1,6 @@
 using api.Data;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -38,44 +39,62 @@ public class RecommendationsController : ControllerBase
         public double Average { get; set; }
     }
 
+    // ?scope=friends|me limits the ratings used to those of the viewer's friends (as the viewer may see them) or the viewer's own;
+    // such an answer is personal, so it is computed per request and never cached. all (default) is cached and shared.
     [HttpGet("titles/{id:int}/also-rated")]
-    public async Task<IActionResult> ForTitle(int id)
+    public async Task<IActionResult> ForTitle(int id, string? scope = null)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         if (!await _db.Titles.AnyAsync(t => t.Id == id)) return NotFound();
-        // ponytail: the cache has no size limit, one small entry per page opened; add a SizeLimit if that ever grows
-        var items = await _cache.GetOrCreateAsync("also-title:" + id, async e =>
+        if (sc.Mode == RatingScope.Me) return Ok(Array.Empty<object>()); // the only fan is the viewer, so no title can reach MinCoRaters
+        async Task<List<object>> Build()
         {
-            e.AbsoluteExpirationRelativeToNow = CacheFor;
-            var fans = _db.Ratings.Where(r => r.TitleId == id && r.Volume == null && r.Overall >= LikedAt).Select(r => r.UserId);
-            var rows = await _db.Ratings.Where(r => r.Volume == null && r.TitleId != id && fans.Contains(r.UserId))
+            var all = _db.Ratings.Where(r => r.Volume == null).InScope(_db, sc);
+            var fans = all.Where(r => r.TitleId == id && r.Overall >= LikedAt).Select(r => r.UserId);
+            var rows = await all.Where(r => r.TitleId != id && fans.Contains(r.UserId))
                 .GroupBy(r => r.TitleId)
                 .Select(g => new Co { Key = g.Key, Raters = g.Count(), Average = g.Average(r => r.Overall) })
                 .Where(c => c.Raters >= MinCoRaters)
                 .OrderByDescending(c => c.Raters).ThenByDescending(c => c.Average).ThenBy(c => c.Key).Take(Take).ToListAsync();
             var ids = rows.Select(c => c.Key).ToList();
             var names = await _db.Titles.Where(t => ids.Contains(t.Id)).Select(t => new { t.Id, t.Name, t.SeriesId, t.CoverUrl }).ToDictionaryAsync(t => t.Id);
-            return rows.Select(c => new { titleId = c.Key, names[c.Key].Name, names[c.Key].SeriesId, names[c.Key].CoverUrl, coRaters = c.Raters, average = Math.Round(c.Average, 2) }).ToList();
-        });
-        return Ok(items);
+            return rows.Select(c => (object)new { titleId = c.Key, names[c.Key].Name, names[c.Key].SeriesId, names[c.Key].CoverUrl, coRaters = c.Raters, average = Math.Round(c.Average, 2) }).ToList();
+        }
+        if (sc.Scoped) return Ok(await Build());
+        // ponytail: the cache has no size limit, one small entry per page opened; add a SizeLimit if that ever grows
+        return Ok(await _cache.GetOrCreateAsync("also-title:" + id, e =>
+        {
+            e.AbsoluteExpirationRelativeToNow = CacheFor;
+            return Build();
+        }));
     }
 
     [HttpGet("series/{id:int}/also-rated")]
-    public async Task<IActionResult> ForSeries(int id)
+    public async Task<IActionResult> ForSeries(int id, string? scope = null)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         if (!await _db.Series.AnyAsync(s => s.Id == id)) return NotFound();
-        var items = await _cache.GetOrCreateAsync("also-series:" + id, async e =>
+        if (sc.Mode == RatingScope.Me) return Ok(Array.Empty<object>()); // the only fan is the viewer, so no title can reach MinCoRaters
+        async Task<List<object>> Build()
         {
-            e.AbsoluteExpirationRelativeToNow = CacheFor;
-            var fans = _db.Ratings.Where(r => r.Title.SeriesId == id && r.Volume == null && r.Overall >= LikedAt).Select(r => r.UserId).Distinct();
-            var rows = await _db.Ratings.Where(r => r.Volume == null && r.Title.SeriesId != id && fans.Contains(r.UserId))
+            var all = _db.Ratings.Where(r => r.Volume == null).InScope(_db, sc);
+            var fans = all.Where(r => r.Title.SeriesId == id && r.Overall >= LikedAt).Select(r => r.UserId).Distinct();
+            var rows = await all.Where(r => r.Title.SeriesId != id && fans.Contains(r.UserId))
                 .GroupBy(r => r.Title.SeriesId)
                 .Select(g => new Co { Key = g.Key, Raters = g.Select(r => r.UserId).Distinct().Count(), Average = g.Average(r => r.Overall) })
                 .Where(c => c.Raters >= MinCoRaters)
                 .OrderByDescending(c => c.Raters).ThenByDescending(c => c.Average).ThenBy(c => c.Key).Take(Take).ToListAsync();
             var ids = rows.Select(c => c.Key).ToList();
             var names = await _db.Series.Where(s => ids.Contains(s.Id)).Select(s => new { s.Id, s.Name, s.CoverUrl }).ToDictionaryAsync(s => s.Id);
-            return rows.Select(c => new { seriesId = c.Key, names[c.Key].Name, names[c.Key].CoverUrl, coRaters = c.Raters, average = Math.Round(c.Average, 2) }).ToList();
-        });
-        return Ok(items);
+            return rows.Select(c => (object)new { seriesId = c.Key, names[c.Key].Name, names[c.Key].CoverUrl, coRaters = c.Raters, average = Math.Round(c.Average, 2) }).ToList();
+        }
+        if (sc.Scoped) return Ok(await Build());
+        return Ok(await _cache.GetOrCreateAsync("also-series:" + id, e =>
+        {
+            e.AbsoluteExpirationRelativeToNow = CacheFor;
+            return Build();
+        }));
     }
 }
