@@ -6,10 +6,12 @@ import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
 import AvatarEditor from '../components/AvatarEditor'
 import InlineEdit from '../components/InlineEdit'
+import ScopeSelect from '../components/ScopeSelect'
 import ProfileOverview from '../components/ProfileOverview'
 import ProfileLists from '../components/ProfileLists'
 import MoreMenu from '../components/MoreMenu'
 import { ReportDialog } from '../components/ReportButton'
+import { SCOPE_OPTIONS, type Scope } from '../scope'
 import { plural } from '../format'
 import { refreshPending } from '../pendingRequests'
 import { useTitle } from '../useTitle'
@@ -35,6 +37,7 @@ function Profile({ username }: { username: string }) {
   const [reported, setReported] = useState(false)
   const moreButton = useRef<HTMLButtonElement>(null)
   const [tick, setTick] = useState(0)
+  const [shown, setShown] = useState<Scope>('all') // local to this profile, not in the address: the page has no other address state
   useTitle(p?.userName ?? username)
   useEffect(() => { if (reported) moreButton.current?.focus() }, [reported]) // the dialog is gone: keep focus on More
 
@@ -146,7 +149,12 @@ function Profile({ username }: { username: string }) {
       )}
       {actionError && <p className="error" role="alert">{actionError}</p>}
 
-      <ProfileOverview key={`o:${p.userName}:${p.viewerState}`} username={p.userName} own={state === 'Self'} />
+      {state !== null && (
+        <div className="profile-scope">
+          <ScopeSelect value={shown} onChange={setShown} options={state === 'Self' ? SCOPE_OPTIONS : SCOPE_OPTIONS.filter((o) => o.value !== 'me')} />
+        </div>
+      )}
+      <ProfileOverview key={`o:${p.userName}:${p.viewerState}`} username={p.userName} own={state === 'Self'} scope={shown} />
       <ProfileLists key={`l:${p.userName}:${p.viewerState}`} username={p.userName} />
 
       <ConfirmDialog open={confirm === 'block'} title={`Block ${p.userName}?`} confirmLabel="Block" busy={busy}
