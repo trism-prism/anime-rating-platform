@@ -1,5 +1,6 @@
 using api.Data;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -48,8 +49,10 @@ public class TitlesController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> Get(int id)
+    public async Task<IActionResult> Get(int id, string? scope = null)
     {
+        var sc = RatingScopes.Resolve(this, scope);
+        if (sc.Error != null) return sc.Error;
         var t = await _db.Titles.Where(x => x.Id == id)
             .Select(x => new
             {
@@ -69,7 +72,7 @@ public class TitlesController : ControllerBase
                 VoiceActor = tc.VoiceActor == null ? null : new { tc.VoiceActor.Id, tc.VoiceActor.Name, tc.VoiceActor.ImageUrl }
             }).ToListAsync();
 
-        var ratings = _db.Ratings.Where(r => r.TitleId == id);
+        var ratings = _db.Ratings.Where(r => r.TitleId == id).InScope(_db, sc);
         // title averages use whole-title ratings only; volumes are averaged separately below
         var avg = await ratings.Where(r => r.Volume == null).GroupBy(r => 1).Select(g => new
         {
