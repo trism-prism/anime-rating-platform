@@ -12,7 +12,7 @@ export default function AlsoRated({ path }: { path: string }) {
 
   useEffect(() => {
     let stale = false
-    api<AlsoRatedItem[]>(withScope(`${path}/also-rated`, scope)).then((r) => !stale && setItems(r)).catch(() => {})
+    api<AlsoRatedItem[]>(withScope(`${path}/also-rated`, scope)).then((r) => !stale && setItems(r)).catch(() => !stale && setItems(null))
     return () => { stale = true }
   }, [path, scope])
 

@@ -13,7 +13,11 @@ export default function ProfileOverview({ username, own = false, scope = 'all' }
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    api<Overview>(withScope(`/users/${encodeURIComponent(username)}/overview`, scope)).then((r) => { setO(r); setError('') }).catch((e: Error) => setError(e.message))
+    let stale = false
+    api<Overview>(withScope(`/users/${encodeURIComponent(username)}/overview`, scope))
+      .then((r) => { if (!stale) { setO(r); setError('') } })
+      .catch((e: Error) => !stale && setError(e.message))
+    return () => { stale = true }
   }, [username, scope, tick])
 
   if (error) return <p className="error" role="alert">{error} <button onClick={() => setTick((t) => t + 1)}>Retry</button></p>
