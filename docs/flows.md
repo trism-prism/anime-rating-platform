@@ -74,6 +74,36 @@ flowchart LR
 
 30 rows show before "Show more". Filters live in the address.
 
+## Review, reply, react
+
+```mermaid
+flowchart TB
+  REV["Review"] --> RP["Reply<br/>verified email, 1-1000 chars, masked"] --> N1["Review author notified<br/>unless blocked"]
+  REV --> RX["React: Helpful, Unhelpful, Funny<br/>one per review, not your own<br/>changing kind replaces it"] --> N2["Review author notified<br/>once per reactor"]
+  REV --> RE["Report<br/>see Reports and moderation"]
+```
+
+Reviews list 10 at a time, by helpful (default) or newest. Replies are oldest first, one level deep. The reply author or the review author can delete a reply. Helpful minus Unhelpful is the review's score.
+
+## Import your AniList list
+
+```mermaid
+flowchart TD
+  S(["Import from AniList"]) --> N{"Name 2-20 of A-Z a-z 0-9 _ ?"}
+  N -->|no| X1["400"]
+  N -->|yes| L{"Free slot?<br/>1 per user per 10 min<br/>3 running at once"}
+  L -->|no| X2["429"]
+  L -->|yes| BG["202, runs in the background<br/>page polls the status"]
+  BG --> M{"Title already in our catalog?"}
+  M -->|no| UN["Counted as unmatched"]
+  M -->|yes| EX{"Already on your list?"}
+  EX -->|yes| AL["Left alone"]
+  EX -->|no| NEW["Added as Only me<br/>CURRENT, PAUSED, REPEATING become Watching"]
+  UN & AL & NEW --> R["Result: added, already there, unmatched"]
+```
+
+A private or unknown list stops with an error. Dates are kept only if they pass the same checks as the edit row (nothing after tomorrow, finish not before start). The status is in memory, so a restart loses it.
+
 ## Friends
 
 ```mermaid
@@ -120,7 +150,13 @@ stateDiagram-v2
 
 Removing settles every open report on the same target. The reporter gets a Report outcome notification. You can only report what you can see, not your own content, and once while a report is open. Reports need a verified email (10 an hour).
 
-Admin page: Import titles, Users (promote, demote; last admin stays), Reports queue (oldest first), Series tools (merge, move a title).
+```mermaid
+flowchart LR
+  AD(["/admin"]) --> I["Import titles<br/>one at a time, 409 if running"]
+  AD --> U["Users<br/>search, promote, demote<br/>the last admin stays"]
+  AD --> R["Reports<br/>oldest first, 20 a page<br/>Dismiss, Remove, Clear profile"]
+  AD --> S["Series<br/>Merge, Move a title"]
+```
 
 ## Settings
 

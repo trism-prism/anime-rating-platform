@@ -124,6 +124,25 @@ flowchart LR
 
 Google-only accounts use this to add a password.
 
+## Change email, password, username
+
+```mermaid
+flowchart TD
+  subgraph Email
+    E1["POST /me/email<br/>new address + current password"] --> E2["Link to the new address<br/>notice to the old one"]
+    E2 --> E3["POST /auth/confirm-email-change<br/>token from the link"]
+    E3 --> E4["Email changed, every session revoked"]
+  end
+  subgraph Password
+    P1["POST /me/password<br/>current + new, policy + HIBP"] --> P2["This session kept, the rest revoked"]
+  end
+  subgraph Username
+    U1["PUT /me/username<br/>3-30 of A-Z a-z 0-9 . _ -, unique"] --> U2["Changed, sessions untouched"]
+  end
+```
+
+A wrong current password answers 403 and counts toward the lockout. Google-only accounts have no password, so they cannot use the email or password routes until they add one through Reset password. A blocked address gets the same silent 200, and sends are limited to one a minute per address and per user.
+
 ## Delete and export
 
 ```mermaid

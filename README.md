@@ -19,6 +19,7 @@ flowchart LR
   DB[(PostgreSQL)]
   AL[AniList GraphQL]
   GM[Gmail API]
+  RS[Resend, fallback]
   GO[Google OAuth]
   HB[Have I Been Pwned range API]
 
@@ -30,6 +31,7 @@ flowchart LR
   API --> DB
   API -->|titles, trending, list import| AL
   API -->|codes, notices| GM
+  API -.->|if Gmail is not set| RS
   API -->|sign-in| GO
   API -->|password check| HB
 ```

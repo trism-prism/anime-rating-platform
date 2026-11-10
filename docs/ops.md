@@ -50,6 +50,30 @@ flowchart TB
 
 Crawlers do not run JavaScript, so they read the tags the function and the prerender step write. Unknown ids and API failures get the plain page.
 
+## Request pipeline
+
+```mermaid
+flowchart LR
+  R([Request]) --> F["Forwarded headers<br/>proto, client IP"] --> H["Security headers"] --> C[CORS] --> A["JWT check<br/>signature, expiry,<br/>session active in the database"] --> L["Rate limit<br/>per endpoint"] --> Z["Authorize<br/>admin role read from the database"] --> K[Controller]
+  A -.->|fail| E1[401]
+  L -.->|over| E2["429 + Retry-After"]
+  Z -.->|fail| E3[403]
+```
+
+There is no global limiter: titles, series, rankings, trending and review reads have no policy. Swagger is on in every environment and lists routes only.
+
+## Startup
+
+```mermaid
+flowchart LR
+  S([API starts]) --> J{"Jwt__Key 32+ chars?"}
+  J -->|no| X[Refuses to start]
+  J -->|yes| M["Database.Migrate()"] --> RO["Create Admin role"] --> UN["Rename usernames containing @"] --> RS["Start RetentionService"]
+  CLI(["dotnet api.dll import"]) --> M2["Migrate, import under the advisory lock, exit"]
+```
+
+The CLI import skips the key check. Import progress is held in memory and the database lock is the only guard across processes.
+
 ## Configuration
 
 Environment variables on Railway (`__` is nesting), or `dotnet user-secrets` in `api/` locally. No values are committed.
@@ -112,6 +136,29 @@ flowchart LR
     DBC["Unique and check constraints,<br/>advisory locks, concurrency tokens"]
   end
   Browser --> Session --> Data
+```
+
+## What other users can see
+
+```mermaid
+flowchart LR
+  subgraph E["Everyone, signed out too"]
+    direction TB
+    E1["Public ratings, reviews, lists"]
+    E2["Username, join date, bio, picture, friend count"]
+    E3["Averages, counts, rankings<br/>include every audience, anonymously"]
+  end
+  subgraph F["Accepted friends and the owner"]
+    direction TB
+    F1["Friends-audience ratings, entries, lists"]
+  end
+  subgraph O["The owner only"]
+    direction TB
+    O1["Only me items"]
+    O2["Email, sessions, Google link"]
+    O3["Notification settings, block list"]
+  end
+  E ~~~ F ~~~ O
 ```
 
 Known limits: `style-src 'unsafe-inline'`, rate limits reset on restart, the slur list has documented gaps, and profile pictures are public to everyone.
