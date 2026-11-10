@@ -75,6 +75,7 @@ flowchart TB
   subgraph localStorage
     AC["accounts (max 5), activeUser"]
     TH["theme (absent = System)"]
+    SCP["ratings-scope (all, friends, me)<br/>reset to all on login, switch, logout"]
   end
   subgraph sessionStorage
     BS["browse-snapshot, browse-version"]
@@ -82,6 +83,7 @@ flowchart TB
   AU[auth.tsx context] --- TOK
   AU --- AC
   TS["theme.ts store"] --- TH
+  SS2["scope.ts store<br/>withScope adds ?scope= unless all"] --- SCP
   BR[Browse] --- BS
   Note["Every storage call is in try/catch"]
 ```
