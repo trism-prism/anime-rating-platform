@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import Cover from '../components/Cover'
+import ScopeSelect from '../components/ScopeSelect'
 import Select from '../components/Select'
+import { useScope } from '../scope'
 import type { RankingRow } from '../types'
 import { score } from '../format'
 import { useTitle } from '../useTitle'
@@ -17,20 +19,22 @@ export default function Rankings() {
   const [type, setType] = useState('')
   const [rows, setRows] = useState<{ key: string; list: RankingRow[] } | null>(null)
   const [error, setError] = useState('')
+  const [scope] = useScope()
 
-  const key = `${category}|${type}`
+  const key = `${category}|${type}|${scope}`
 
   useEffect(() => {
     let stale = false
     const qs = new URLSearchParams({ category })
     if (type) qs.set('type', type)
+    if (scope !== 'all') qs.set('scope', scope)
     api<RankingRow[]>(`/rankings?${qs}`)
       .then((list) => { if (!stale) { setRows({ key, list }); setError('') } })
       .catch((e: Error) => !stale && setError(e.message))
     return () => {
       stale = true
     }
-  }, [category, type, key])
+  }, [category, type, scope, key])
 
   const loading = !rows || rows.key !== key
 
@@ -40,10 +44,11 @@ export default function Rankings() {
       <div className="filters">
         <Select label="Category" value={category} options={CATEGORY_OPTIONS} onChange={setCategory} />
         <Select label="Type" value={type} options={TYPES} onChange={setType} />
+        <ScopeSelect />
       </div>
       {error && <p className="error">{error}</p>}
       {loading && !error && <p className="muted">Loading</p>}
-      {!loading && rows.list.length === 0 && <p className="muted">Not enough ratings yet.</p>}
+      {!loading && rows.list.length === 0 && <p className="muted">{scope === 'friends' ? 'Your friends have not rated enough here yet.' : scope === 'me' ? 'You have not rated enough here yet.' : 'Not enough ratings yet.'}</p>}
       {!loading && (
         <ol className="rankings">
           {rows.list.map((r) => (

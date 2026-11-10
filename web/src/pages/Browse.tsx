@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
+import { useAuth } from '../auth'
 import { browseVersion } from '../browseCache'
 import SearchBox from '../components/SearchBox'
+import ScopeSelect from '../components/ScopeSelect'
 import Select from '../components/Select'
 import SeriesCard from '../components/SeriesCard'
+import { isScope, useScope, withScope, type Scope } from '../scope'
 import type { SeriesPage, SeriesSummary, TrendingItem } from '../types'
 import { useTitle } from '../useTitle'
 
@@ -20,13 +23,13 @@ type Data = { key: string; items: SeriesSummary[]; next: string | null; total: n
 
 const count = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'title' : 'titles'}`
 
-function seriesUrl(query: string, type: string, genre: string, sort: string, cursor: string | null) {
+function seriesUrl(query: string, type: string, genre: string, sort: string, scope: Scope, cursor: string | null) {
   const params = new URLSearchParams({ take: String(TAKE), sort })
   if (query) params.set('search', query)
   if (type) params.set('type', type)
   if (genre) params.set('genre', genre)
   if (cursor) params.set('cursor', cursor)
-  return `/series?${params}`
+  return withScope(`/series?${params}`, scope)
 }
 
 // storage can be blocked or full; Browse then simply starts at the top
@@ -61,6 +64,7 @@ function TrendingRail({ items }: { items: TrendingItem[] }) {
 
 export default function Browse() {
   useTitle('Browse')
+  const { user } = useAuth()
   const [params, setParams] = useSearchParams()
   const location = useLocation()
   // the address holds the search, filters and sort, so Back and refresh bring them back
@@ -68,7 +72,11 @@ export default function Browse() {
   const type = TYPES.some((t) => t.value === params.get('type')) ? params.get('type') ?? '' : ''
   const genre = GENRES.includes(params.get('genre') ?? '') ? params.get('genre') ?? '' : ''
   const sort = SORTS.some((s) => s.value === params.get('sort')) ? params.get('sort') ?? 'popular' : 'popular'
-  const key = `${query}|${type}|${genre}|${sort}`
+  // the site-wide scope is also in the address; an address with a scope is adopted (signed in only), otherwise the stored one is written to it
+  const [stored, setStored] = useScope()
+  const urlScope = params.get('scope')
+  const scope: Scope = user && isScope(urlScope) ? urlScope : stored
+  const key = `${query}|${type}|${genre}|${sort}|${scope}`
   const filtered = !!(query || type || genre)
 
   // null = not known yet. Only the first six covers on the page load eagerly: the rail's, or the grid's when there is no rail.
@@ -103,11 +111,17 @@ export default function Browse() {
   const clear = () => { setClearCount((n) => n + 1); change({ q: '', type: '', genre: '' }) }
 
   useEffect(() => {
+    if (!user) return
+    if (isScope(urlScope)) { if (urlScope !== stored) setStored(urlScope) }
+    else if (stored !== 'all') change({ scope: stored })
+  }, [user, urlScope, stored]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (skipKey.current === key) return
     skipKey.current = null
     const run = { stale: false }
     generation.current++
-    api<SeriesPage>(seriesUrl(query, type, genre, sort, null))
+    api<SeriesPage>(seriesUrl(query, type, genre, sort, scope, null))
       .then((d) => {
         if (run.stale) return
         setData({ key, items: d.items, next: d.nextCursor, total: d.total ?? d.items.length, moreBusy: false, moreError: '' })
@@ -116,7 +130,7 @@ export default function Browse() {
     return () => {
       run.stale = true
     }
-  }, [query, type, genre, sort, key, tick])
+  }, [query, type, genre, sort, scope, key, tick])
 
   // back from a series: same scroll position (the cards keep their size before their pictures load, so the page is tall enough at once)
   useLayoutEffect(() => {
@@ -157,7 +171,7 @@ export default function Browse() {
     const current = (cur: typeof data | null) => (cur && gen === generation.current && cur.next === cursor ? cur : null)
     setData((cur) => { const c = current(cur); return c ? { ...c, moreBusy: true, moreError: '' } : cur })
     try {
-      const d = await api<SeriesPage>(seriesUrl(query, type, genre, sort, cursor))
+      const d = await api<SeriesPage>(seriesUrl(query, type, genre, sort, scope, cursor))
       setData((cur) => {
         const c = current(cur)
         if (!c) return cur
@@ -179,6 +193,7 @@ export default function Browse() {
         <SearchBox key={clearCount} onSubmit={(q) => change({ q })} initial={query} />
         <Select label="Type" value={type} options={TYPES} onChange={(v) => change({ type: v })} />
         <Select label="Genre" value={genre} options={GENRE_OPTIONS} onChange={(v) => change({ genre: v })} />
+        <ScopeSelect value={scope} onChange={(v) => { setStored(v); change({ scope: v === 'all' ? '' : v }) }} />
       </div>
 
       {showRail && <TrendingRail items={rail} />}
@@ -200,7 +215,7 @@ export default function Browse() {
         {loading && error?.key !== key && <p className="muted">Loading</p>}
         {!loading && data.items.length === 0 && (
           <div className="empty">
-            <p><strong>{query ? `Nothing matches '${query}'.` : filtered ? 'Nothing matches these filters.' : 'No series yet.'}</strong></p>
+            <p><strong>{query ? `Nothing matches '${query}'.` : filtered ? 'Nothing matches these filters.' : scope === 'friends' ? 'None of your friends have rated anything yet.' : scope === 'me' ? 'You have not rated anything yet.' : 'No series yet.'}</strong></p>
             {filtered && <p className="muted">Check the spelling, try fewer words, or remove a filter.</p>}
             <div className="row">
               {filtered && <button type="button" onClick={clear}>Clear filters</button>}
