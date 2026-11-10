@@ -244,6 +244,8 @@ public class RatingScopeTests
         int Count(IActionResult r) => Json(r).GetArrayLength();
         Assert.Equal(0, Count(await Run<RecommendationsController>(open, "a", c => c.ForTitle(1, "friends")))); // two friends: under the minimum of 3
         Assert.Equal(0, Count(await Run<RecommendationsController>(open, "a", c => c.ForTitle(1, "me"))));
+        Assert.Equal(0, Count(await Run<RecommendationsController>(open, "a", c => c.ForSeries(1, "me"))));
+        Assert.Equal(200, Status(await Run<RecommendationsController>(open, "a", c => c.ForTitle(1, "ME"))));
         Assert.Equal(0, Count(await Run<RecommendationsController>(open, "a", c => c.ForSeries(1, "friends"))));
         await Rate(open, "f", 1, 9, Audience.Friends);
         await Rate(open, "f", 3, 8);

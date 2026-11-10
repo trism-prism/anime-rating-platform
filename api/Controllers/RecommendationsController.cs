@@ -47,6 +47,7 @@ public class RecommendationsController : ControllerBase
         var sc = RatingScopes.Resolve(this, scope);
         if (sc.Error != null) return sc.Error;
         if (!await _db.Titles.AnyAsync(t => t.Id == id)) return NotFound();
+        if (sc.Mode == RatingScope.Me) return Ok(Array.Empty<object>()); // the only fan is the viewer, so no title can reach MinCoRaters
         async Task<List<object>> Build()
         {
             var all = _db.Ratings.Where(r => r.Volume == null).InScope(_db, sc);
@@ -75,6 +76,7 @@ public class RecommendationsController : ControllerBase
         var sc = RatingScopes.Resolve(this, scope);
         if (sc.Error != null) return sc.Error;
         if (!await _db.Series.AnyAsync(s => s.Id == id)) return NotFound();
+        if (sc.Mode == RatingScope.Me) return Ok(Array.Empty<object>()); // the only fan is the viewer, so no title can reach MinCoRaters
         async Task<List<object>> Build()
         {
             var all = _db.Ratings.Where(r => r.Volume == null).InScope(_db, sc);
